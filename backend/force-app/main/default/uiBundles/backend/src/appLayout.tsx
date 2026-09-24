@@ -1,5 +1,6 @@
 import { AgentforceConversationClient } from "./components/AgentforceConversationClient";
 import { Link, NavLink, Outlet } from "react-router";
+import { Toaster } from "./components/ui/sonner";
 import { Menu, X } from "lucide-react";
 import { getNavigationRoutes, type NavigationItem } from "./router-utils";
 import { useState } from "react";
@@ -109,6 +110,7 @@ export default function AppLayout() {
 			</div>
 
 			<AgentforceConversationClient agentId="<USER_AGENT_ID_18_CHAR_0Xx...>" />
+			<Toaster />
 		</div>
 	);
 }

@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import ParticipantLearningPath from "@/components/participants/ParticipantLearningPath";
 
 type Participant = {
   id: string;
@@ -360,6 +361,19 @@ export default function ParticipantPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Individuelles Curriculum des ausgewählten Teilnehmers */}
+
+      <div className="mt-6">
+        <ParticipantLearningPath
+          key={participant.id}
+          participantId={participant.id}
+          participantName={participant.name}
+          programId={
+            participant.programId === "" ? undefined : participant.programId
+          }
+        />
       </div>
     </div>
   );

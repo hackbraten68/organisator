@@ -5,6 +5,9 @@ import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import AccountObjectDetail from './pages/AccountObjectDetailPage';
 import ParticipantPage from './pages/ParticipantPage';
+import ProgramsPage from './pages/programs/ProgramsPage';
+import ProgramDetailPage from './pages/programs/ProgramDetailPage';
+import type { NavigationHandle } from './types/navigation';
 
 import { Search as GlobalSearch, config } from "./features/search";
 
@@ -19,8 +22,8 @@ export const routes: RouteObject[] = [
         handle: {
           showInNavigation: true,
           label: "Home",
-          icon: "home"
-        }
+          icon: "home",
+        } satisfies NavigationHandle
       },
       {
         path: "search",
@@ -34,8 +37,8 @@ export const routes: RouteObject[] = [
         handle: {
           showInNavigation: true,
           label: "Search",
-          icon: "search"
-        }
+          icon: "search",
+        } satisfies NavigationHandle
       },
       {
         path: "participants",
@@ -43,8 +46,26 @@ export const routes: RouteObject[] = [
         handle: {
           showInNavigation: true,
           label: "Participants",
-          icon: "users"
-        }
+          icon: "users",
+        } satisfies NavigationHandle
+      },
+      {
+        path: "programs",
+        children: [
+          {
+            index: true,
+            element: <ProgramsPage />,
+            handle: {
+              showInNavigation: true,
+              label: "Programs",
+              icon: "book",
+            } satisfies NavigationHandle,
+          },
+          {
+            path: ":programId",
+            element: <ProgramDetailPage />,
+          },
+        ],
       },
       {
         path: "accounts/:recordId",
