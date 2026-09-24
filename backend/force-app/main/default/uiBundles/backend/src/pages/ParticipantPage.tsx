@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type Participant = {
   id: string;
@@ -18,8 +26,10 @@ type Participant = {
   email: string;
   github: string;
   discord: string;
-  program: string;
-  coach: string;
+  programId: string;
+  programName: string;
+  coachId: string;
+  coachName: string;
 };
 
 const participants: Participant[] = [
@@ -30,29 +40,69 @@ const participants: Participant[] = [
     email: "max@example.com",
     github: "maxmustermann",
     discord: "max#1234",
-    program: "IT Pro",
-    coach: "Sam Dillenburg",
+    programId: "p1",
+    programName: "IT Pro",
+    coachId: "c1",
+    coachName: "Sam Dillenburg",
+  },
+  {
+    id: "2",
+    name: "Lisa Müller",
+    status: "Active",
+    email: "lisa@example.com",
+    github: "lisam",
+    discord: "lisa#4321",
+    programId: "p2",
+    programName: "Cloud Engineer",
+    coachId: "c2",
+    coachName: "Sandra Krüger",
   },
 ];
 
 const programs = [
-  "IT Pro",
-  "Cloud Engineer",
-  "DevOps Engineer",
+  {
+    id: "p1",
+    name: "IT Pro",
+  },
+  {
+    id: "p2",
+    name: "Cloud Engineer",
+  },
+  {
+    id: "p3",
+    name: "DevOps Engineer",
+  },
 ];
 
 const coaches = [
-  "Sam Dillenburg",
-  "Sandra Krüger",
-  "Ghaith Saidani",
-  "Frank Blum",
+  {
+    id: "c1",
+    name: "Sam Dillenburg",
+  },
+  {
+    id: "c2",
+    name: "Sandra Krüger",
+  },
+  {
+    id: "c3",
+    name: "Ghaith Saidani",
+  },
+  {
+    id: "c4",
+    name: "Frank Blum",
+  },
 ];
 
 export default function ParticipantPage() {
   const [selectedId, setSelectedId] = useState(participants[0].id);
-  const [participant, setParticipant] = useState<Participant>(
-    participants[0]
+
+  const selectedParticipant = useMemo(
+    () => participants.find((p) => p.id === selectedId) ?? participants[0],
+    [selectedId]
   );
+
+  const [participant, setParticipant] =
+    useState<Participant>(selectedParticipant);
 
   function handleParticipantChange(id: string) {
     const selected = participants.find((p) => p.id === id);
@@ -75,181 +125,242 @@ export default function ParticipantPage() {
     }));
   }
 
+  const isDirty =
+    JSON.stringify(participant) !== JSON.stringify(selectedParticipant);
+
+  function handleProgramChange(id: string) {
+    const program = programs.find((p) => p.id === id);
+
+    if (!program) {
+      return;
+    }
+
+    setParticipant((current) => ({
+      ...current,
+      programId: program.id,
+      programName: program.name,
+    }));
+  }
+
+  function handleCoachChange(id: string) {
+    const coach = coaches.find((c) => c.id === id);
+
+    if (!coach) {
+      return;
+    }
+
+    setParticipant((current) => ({
+      ...current,
+      coachId: coach.id,
+      coachName: coach.name,
+    }));
+  }
+
+  function handleReset() {
+    setParticipant(selectedParticipant);
+  }
+
   function handleSave() {
     console.log("Saving participant", participant);
-    alert("Participant saved (mock implementation)");
+
+    // Hier später Salesforce Mutation aufrufen
+    alert("Participant saved");
   }
 
   return (
-    <div className="container mx-auto max-w-5xl p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Participant Management</CardTitle>
-        </CardHeader>
+    <div className="container mx-auto max-w-7xl p-6">
+      <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
+        {/* Teilnehmerliste */}
 
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label>Participant</Label>
+        <Card>
+          <CardHeader>
+            <CardTitle>Participants</CardTitle>
+          </CardHeader>
 
-            <Select
-              value={selectedId}
-              onValueChange={handleParticipantChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select participant" />
-              </SelectTrigger>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Program</TableHead>
+                </TableRow>
+              </TableHeader>
 
-              <SelectContent>
-                {participants.map((item) => (
-                  <SelectItem
-                    key={item.id}
-                    value={item.id}
+              <TableBody>
+                {participants.map((p) => (
+                  <TableRow
+                    key={p.id}
+                    className={`cursor-pointer ${
+                      p.id === selectedId ? "bg-accent" : ""
+                    }`}
+                    onClick={() => handleParticipantChange(p.id)}
                   >
-                    {item.name}
-                  </SelectItem>
+                    <TableCell>{p.name}</TableCell>
+                    <TableCell>{p.status}</TableCell>
+                    <TableCell>{p.programName}</TableCell>
+                  </TableRow>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Name</Label>
-              <Input
-                value={participant.name}
-                onChange={(e) =>
-                  updateField("name", e.target.value)
-                }
-              />
-            </div>
+        {/* Detailformular */}
 
-            <div className="space-y-2">
-              <Label>Status</Label>
+        <Card>
+          <CardHeader>
+            <CardTitle>Participant Details</CardTitle>
+          </CardHeader>
 
-              <Select
-                value={participant.status}
-                onValueChange={(value) =>
-                  updateField("status", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+          <CardContent className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Name</Label>
 
-                <SelectContent>
-                  <SelectItem value="Onboarding">
-                    Onboarding
-                  </SelectItem>
+                <Input
+                  value={participant.name}
+                  onChange={(e) =>
+                    updateField("name", e.target.value)
+                  }
+                />
+              </div>
 
-                  <SelectItem value="Active">
-                    Active
-                  </SelectItem>
+              <div className="space-y-2">
+                <Label>Status</Label>
 
-                  <SelectItem value="Paused">
-                    Paused
-                  </SelectItem>
+                <Select
+                  value={participant.status}
+                  onValueChange={(value) =>
+                    updateField("status", value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
 
-                  <SelectItem value="Completed">
-                    Completed
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Email</Label>
-
-              <Input
-                type="email"
-                value={participant.email}
-                onChange={(e) =>
-                  updateField("email", e.target.value)
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>GitHub</Label>
-
-              <Input
-                value={participant.github}
-                onChange={(e) =>
-                  updateField("github", e.target.value)
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Discord</Label>
-
-              <Input
-                value={participant.discord}
-                onChange={(e) =>
-                  updateField("discord", e.target.value)
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Program</Label>
-
-              <Select
-                value={participant.program}
-                onValueChange={(value) =>
-                  updateField("program", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {programs.map((program) => (
-                    <SelectItem
-                      key={program}
-                      value={program}
-          >
-                      {program}
+                  <SelectContent>
+                    <SelectItem value="Onboarding">
+                      Onboarding
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
-            <div className="space-y-2">
-              <Label>Coach</Label>
-
-              <Select
-                value={participant.coach}
-                onValueChange={(value) =>
-                  updateField("coach", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {coaches.map((coach) => (
-                    <SelectItem
-                      key={coach}
-                      value={coach}
-                    >
-                      {coach}
+                    <SelectItem value="Active">
+                      Active
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
 
-          <div className="flex justify-end">
-            <Button onClick={handleSave}>
-              Save Participant
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+                    <SelectItem value="Paused">
+                      Paused
+                    </SelectItem>
+
+                    <SelectItem value="Completed">
+                      Completed
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Email</Label>
+
+                <Input
+                  type="email"
+                  value={participant.email}
+                  onChange={(e) =>
+                    updateField("email", e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>GitHub</Label>
+
+                <Input
+                  value={participant.github}
+                  onChange={(e) =>
+                    updateField("github", e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Discord</Label>
+
+                <Input
+                  value={participant.discord}
+                  onChange={(e) =>
+                    updateField("discord", e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Program</Label>
+
+                <Select
+                  value={participant.programId}
+                  onValueChange={handleProgramChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {programs.map((program) => (
+                      <SelectItem
+                        key={program.id}
+                        value={program.id}
+                      >
+                        {program.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Coach</Label>
+
+                <Select
+                  value={participant.coachId}
+                  onValueChange={handleCoachChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {coaches.map((coach) => (
+                      <SelectItem
+                        key={coach.id}
+                        value={coach.id}
+                      >
+                        {coach.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={handleReset}
+                disabled={!isDirty}
+              >
+                Reset
+              </Button>
+
+              <Button
+                onClick={handleSave}
+                disabled={!isDirty}
+              >
+                Save Participant
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

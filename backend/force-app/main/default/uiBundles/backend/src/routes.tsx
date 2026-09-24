@@ -18,7 +18,8 @@ export const routes: RouteObject[] = [
         element: <Home />,
         handle: {
           showInNavigation: true,
-          label: "Home"
+          label: "Home",
+          icon: "home"
         }
       },
       {
@@ -32,7 +33,8 @@ export const routes: RouteObject[] = [
         ),
         handle: {
           showInNavigation: true,
-          label: "Search"
+          label: "Search",
+          icon: "search"
         }
       },
       {
@@ -40,7 +42,8 @@ export const routes: RouteObject[] = [
         element: <ParticipantPage />,
         handle: {
           showInNavigation: true,
-          label: "Participants"
+          label: "Participants",
+          icon: "users"
         }
       },
       {
