@@ -105,8 +105,12 @@ export default function ParticipantPage() {
   const selectedParticipant =
     participants.find((p) => p.id === effectiveSelectedId) ?? null;
 
-  // Reset the editable copy when the selection or the loaded data changes.
-  const selectionKey = `${effectiveSelectedId ?? "none"}#${reload}`;
+  // Reset the editable copy only when the selection changes — never on
+  // data refresh: after a save the list refetch lands while the previous
+  // data is still rendered, and resetting here would clobber the just-saved
+  // values with stale ones. (No polling exists, so no background refetch can
+  // wipe unsaved edits.)
+  const selectionKey = effectiveSelectedId ?? "none";
   if (selectionKey !== prevSelectionKey) {
     setPrevSelectionKey(selectionKey);
     setParticipant(selectedParticipant);
@@ -188,6 +192,9 @@ export default function ParticipantPage() {
         throw new Error("Participant could not be saved.");
       }
       toast.success("Participant saved", { description: saved.name });
+      // Adopt the server read-back immediately so the form keeps showing the
+      // persisted values (the list refresh below must not reset the copy).
+      setParticipant(saved);
       setReload((value) => value + 1);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Saving failed";
