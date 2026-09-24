@@ -3,6 +3,14 @@
  * handling. Mutations are routed to sdk.graphql.mutate and everything else to
  * sdk.graphql.query (the SDK rejects an operation sent to the wrong method).
  * Use with gql-tagged queries and generated operation types for type-safe calls.
+ *
+ * Freshness: the SDK serves queries from a module-level OneStore cache
+ * (300s TTL) while mutations bypass it without invalidating anything — so a
+ * plain query after a mutation returns stale data until the TTL expires or
+ * the page reloads. Every query therefore goes out with `no-cache`
+ * (network read, still written back). This matches our explicit-fetch
+ * architecture: we fetch on mount/save/tab change and hold no subscriptions,
+ * so cache hits would only save remount requests in a low-traffic admin tool.
  */
 import { createDataSDK } from '@salesforce/platform-sdk';
 
@@ -29,6 +37,9 @@ export async function executeGraphQL<TData, TVariables = Record<string, never>>(
     : await data.graphql!.query<TData, TVariables>({
         query: operation,
         variables: variables,
+        // Bypass the OneStore read cache: mutations never invalidate it, so
+        // without this every post-mutation refetch serves stale data.
+        cacheControl: 'no-cache',
       });
 
   if (result.errors?.length) {

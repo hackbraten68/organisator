@@ -485,6 +485,17 @@ against `backendtest`):
 - `executeGraphQL` routes operations starting with the `mutation` keyword to
   `sdk.graphql.mutate`; everything else goes to `query`. Keep exactly one
   operation per `.graphql` file so `?raw` imports route correctly.
+- OneStore read cache (stale-after-mutation trap, hit 2026-09-24): the SDK
+  serves queries from a module-level cache (default 300s TTL, shared by all
+  SDK instances of the page lifetime) while mutations bypass it WITHOUT
+  invalidating anything. After any mutation, plain queries return stale data
+  until TTL expiry or page reload (reload = fresh module state = cold cache).
+  The SDK contract says callers must hold query handles and call
+  `result.refresh()` — we hold no handles, so `executeGraphQL` sends every
+  query with `cacheControl: "no-cache"` (network read, still written back).
+  This matches our explicit-fetch architecture (fetch on mount/save/tab, no
+  subscriptions). Do NOT remove the `no-cache` flag without reintroducing
+  `refresh()`-based invalidation; locked by `src/api/graphqlClient.test.ts`.
 
 ### 11. Confirm the target org before trusting object sightings
 
