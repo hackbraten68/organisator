@@ -1,0 +1,119 @@
+mutation CreateAuditEvent(
+  $occurredAt: DateTime!
+  $eventType: String!
+  $schemaVersion: Int!
+  $domain: Picklist!
+  $action: Picklist!
+  $actorType: Picklist!
+  $actorId: String
+  $actorDisplayName: String
+  $subjectType: String!
+  $subjectId: String!
+  $participantId: IdOrRef
+  $parentType: String
+  $parentId: String
+  $source: Picklist!
+  $correlationId: String
+  $requestId: String
+  $reason: String
+  $changedFields: String!
+  $changes: String!
+  $metadata: String!
+  $visibility: Picklist!
+  $sensitivity: Picklist!
+) {
+  uiapi {
+    AuditEvent__cCreate(
+      input: {
+        AuditEvent__c: {
+          OccurredAt__c: $occurredAt
+          EventType__c: $eventType
+          SchemaVersion__c: $schemaVersion
+          Domain__c: $domain
+          Action__c: $action
+          ActorType__c: $actorType
+          ActorId__c: $actorId
+          ActorDisplayName__c: $actorDisplayName
+          SubjectType__c: $subjectType
+          SubjectId__c: $subjectId
+          ParticipantId__c: $participantId
+          ParentType__c: $parentType
+          ParentId__c: $parentId
+          Source__c: $source
+          CorrelationId__c: $correlationId
+          RequestId__c: $requestId
+          Reason__c: $reason
+          ChangedFields__c: $changedFields
+          Changes__c: $changes
+          Metadata__c: $metadata
+          Visibility__c: $visibility
+          Sensitivity__c: $sensitivity
+        }
+      }
+    ) {
+      Record {
+        Id
+        OccurredAt__c {
+          value
+        }
+        CreatedDate {
+          value
+        }
+        EventType__c {
+          value
+        }
+        SchemaVersion__c {
+          value
+        }
+        Domain__c {
+          value
+        }
+        Action__c {
+          value
+        }
+        ActorType__c {
+          value
+        }
+        ActorId__c {
+          value
+        }
+        ActorDisplayName__c {
+          value
+        }
+        SubjectType__c {
+          value
+        }
+        SubjectId__c {
+          value
+        }
+        ParticipantId__c {
+          value
+        }
+        Source__c {
+          value
+        }
+        CorrelationId__c {
+          value
+        }
+        Reason__c {
+          value
+        }
+        ChangedFields__c {
+          value
+        }
+        Changes__c {
+          value
+        }
+        Metadata__c {
+          value
+        }
+        Visibility__c {
+          value
+        }
+        Sensitivity__c {
+          value
+        }
+      }
+    }
+  }
+}

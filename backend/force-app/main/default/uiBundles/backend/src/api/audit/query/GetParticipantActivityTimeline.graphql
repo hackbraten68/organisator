@@ -1,0 +1,87 @@
+query GetParticipantActivityTimeline(
+  $participantId: IdOrRef!
+  $limit: Int
+  $after: String
+) {
+  uiapi {
+    query {
+      AuditEvent__c(
+        where: { ParticipantId__c: { eq: $participantId } }
+        orderBy: { OccurredAt__c: { order: DESC } }
+        first: $limit
+        after: $after
+      ) {
+        edges {
+          cursor
+          node {
+            Id
+            OccurredAt__c {
+              value
+            }
+            CreatedDate {
+              value
+            }
+            EventType__c {
+              value
+            }
+            SchemaVersion__c {
+              value
+            }
+            Domain__c {
+              value
+            }
+            Action__c {
+              value
+            }
+            ActorType__c {
+              value
+            }
+            ActorId__c {
+              value
+            }
+            ActorDisplayName__c {
+              value
+            }
+            SubjectType__c {
+              value
+            }
+            SubjectId__c {
+              value
+            }
+            ParticipantId__c {
+              value
+            }
+            Source__c {
+              value
+            }
+            CorrelationId__c {
+              value
+            }
+            Reason__c {
+              value
+            }
+            ChangedFields__c {
+              value
+            }
+            Changes__c {
+              value
+            }
+            Metadata__c {
+              value
+            }
+            Visibility__c {
+              value
+            }
+            Sensitivity__c {
+              value
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+}
