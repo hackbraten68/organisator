@@ -1,4 +1,5 @@
 import type { Participant } from "@/types/participant";
+import { PARTICIPANT_STATUSES, type ParticipantStatus } from "@/types/participant";
 
 export type MissingField = "program" | "coach" | "discord" | "github";
 
@@ -14,6 +15,10 @@ export interface OnboardingCounts {
   active: number;
   total: number;
 }
+
+export type StatusCounts = Record<ParticipantStatus, number> & {
+  total: number;
+};
 
 function isFilled(value: string | undefined): boolean {
   return value !== undefined && value.trim().length > 0;
@@ -62,6 +67,27 @@ export function getOnboardingCounts(list: Participant[]): OnboardingCounts {
   return {
     needsAttention: list.filter(needsAttention).length,
     active: list.filter((p) => p.status === "Active").length,
+    total: list.length,
+  };
+}
+
+/**
+ * Counts participants by lifecycle status for dashboard cards and overview.
+ */
+export function getStatusCounts(list: Participant[]): StatusCounts {
+  const counts = Object.fromEntries(
+    PARTICIPANT_STATUSES.map((status) => [status, 0]),
+  ) as Record<ParticipantStatus, number>;
+
+  for (const participant of list) {
+    const key = participant.status as ParticipantStatus;
+    if (key in counts) {
+      counts[key] += 1;
+    }
+  }
+
+  return {
+    ...counts,
     total: list.length,
   };
 }

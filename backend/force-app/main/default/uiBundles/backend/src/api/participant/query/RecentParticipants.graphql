@@ -1,0 +1,25 @@
+query RecentParticipants($limit: Int!) {
+  uiapi {
+    query {
+      Participant__c(first: $limit, orderBy: { CreatedDate: { order: DESC } }) {
+        edges {
+          node {
+            Id
+            Name @optional {
+              value
+            }
+            Status__c @optional {
+              value
+            }
+            CreatedDate @optional {
+              value
+            }
+            StartDate__c @optional {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

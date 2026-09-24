@@ -21,9 +21,13 @@ export const routes: RouteObject[] = [
         element: <Home />,
         handle: {
           showInNavigation: true,
-          label: "Home",
-          icon: "home",
-        } satisfies NavigationHandle
+          label: "Dashboard",
+          icon: "reports",
+        } satisfies NavigationHandle,
+      },
+      {
+        path: "dashboard",
+        element: <Home />,
       },
       {
         path: "search",

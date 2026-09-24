@@ -20,6 +20,7 @@ export interface Participant {
   id: string;
   name: string;
   status: string;
+  createdAt?: string;
   email?: string;
   github?: string;
   discord?: string;

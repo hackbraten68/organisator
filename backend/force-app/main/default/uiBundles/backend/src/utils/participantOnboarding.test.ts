@@ -4,6 +4,7 @@ import {
   getCompletion,
   getMissingFields,
   getOnboardingCounts,
+  getStatusCounts,
   needsAttention,
 } from "./participantOnboarding";
 
@@ -118,6 +119,28 @@ describe("getOnboardingCounts", () => {
       needsAttention: 2,
       active: 2,
       total: 3,
+    });
+  });
+});
+
+describe("getStatusCounts", () => {
+  it("derives a total count and per-status breakdown", () => {
+    const list = [
+      makeParticipant({ id: "1", status: "Onboarding" }),
+      makeParticipant({ id: "2", status: "Active" }),
+      makeParticipant({ id: "3", status: "Active" }),
+      makeParticipant({ id: "4", status: "Paused" }),
+      makeParticipant({ id: "5", status: "Dropped" }),
+    ];
+
+    expect(getStatusCounts(list)).toEqual({
+      Onboarding: 1,
+      Active: 2,
+      Paused: 1,
+      Graduated: 0,
+      Placed: 0,
+      Dropped: 1,
+      total: 5,
     });
   });
 });

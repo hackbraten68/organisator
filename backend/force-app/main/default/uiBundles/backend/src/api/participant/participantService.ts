@@ -16,6 +16,7 @@ import type { ProgramParticipantSummary } from "@/types/program";
 import LIST_PARTICIPANTS from "./query/ListParticipants.graphql?raw";
 import GET_PARTICIPANT from "./query/GetParticipant.graphql?raw";
 import UPDATE_PARTICIPANT from "./query/UpdateParticipant.graphql?raw";
+import RECENT_PARTICIPANTS from "./query/RecentParticipants.graphql?raw";
 
 type ScalarValue<T = string> = { value?: T | null } | null | undefined;
 
@@ -37,6 +38,24 @@ interface ParticipantsResponse {
     query?: {
       Participant__c?: {
         edges?: Array<{ node?: ParticipantNode | null } | null> | null;
+      } | null;
+    } | null;
+  } | null;
+}
+
+interface RecentParticipantNode {
+  Id: string;
+  Name?: ScalarValue<string>;
+  Status__c?: ScalarValue<string>;
+  CreatedDate?: ScalarValue<string>;
+  StartDate__c?: ScalarValue<string>;
+}
+
+interface RecentParticipantsResponse {
+  uiapi?: {
+    query?: {
+      Participant__c?: {
+        edges?: Array<{ node?: RecentParticipantNode | null } | null> | null;
       } | null;
     } | null;
   } | null;
@@ -93,6 +112,38 @@ export async function listParticipants(): Promise<Participant[]> {
     .map((edge) => edge?.node)
     .filter((node): node is ParticipantNode => node != null)
     .map((node) => mapParticipant(node, names.programs, names.coaches));
+}
+
+export async function listRecentParticipants(limit = 6): Promise<Participant[]> {
+  try {
+    const data = await executeGraphQL<RecentParticipantsResponse, { limit: number }>(
+      RECENT_PARTICIPANTS,
+      { limit },
+    );
+
+    const edges = data.uiapi?.query?.Participant__c?.edges ?? [];
+    return edges
+      .map((edge) => edge?.node)
+      .filter((node): node is RecentParticipantNode => node != null)
+      .map((node) => ({
+        id: node.Id,
+        name: node.Name?.value ?? "Unnamed Participant",
+        status: node.Status__c?.value ?? "Onboarding",
+        createdAt: node.CreatedDate?.value ?? undefined,
+        startDate: node.StartDate__c?.value ?? undefined,
+      }));
+  } catch {
+    const participants = await listParticipants();
+    return [...participants]
+      .sort((a, b) => {
+        const aDate = a.createdAt ?? a.startDate ?? "";
+        const bDate = b.createdAt ?? b.startDate ?? "";
+        const aTime = aDate ? new Date(aDate).getTime() : 0;
+        const bTime = bDate ? new Date(bDate).getTime() : 0;
+        return bTime - aTime;
+      })
+      .slice(0, limit);
+  }
 }
 
 export async function getParticipant(id: string): Promise<Participant | null> {
@@ -161,9 +212,7 @@ export async function updateParticipant(
     ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
     ...(patch.status !== undefined ? { status: patch.status } : {}),
     ...(patch.email !== undefined ? { email: textOrNull(patch.email) } : {}),
-    ...(patch.github !== undefined
-      ? { github: textOrNull(patch.github) }
-      : {}),
+    ...(patch.github !== undefined ? { github: textOrNull(patch.github) } : {}),
     ...(patch.discord !== undefined
       ? { discord: textOrNull(patch.discord) }
       : {}),
