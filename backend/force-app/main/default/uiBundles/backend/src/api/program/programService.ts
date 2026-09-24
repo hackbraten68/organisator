@@ -380,6 +380,14 @@ export async function getLearningPathProgress(
   };
 }
 
+export async function getLearningPathWeeks(
+  participantId: string,
+): Promise<number> {
+  return learningPathItems
+    .filter((item) => item.participantId === participantId)
+    .reduce((sum, item) => sum + (item.estimatedWeeks ?? 0), 0);
+}
+
 export async function addLearningPathItem(
   participantId: string,
   programId: string,

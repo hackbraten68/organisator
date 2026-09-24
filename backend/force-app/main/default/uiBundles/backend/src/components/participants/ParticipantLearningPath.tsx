@@ -8,6 +8,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -31,6 +32,8 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   addLearningPathItem,
   deleteLearningPathItem,
+  getLearningPathWeeks,
+  getProgram,
   listLearningPath,
   reorderLearningPathItems,
   updateLearningPathItem,
@@ -63,12 +66,22 @@ export default function ParticipantLearningPath({
   const [adding, setAdding] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const { data, loading, error } = useAsyncData(
-    () => listLearningPath(participantId),
-    [participantId, reload],
-  );
+  const { data, loading, error } = useAsyncData(async () => {
+    const [items, plannedWeeks, program] = await Promise.all([
+      listLearningPath(participantId),
+      getLearningPathWeeks(participantId),
+      programId !== undefined
+        ? getProgram(programId)
+        : Promise.resolve(null),
+    ]);
+    return { items, plannedWeeks, durationWeeks: program?.durationWeeks };
+  }, [participantId, programId, reload]);
 
-  const items = data ?? [];
+  const items = data?.items ?? [];
+  const plannedWeeks = data?.plannedWeeks ?? 0;
+  const durationWeeks = data?.durationWeeks;
+  const overCapacity =
+    durationWeeks !== undefined && plannedWeeks > durationWeeks;
   const refresh = () => setReload((value) => value + 1);
 
   async function handleAdd() {
@@ -169,6 +182,17 @@ export default function ParticipantLearningPath({
           Individual curriculum for {participantName} — independent of other
           participants in the same program.
         </CardDescription>
+        {programId !== undefined &&
+          !loading &&
+          !error &&
+          durationWeeks !== undefined && (
+            <div className="pt-1">
+              <Badge variant={overCapacity ? "destructive" : "secondary"}>
+                Curriculum Capacity: {plannedWeeks} / {durationWeeks} weeks
+                {overCapacity ? " ⚠️" : " ✅"}
+              </Badge>
+            </div>
+          )}
       </CardHeader>
       <CardContent className="space-y-6">
         {programId === undefined && (
