@@ -11,6 +11,14 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -26,6 +34,7 @@ import {
   getLearningPathProgress,
   getProgram,
   listLearningPath,
+  listPrograms,
 } from "@/api/program/programService";
 import {
   assignParticipant,
@@ -51,6 +60,11 @@ export default function ProgramParticipantsTab({
 }) {
   const [reload, setReload] = useState(0);
   const [search, setSearch] = useState("");
+  const [pendingMove, setPendingMove] = useState<{
+    id: string;
+    name: string;
+    fromProgramId: string;
+  } | null>(null);
 
   const {
     data: assigned,
@@ -86,6 +100,13 @@ export default function ProgramParticipantsTab({
     [search, reload],
   );
 
+  const { data: programs } = useAsyncData(() => listPrograms(), [reload]);
+  const programNames = useMemo(
+    () => new Map((programs ?? []).map((p) => [p.id, p.name])),
+    [programs],
+  );
+  const currentProgramName = programNames.get(programId) ?? "this program";
+
   const assignedIds = useMemo(
     () => new Set((assigned ?? []).map((p) => p.id)),
     [assigned],
@@ -106,6 +127,32 @@ export default function ProgramParticipantsTab({
       const message = err instanceof Error ? err.message : "Assign failed";
       toast.error("Assign failed", { description: message });
     }
+  }
+
+  // A participant can only be in one program (Participant__c.Program__c is a
+  // single lookup), so assigning someone who already has a different program
+  // moves them — ask for confirmation first.
+  function requestAssign(participant: {
+    id: string;
+    name: string;
+    programId?: string;
+  }) {
+    if (participant.programId && participant.programId !== programId) {
+      setPendingMove({
+        id: participant.id,
+        name: participant.name,
+        fromProgramId: participant.programId,
+      });
+      return;
+    }
+    void handleAssign(participant.id, participant.name);
+  }
+
+  async function confirmMove() {
+    if (!pendingMove) return;
+    const { id, name } = pendingMove;
+    setPendingMove(null);
+    await handleAssign(id, name);
   }
 
   async function handleRemove(participantId: string, name: string) {
@@ -256,36 +303,73 @@ export default function ProgramParticipantsTab({
 
           {!loadingCandidates && available.length > 0 && (
             <ul className="divide-y rounded-md border">
-              {available.map((participant) => (
-                <li
-                  key={participant.id}
-                  className="flex items-center justify-between gap-3 p-3"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <Users
-                      className="size-4 shrink-0 text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                    <span className="truncate text-sm font-medium">
-                      {participant.name}
-                    </span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      handleAssign(participant.id, participant.name)
-                    }
+              {available.map((participant) => {
+                const fromName =
+                  participant.programId !== undefined
+                    ? (programNames.get(participant.programId) ??
+                      "another program")
+                    : null;
+                return (
+                  <li
+                    key={participant.id}
+                    className="flex items-center justify-between gap-3 p-3"
                   >
-                    <UserPlus className="size-4" aria-hidden="true" />
-                    Assign
-                  </Button>
-                </li>
-              ))}
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Users
+                        className="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                      />
+                      <span className="truncate text-sm font-medium">
+                        {participant.name}
+                      </span>
+                      {fromName !== null && (
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          In {fromName}
+                        </span>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => requestAssign(participant)}
+                    >
+                      <UserPlus className="size-4" aria-hidden="true" />
+                      Assign
+                    </Button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={pendingMove !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingMove(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Move participant?</DialogTitle>
+            <DialogDescription>
+              {pendingMove !== null
+                ? `${pendingMove.name} is currently assigned to ${
+                    programNames.get(pendingMove.fromProgramId) ??
+                    "another program"
+                  }. Assigning them to ${currentProgramName} will move them — a participant can only be in one program at a time.`
+                : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingMove(null)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmMove}>Move participant</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
