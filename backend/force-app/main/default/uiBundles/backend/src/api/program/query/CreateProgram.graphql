@@ -1,0 +1,23 @@
+mutation CreateProgram(
+  $name: String!
+  $description: LongTextArea
+  $durationWeeks: Double
+  $status: Picklist
+) {
+  uiapi {
+    Program__cCreate(
+      input: {
+        Program__c: {
+          Name: $name
+          Description__c: $description
+          DurationWeeks__c: $durationWeeks
+          Status__c: $status
+        }
+      }
+    ) {
+      Record {
+        Id
+      }
+    }
+  }
+}

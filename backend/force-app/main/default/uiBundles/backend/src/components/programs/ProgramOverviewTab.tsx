@@ -8,10 +8,8 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import {
-  listModules,
-  listProgramParticipants,
-} from "@/api/program/programService";
+import { listModules } from "@/api/program/programService";
+import { listProgramParticipants } from "@/api/participant/participantService";
 import type { Program } from "@/types/program";
 
 interface ProgramOverviewTabProps {

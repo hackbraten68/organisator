@@ -1,0 +1,34 @@
+query LearningPathsByParticipant($participantId: ID!) {
+  uiapi {
+    query {
+      Learning_Path__c(
+        where: { Participant__c: { eq: $participantId } }
+        orderBy: { Order__c: { order: ASC } }
+      ) {
+        edges {
+          node {
+            Id
+            Title__c @optional {
+              value
+            }
+            Order__c @optional {
+              value
+            }
+            Status__c @optional {
+              value
+            }
+            Estimated_Weeks__c @optional {
+              value
+            }
+            Participant__c @optional {
+              value
+            }
+            Program__c @optional {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

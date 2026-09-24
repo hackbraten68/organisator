@@ -16,7 +16,7 @@ function isMutation(operation: string): boolean {
   return /^\s*mutation\b/.test(operation.replace(/#[^\n\r]*/g, ''));
 }
 
-export async function executeGraphQL<TData, TVariables>(
+export async function executeGraphQL<TData, TVariables = Record<string, never>>(
   operation: string,
   variables?: TVariables
 ): Promise<TData> {

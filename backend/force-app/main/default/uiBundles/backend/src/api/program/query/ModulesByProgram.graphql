@@ -1,0 +1,28 @@
+query ModulesByProgram($programId: ID!) {
+  uiapi {
+    query {
+      Module__c(
+        where: { Program__c: { eq: $programId } }
+        orderBy: { Order__c: { order: ASC } }
+      ) {
+        edges {
+          node {
+            Id
+            Name @optional {
+              value
+            }
+            Order__c @optional {
+              value
+            }
+            Description__c @optional {
+              value
+            }
+            Program__c @optional {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

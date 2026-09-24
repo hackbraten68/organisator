@@ -1,0 +1,25 @@
+query ModuleById($id: ID!) {
+  uiapi {
+    query {
+      Module__c(where: { Id: { eq: $id } }, first: 1) {
+        edges {
+          node {
+            Id
+            Name @optional {
+              value
+            }
+            Order__c @optional {
+              value
+            }
+            Description__c @optional {
+              value
+            }
+            Program__c @optional {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

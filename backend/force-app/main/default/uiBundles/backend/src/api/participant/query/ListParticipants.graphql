@@ -1,0 +1,40 @@
+query ListParticipants {
+  uiapi {
+    query {
+      Participant__c(first: 500, orderBy: { Name: { order: ASC } }) {
+        edges {
+          node {
+            Id
+            Name @optional {
+              value
+            }
+            Status__c @optional {
+              value
+            }
+            Email__c @optional {
+              value
+            }
+            GitHub__c @optional {
+              value
+            }
+            Discord__c @optional {
+              value
+            }
+            StartDate__c @optional {
+              value
+            }
+            ExpectedEndDate__c @optional {
+              value
+            }
+            Program__c @optional {
+              value
+            }
+            Coach_Profile__c @optional {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

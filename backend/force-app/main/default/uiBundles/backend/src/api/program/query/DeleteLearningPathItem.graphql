@@ -1,0 +1,7 @@
+mutation DeleteLearningPathItem($id: IdOrRef!) {
+  uiapi {
+    Learning_Path__cDelete(input: { Id: $id }) {
+      Id
+    }
+  }
+}

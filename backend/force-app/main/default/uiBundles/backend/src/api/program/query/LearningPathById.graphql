@@ -1,0 +1,31 @@
+query LearningPathById($id: ID!) {
+  uiapi {
+    query {
+      Learning_Path__c(where: { Id: { eq: $id } }, first: 1) {
+        edges {
+          node {
+            Id
+            Title__c @optional {
+              value
+            }
+            Order__c @optional {
+              value
+            }
+            Status__c @optional {
+              value
+            }
+            Estimated_Weeks__c @optional {
+              value
+            }
+            Participant__c @optional {
+              value
+            }
+            Program__c @optional {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+mutation UpdateModule(
+  $id: IdOrRef!
+  $name: String
+  $order: Double
+  $description: LongTextArea
+) {
+  uiapi {
+    Module__cUpdate(
+      input: {
+        Id: $id
+        Module__c: { Name: $name, Order__c: $order, Description__c: $description }
+      }
+    ) {
+      Record {
+        Id
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+mutation CreateModule(
+  $programId: IdOrRef!
+  $name: String!
+  $order: Double
+  $description: LongTextArea
+) {
+  uiapi {
+    Module__cCreate(
+      input: {
+        Module__c: {
+          Program__c: $programId
+          Name: $name
+          Order__c: $order
+          Description__c: $description
+        }
+      }
+    ) {
+      Record {
+        Id
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+mutation UpdateLearningPathItem(
+  $id: IdOrRef!
+  $title: String
+  $order: Double
+  $status: Picklist
+  $estimatedWeeks: Double
+) {
+  uiapi {
+    Learning_Path__cUpdate(
+      input: {
+        Id: $id
+        Learning_Path__c: {
+          Title__c: $title
+          Order__c: $order
+          Status__c: $status
+          Estimated_Weeks__c: $estimatedWeeks
+        }
+      }
+    ) {
+      Record {
+        Id
+      }
+    }
+  }
+}

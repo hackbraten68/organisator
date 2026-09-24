@@ -23,14 +23,16 @@ import {
 import { toast } from "@/components/ui/sonner";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import {
-  assignParticipant,
   getLearningPathProgress,
   getProgram,
   listLearningPath,
+} from "@/api/program/programService";
+import {
+  assignParticipant,
   listProgramParticipants,
   searchParticipants,
   unassignParticipant,
-} from "@/api/program/programService";
+} from "@/api/participant/participantService";
 
 interface ParticipantRow {
   id: string;

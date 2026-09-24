@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { AlertCircle, Users } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,363 +20,408 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/components/ui/sonner";
+import { useAsyncData } from "@/hooks/useAsyncData";
 import ParticipantLearningPath from "@/components/participants/ParticipantLearningPath";
+import {
+  listParticipants,
+  updateParticipant,
+} from "@/api/participant/participantService";
+import { listPrograms } from "@/api/program/programService";
+import { listCoaches } from "@/api/coach/coachService";
+import {
+  PARTICIPANT_STATUSES,
+  type Participant,
+} from "@/types/participant";
 
-type Participant = {
-  id: string;
-  name: string;
-  status: string;
-  email: string;
-  github: string;
-  discord: string;
-  programId: string;
-  programName: string;
-  coachId: string;
-  coachName: string;
-};
-
-const participants: Participant[] = [
-  {
-    id: "1",
-    name: "Max Mustermann",
-    status: "Onboarding",
-    email: "max@example.com",
-    github: "maxmustermann",
-    discord: "max#1234",
-    programId: "p1",
-    programName: "IT Pro",
-    coachId: "c1",
-    coachName: "Sam Dillenburg",
-  },
-  {
-    id: "2",
-    name: "Lisa Müller",
-    status: "Active",
-    email: "lisa@example.com",
-    github: "lisam",
-    discord: "lisa#4321",
-    programId: "p2",
-    programName: "Cloud Engineer",
-    coachId: "c2",
-    coachName: "Sandra Krüger",
-  },
-];
-
-const programs = [
-  {
-    id: "p1",
-    name: "IT Pro",
-  },
-  {
-    id: "p2",
-    name: "Cloud Engineer",
-  },
-  {
-    id: "p3",
-    name: "DevOps Engineer",
-  },
-];
-
-const coaches = [
-  {
-    id: "c1",
-    name: "Sam Dillenburg",
-  },
-  {
-    id: "c2",
-    name: "Sandra Krüger",
-  },
-  {
-    id: "c3",
-    name: "Ghaith Saidani",
-  },
-  {
-    id: "c4",
-    name: "Frank Blum",
-  },
-];
+const NONE = "__none";
 
 export default function ParticipantPage() {
-  const [selectedId, setSelectedId] = useState(participants[0].id);
+  const [reload, setReload] = useState(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [participant, setParticipant] = useState<Participant | null>(null);
+  const [prevSelectionKey, setPrevSelectionKey] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const selectedParticipant = useMemo(
-    () => participants.find((p) => p.id === selectedId) ?? participants[0],
-    [selectedId]
-  );
+  const { data, loading, error } = useAsyncData(async () => {
+    const [participantList, programList, coachList] = await Promise.all([
+      listParticipants(),
+      listPrograms(),
+      listCoaches(),
+    ]);
+    return {
+      participants: participantList,
+      programs: programList,
+      coaches: coachList,
+    };
+  }, [reload]);
 
-  const [participant, setParticipant] =
-    useState<Participant>(selectedParticipant);
+  const participants = data?.participants ?? [];
+  const programs = data?.programs ?? [];
+  const coaches = data?.coaches ?? [];
+
+  const effectiveSelectedId =
+    selectedId ?? participants[0]?.id ?? null;
+  const selectedParticipant =
+    participants.find((p) => p.id === effectiveSelectedId) ?? null;
+
+  // Reset the editable copy when the selection or the loaded data changes.
+  const selectionKey = `${effectiveSelectedId ?? "none"}#${reload}`;
+  if (selectionKey !== prevSelectionKey) {
+    setPrevSelectionKey(selectionKey);
+    setParticipant(selectedParticipant);
+    setSaving(false);
+  }
 
   function handleParticipantChange(id: string) {
-    const selected = participants.find((p) => p.id === id);
-
-    if (!selected) {
-      return;
-    }
-
     setSelectedId(id);
-    setParticipant(selected);
   }
 
   function updateField<K extends keyof Participant>(
     field: K,
-    value: Participant[K]
+    value: Participant[K],
   ) {
-    setParticipant((current) => ({
-      ...current,
-      [field]: value,
-    }));
+    setParticipant((current) =>
+      current ? { ...current, [field]: value } : current,
+    );
   }
 
   const isDirty =
+    participant !== null &&
+    selectedParticipant !== null &&
     JSON.stringify(participant) !== JSON.stringify(selectedParticipant);
 
   function handleProgramChange(id: string) {
-    const program = programs.find((p) => p.id === id);
-
-    if (!program) {
+    if (id === NONE) {
+      setParticipant((current) =>
+        current
+          ? { ...current, programId: undefined, programName: undefined }
+          : current,
+      );
       return;
     }
-
-    setParticipant((current) => ({
-      ...current,
-      programId: program.id,
-      programName: program.name,
-    }));
+    const program = programs.find((p) => p.id === id);
+    if (!program) return;
+    setParticipant((current) =>
+      current
+        ? { ...current, programId: program.id, programName: program.name }
+        : current,
+    );
   }
 
   function handleCoachChange(id: string) {
-    const coach = coaches.find((c) => c.id === id);
-
-    if (!coach) {
+    if (id === NONE) {
+      setParticipant((current) =>
+        current
+          ? { ...current, coachId: undefined, coachName: undefined }
+          : current,
+      );
       return;
     }
-
-    setParticipant((current) => ({
-      ...current,
-      coachId: coach.id,
-      coachName: coach.name,
-    }));
+    const coach = coaches.find((c) => c.id === id);
+    if (!coach) return;
+    setParticipant((current) =>
+      current
+        ? { ...current, coachId: coach.id, coachName: coach.name }
+        : current,
+    );
   }
 
   function handleReset() {
     setParticipant(selectedParticipant);
   }
 
-  function handleSave() {
-    console.log("Saving participant", participant);
-
-    // Hier später Salesforce Mutation aufrufen
-    alert("Participant saved");
+  async function handleSave() {
+    if (!participant || !selectedParticipant) return;
+    setSaving(true);
+    try {
+      const saved = await updateParticipant(selectedParticipant.id, {
+        name: participant.name.trim(),
+        status: participant.status,
+        email: participant.email ?? null,
+        github: participant.github ?? null,
+        discord: participant.discord ?? null,
+        programId: participant.programId ?? null,
+        coachId: participant.coachId ?? null,
+      });
+      if (!saved) {
+        throw new Error("Participant could not be saved.");
+      }
+      toast.success("Participant saved", { description: saved.name });
+      setReload((value) => value + 1);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Saving failed";
+      toast.error("Saving failed", { description: message });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <div className="container mx-auto max-w-7xl p-6">
-      <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
-        {/* Teilnehmerliste */}
+      {loading && <ParticipantPageSkeleton />}
 
+      {error && (
+        <Alert variant="destructive" role="alert">
+          <AlertCircle />
+          <AlertTitle>
+            <h2>Failed to load participants</h2>
+          </AlertTitle>
+          <AlertDescription>
+            Something went wrong while loading participants. Please try again
+            later.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!loading && !error && participants.length === 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle>Participants</CardTitle>
-          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <Users className="size-12 text-muted-foreground mb-4" />
+            <h2 className="text-lg font-semibold mb-1">No participants yet</h2>
+            <p className="text-sm text-muted-foreground">
+              Participants created in Salesforce will appear here.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Program</TableHead>
-                </TableRow>
-              </TableHeader>
+      {!loading && !error && participant && (
+        <>
+          <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
+            {/* Teilnehmerliste */}
 
-              <TableBody>
-                {participants.map((p) => (
-                  <TableRow
-                    key={p.id}
-                    className={`cursor-pointer ${
-                      p.id === selectedId ? "bg-accent" : ""
-                    }`}
-                    onClick={() => handleParticipantChange(p.id)}
+            <Card>
+              <CardHeader>
+                <CardTitle>Participants</CardTitle>
+              </CardHeader>
+
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Program</TableHead>
+                    </TableRow>
+                  </TableHeader>
+
+                  <TableBody>
+                    {participants.map((p) => (
+                      <TableRow
+                        key={p.id}
+                        className={`cursor-pointer ${
+                          p.id === effectiveSelectedId ? "bg-accent" : ""
+                        }`}
+                        onClick={() => handleParticipantChange(p.id)}
+                      >
+                        <TableCell>{p.name}</TableCell>
+                        <TableCell>{p.status}</TableCell>
+                        <TableCell>{p.programName ?? "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            {/* Detailformular */}
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Participant Details</CardTitle>
+              </CardHeader>
+
+              <CardContent className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Name</Label>
+
+                    <Input
+                      value={participant.name}
+                      onChange={(e) =>
+                        updateField("name", e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+
+                    <Select
+                      value={participant.status}
+                      onValueChange={(value) =>
+                        updateField("status", value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {PARTICIPANT_STATUSES.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Email</Label>
+
+                    <Input
+                      type="email"
+                      value={participant.email ?? ""}
+                      onChange={(e) =>
+                        updateField("email", e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>GitHub</Label>
+
+                    <Input
+                      value={participant.github ?? ""}
+                      onChange={(e) =>
+                        updateField("github", e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Discord</Label>
+
+                    <Input
+                      value={participant.discord ?? ""}
+                      onChange={(e) =>
+                        updateField("discord", e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Program</Label>
+
+                    <Select
+                      value={participant.programId ?? NONE}
+                      onValueChange={handleProgramChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="No program" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        <SelectItem value={NONE}>
+                          No program
+                        </SelectItem>
+                        {programs.map((program) => (
+                          <SelectItem
+                            key={program.id}
+                            value={program.id}
+                          >
+                            {program.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Coach</Label>
+
+                    <Select
+                      value={participant.coachId ?? NONE}
+                      onValueChange={handleCoachChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="No coach" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        <SelectItem value={NONE}>
+                          No coach
+                        </SelectItem>
+                        {coaches.map((coach) => (
+                          <SelectItem
+                            key={coach.id}
+                            value={coach.id}
+                          >
+                            {coach.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleReset}
+                    disabled={!isDirty || saving}
                   >
-                    <TableCell>{p.name}</TableCell>
-                    <TableCell>{p.status}</TableCell>
-                    <TableCell>{p.programName}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                    Reset
+                  </Button>
 
-        {/* Detailformular */}
+                  <Button
+                    onClick={handleSave}
+                    disabled={!isDirty || saving}
+                  >
+                    {saving ? "Saving…" : "Save Participant"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Participant Details</CardTitle>
-          </CardHeader>
+          {/* Individuelles Curriculum des ausgewählten Teilnehmers */}
 
-          <CardContent className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Name</Label>
+          <div className="mt-6">
+            <ParticipantLearningPath
+              key={participant.id}
+              participantId={participant.id}
+              participantName={participant.name}
+              programId={participant.programId}
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
-                <Input
-                  value={participant.name}
-                  onChange={(e) =>
-                    updateField("name", e.target.value)
-                  }
-                />
+function ParticipantPageSkeleton() {
+  return (
+    <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-32" />
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {[0, 1, 2].map((key) => (
+            <Skeleton key={key} className="h-10 w-full" />
+          ))}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {[0, 1, 2, 3, 4, 5, 6].map((key) => (
+              <div key={key} className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full" />
               </div>
-
-              <div className="space-y-2">
-                <Label>Status</Label>
-
-                <Select
-                  value={participant.status}
-                  onValueChange={(value) =>
-                    updateField("status", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    <SelectItem value="Onboarding">
-                      Onboarding
-                    </SelectItem>
-
-                    <SelectItem value="Active">
-                      Active
-                    </SelectItem>
-
-                    <SelectItem value="Paused">
-                      Paused
-                    </SelectItem>
-
-                    <SelectItem value="Completed">
-                      Completed
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Email</Label>
-
-                <Input
-                  type="email"
-                  value={participant.email}
-                  onChange={(e) =>
-                    updateField("email", e.target.value)
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>GitHub</Label>
-
-                <Input
-                  value={participant.github}
-                  onChange={(e) =>
-                    updateField("github", e.target.value)
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Discord</Label>
-
-                <Input
-                  value={participant.discord}
-                  onChange={(e) =>
-                    updateField("discord", e.target.value)
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Program</Label>
-
-                <Select
-                  value={participant.programId}
-                  onValueChange={handleProgramChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {programs.map((program) => (
-                      <SelectItem
-                        key={program.id}
-                        value={program.id}
-                      >
-                        {program.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Coach</Label>
-
-                <Select
-                  value={participant.coachId}
-                  onValueChange={handleCoachChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {coaches.map((coach) => (
-                      <SelectItem
-                        key={coach.id}
-                        value={coach.id}
-                      >
-                        {coach.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={handleReset}
-                disabled={!isDirty}
-              >
-                Reset
-              </Button>
-
-              <Button
-                onClick={handleSave}
-                disabled={!isDirty}
-              >
-                Save Participant
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Individuelles Curriculum des ausgewählten Teilnehmers */}
-
-      <div className="mt-6">
-        <ParticipantLearningPath
-          key={participant.id}
-          participantId={participant.id}
-          participantName={participant.name}
-          programId={
-            participant.programId === "" ? undefined : participant.programId
-          }
-        />
-      </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

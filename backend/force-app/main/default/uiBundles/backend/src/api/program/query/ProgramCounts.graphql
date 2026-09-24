@@ -1,0 +1,26 @@
+query ProgramCounts {
+  uiapi {
+    query {
+      participants: Participant__c(first: 1000) {
+        edges {
+          node {
+            Id
+            Program__c @optional {
+              value
+            }
+          }
+        }
+      }
+      modules: Module__c(first: 1000) {
+        edges {
+          node {
+            Id
+            Program__c @optional {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

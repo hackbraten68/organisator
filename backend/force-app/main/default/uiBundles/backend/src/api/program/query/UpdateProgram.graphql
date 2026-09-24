@@ -1,0 +1,25 @@
+mutation UpdateProgram(
+  $id: IdOrRef!
+  $name: String
+  $description: LongTextArea
+  $durationWeeks: Double
+  $status: Picklist
+) {
+  uiapi {
+    Program__cUpdate(
+      input: {
+        Id: $id
+        Program__c: {
+          Name: $name
+          Description__c: $description
+          DurationWeeks__c: $durationWeeks
+          Status__c: $status
+        }
+      }
+    ) {
+      Record {
+        Id
+      }
+    }
+  }
+}

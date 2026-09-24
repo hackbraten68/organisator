@@ -17,14 +17,32 @@
 import type {
   LearningPathItem,
   LearningPathItemInput,
+  LearningPathItemStatus,
   LearningPathProgress,
   Program,
   ProgramCoachSummary,
   ProgramInput,
   ProgramModule,
   ProgramModuleInput,
-  ProgramParticipantSummary,
+  ProgramStatus,
 } from "@/types/program";
+import { executeGraphQL } from "../graphqlClient";
+import { listCoaches } from "../coach/coachService";
+import GET_PROGRAMS from "./query/GetPrograms.graphql?raw";
+import GET_PROGRAM from "./query/GetProgram.graphql?raw";
+import PROGRAM_COUNTS from "./query/ProgramCounts.graphql?raw";
+import CREATE_PROGRAM from "./query/CreateProgram.graphql?raw";
+import UPDATE_PROGRAM from "./query/UpdateProgram.graphql?raw";
+import MODULES_BY_PROGRAM from "./query/ModulesByProgram.graphql?raw";
+import MODULE_BY_ID from "./query/ModuleById.graphql?raw";
+import CREATE_MODULE from "./query/CreateModule.graphql?raw";
+import UPDATE_MODULE from "./query/UpdateModule.graphql?raw";
+import DELETE_MODULE from "./query/DeleteModule.graphql?raw";
+import LEARNING_PATHS_BY_PARTICIPANT from "./query/LearningPathsByParticipant.graphql?raw";
+import LEARNING_PATH_BY_ID from "./query/LearningPathById.graphql?raw";
+import CREATE_LEARNING_PATH_ITEM from "./query/CreateLearningPathItem.graphql?raw";
+import UPDATE_LEARNING_PATH_ITEM from "./query/UpdateLearningPathItem.graphql?raw";
+import DELETE_LEARNING_PATH_ITEM from "./query/DeleteLearningPathItem.graphql?raw";
 
 export interface ProgramWithCounts extends Program {
   participantCount: number;
@@ -32,343 +50,500 @@ export interface ProgramWithCounts extends Program {
   moduleCount: number;
 }
 
-interface SeedParticipant extends ProgramParticipantSummary {
-  status: string;
-  email: string;
-  github: string;
-  discord: string;
+// ---------------------------------------------------------------------------
+// Programs (live Salesforce data via uiapi GraphQL)
+// ---------------------------------------------------------------------------
+
+type ScalarValue<T> = { value?: T | null } | null | undefined;
+
+interface ProgramNode {
+  Id: string;
+  Name?: ScalarValue<string>;
+  Description__c?: ScalarValue<string>;
+  DurationWeeks__c?: ScalarValue<number>;
+  Status__c?: ScalarValue<string>;
 }
 
-// ---------------------------------------------------------------------------
-// Mock store (module-level, replaced by GraphQL later)
-// ---------------------------------------------------------------------------
-
-let programs: Program[] = [
-  {
-    id: "p1",
-    name: "IT Pro",
-    description: "DevOps and Cloud Engineer Program",
-    durationWeeks: 24,
-    status: "Active",
-    coachIds: ["c1"],
-  },
-  {
-    id: "p2",
-    name: "Cloud Engineer",
-    description: "Cloud infrastructure and platform engineering",
-    durationWeeks: 18,
-    status: "Active",
-    coachIds: ["c2"],
-  },
-  {
-    id: "p3",
-    name: "DevOps Engineer",
-    description: "CI/CD, automation and release engineering",
-    durationWeeks: 12,
-    status: "Draft",
-    coachIds: [],
-  },
-];
-
-let modules: ProgramModule[] = [
-  { id: "m1", programId: "p1", name: "IT Fundamentals", order: 1, description: "Hardware, operating systems and troubleshooting basics" },
-  { id: "m2", programId: "p1", name: "Windows Administration", order: 2, description: "Windows Server setup, users and group policies" },
-  { id: "m3", programId: "p1", name: "Linux Administration", order: 3, description: "Shell, services and permissions on Linux" },
-  { id: "m4", programId: "p1", name: "Networking", order: 4, description: "TCP/IP, DNS, DHCP and routing fundamentals" },
-  { id: "m5", programId: "p1", name: "Azure Fundamentals", order: 5, description: "Core Azure services, identity and governance" },
-  { id: "m6", programId: "p2", name: "Cloud Basics", order: 1, description: "Cloud concepts and shared responsibility" },
-  { id: "m7", programId: "p2", name: "Infrastructure as Code", order: 2, description: "Terraform and Bicep essentials" },
-];
-
-let participants: SeedParticipant[] = [
-  { id: "1", name: "Max Mustermann", programId: "p1", status: "Onboarding", email: "max@example.com", github: "maxmustermann", discord: "max#1234" },
-  { id: "2", name: "Lisa Müller", programId: "p2", status: "Active", email: "lisa@example.com", github: "lisam", discord: "lisa#4321" },
-  { id: "3", name: "Tom Schmidt", programId: undefined, status: "Onboarding", email: "tom@example.com", github: "tomschmidt", discord: "tom#9876" },
-];
-
-const coaches: ProgramCoachSummary[] = [
-  { id: "c1", name: "Sam Dillenburg" },
-  { id: "c2", name: "Sandra Krüger" },
-  { id: "c3", name: "Ghaith Saidani" },
-  { id: "c4", name: "Frank Blum" },
-];
-
-// Participant-specific curricula. A Program defines duration and framework;
-// the actual learning path is assembled per participant and may differ
-// significantly between participants of the same program.
-let learningPathItems: LearningPathItem[] = [
-  { id: "lp1", participantId: "1", programId: "p1", title: "CLP", order: 1, estimatedWeeks: 6, status: "Completed" },
-  { id: "lp2", participantId: "1", programId: "p1", title: "AWS SAA", order: 2, estimatedWeeks: 8, status: "In Progress" },
-  { id: "lp3", participantId: "1", programId: "p1", title: "KCNA", order: 3, estimatedWeeks: 10, status: "Planned" },
-  { id: "lp4", participantId: "2", programId: "p2", title: "CLP", order: 1, estimatedWeeks: 6, status: "Completed" },
-  { id: "lp5", participantId: "2", programId: "p2", title: "AZ-104", order: 2, estimatedWeeks: 8, status: "In Progress" },
-  { id: "lp6", participantId: "2", programId: "p2", title: "Terraform Associate", order: 3, estimatedWeeks: 4, status: "Planned" },
-];
-
-function nextModuleOrder(programId: string): number {
-  const orders = modules
-    .filter((m) => m.programId === programId)
-    .map((m) => m.order);
-  return orders.length === 0 ? 1 : Math.max(...orders) + 1;
+interface ProgramsResponse {
+  uiapi?: {
+    query?: {
+      Program__c?: {
+        edges?: Array<{ node?: ProgramNode | null } | null> | null;
+      } | null;
+    } | null;
+  } | null;
 }
 
-function renumber(programId: string): void {
-  modules
-    .filter((m) => m.programId === programId)
-    .sort((a, b) => a.order - b.order)
-    .forEach((m, index) => {
-      m.order = index + 1;
-    });
+interface CountsResponse {
+  uiapi?: {
+    query?: {
+      participants?: {
+        edges?: Array<{
+          node?: { Id: string; Program__c?: ScalarValue<string> } | null;
+        } | null> | null;
+      } | null;
+      modules?: {
+        edges?: Array<{
+          node?: { Id: string; Program__c?: ScalarValue<string> } | null;
+        } | null> | null;
+      } | null;
+    } | null;
+  } | null;
 }
 
-// ---------------------------------------------------------------------------
-// Programs
-// ---------------------------------------------------------------------------
+interface MutationResponse {
+  uiapi?: Record<string, { Record?: { Id?: string } | null } | null>;
+}
+
+function toProgramStatus(value: string | null | undefined): ProgramStatus {
+  if (value === "Draft" || value === "Active" || value === "Archived") {
+    return value;
+  }
+  console.warn(`Unknown Program Status__c "${value}", falling back to Draft.`);
+  return "Draft";
+}
+
+function mapProgram(node: ProgramNode, coachIds: string[]): Program {
+  return {
+    id: node.Id,
+    name: node.Name?.value ?? "Untitled Program",
+    description: node.Description__c?.value ?? undefined,
+    durationWeeks:
+      node.DurationWeeks__c?.value != null
+        ? Math.round(node.DurationWeeks__c.value)
+        : undefined,
+    status: toProgramStatus(node.Status__c?.value),
+    coachIds: [...coachIds],
+  };
+}
+
+// Transitional program↔coach assignment: no junction object exists yet, so
+// assignments live session-local, keyed by live program ID and seeded from
+// known org data by program name.
+const programCoachSeed: Record<string, string[]> = {};
+
+function coachNamesFor(programId: string, programName: string): string[] {
+  if (!(programId in programCoachSeed)) {
+    seedCoachNames(programId, programName);
+  }
+  return programCoachSeed[programId];
+}
+
+function seedCoachNames(programId: string, programName: string): void {
+  programCoachSeed[programId] =
+    programName === "IT Pro" ? ["Sam Dillenburg"] : [];
+}
+
+async function resolveCoachIds(names: string[]): Promise<string[]> {
+  const coaches = await listCoaches();
+  return coaches
+    .filter((coach) => names.includes(coach.name))
+    .map((coach) => coach.id);
+}
+
+async function coachNameForId(id: string): Promise<string | undefined> {
+  const coaches = await listCoaches();
+  return coaches.find((coach) => coach.id === id)?.name;
+}
 
 export async function listPrograms(): Promise<Program[]> {
-  return programs.map((p) => ({ ...p, coachIds: [...p.coachIds] }));
+  const data = await executeGraphQL<ProgramsResponse>(GET_PROGRAMS);
+  const edges = data.uiapi?.query?.Program__c?.edges ?? [];
+  const nodes = edges
+    .map((edge) => edge?.node)
+    .filter((node): node is ProgramNode => node != null);
+  return Promise.all(
+    nodes.map(async (node) =>
+      mapProgram(
+        node,
+        await resolveCoachIds(
+          coachNamesFor(node.Id, node.Name?.value ?? ""),
+        ),
+      ),
+    ),
+  );
 }
 
 export async function listProgramsWithCounts(): Promise<ProgramWithCounts[]> {
-  return programs.map((p) => ({
-    ...p,
-    coachIds: [...p.coachIds],
-    participantCount: participants.filter((pt) => pt.programId === p.id).length,
-    coachCount: p.coachIds.length,
-    moduleCount: modules.filter((m) => m.programId === p.id).length,
+  const [programsList, counts] = await Promise.all([
+    listPrograms(),
+    executeGraphQL<CountsResponse>(PROGRAM_COUNTS),
+  ]);
+  const participantLinks =
+    counts.uiapi?.query?.participants?.edges ?? [];
+  const moduleLinks = counts.uiapi?.query?.modules?.edges ?? [];
+
+  const participantCountByProgram = new Map<string, number>();
+  for (const edge of participantLinks) {
+    const programId = edge?.node?.Program__c?.value;
+    if (programId) {
+      participantCountByProgram.set(
+        programId,
+        (participantCountByProgram.get(programId) ?? 0) + 1,
+      );
+    }
+  }
+  const moduleCountByProgram = new Map<string, number>();
+  for (const edge of moduleLinks) {
+    const programId = edge?.node?.Program__c?.value;
+    if (programId) {
+      moduleCountByProgram.set(
+        programId,
+        (moduleCountByProgram.get(programId) ?? 0) + 1,
+      );
+    }
+  }
+
+  return programsList.map((program) => ({
+    ...program,
+    participantCount: participantCountByProgram.get(program.id) ?? 0,
+    coachCount: program.coachIds.length,
+    moduleCount: moduleCountByProgram.get(program.id) ?? 0,
   }));
 }
 
 export async function getProgram(id: string): Promise<Program | null> {
-  const program = programs.find((p) => p.id === id);
-  return program ? { ...program, coachIds: [...program.coachIds] } : null;
+  const data = await executeGraphQL<ProgramsResponse, { id: string }>(
+    GET_PROGRAM,
+    { id },
+  );
+  const node = data.uiapi?.query?.Program__c?.edges?.[0]?.node ?? null;
+  if (!node) return null;
+  return mapProgram(
+    node,
+    await resolveCoachIds(coachNamesFor(node.Id, node.Name?.value ?? "")),
+  );
 }
 
 export async function createProgram(input: ProgramInput): Promise<Program> {
-  const program: Program = {
-    id: crypto.randomUUID(),
+  const data = await executeGraphQL<
+    MutationResponse,
+    {
+      name: string;
+      description?: string | null;
+      durationWeeks?: number | null;
+      status: string;
+    }
+  >(CREATE_PROGRAM, {
     name: input.name.trim(),
-    description: input.description?.trim() || undefined,
-    durationWeeks: input.durationWeeks,
+    description: input.description?.trim() || null,
+    durationWeeks: input.durationWeeks ?? null,
     status: input.status,
-    coachIds: [],
-  };
-  programs = [...programs, program];
-  return { ...program, coachIds: [] };
+  });
+  const id = (Object.values(data.uiapi ?? {})[0]?.Record?.Id ?? null) as
+    | string
+    | null;
+  if (!id) throw new Error("Program creation returned no record Id.");
+  const created = await getProgram(id);
+  if (!created) throw new Error("Created program could not be reloaded.");
+  return created;
 }
 
 export async function updateProgram(
   id: string,
   patch: Partial<ProgramInput>,
 ): Promise<Program | null> {
-  const index = programs.findIndex((p) => p.id === id);
-  if (index === -1) return null;
-  const current = programs[index];
-  const updated: Program = {
-    ...current,
-    name: patch.name !== undefined ? patch.name.trim() : current.name,
-    description:
-      patch.description !== undefined
-        ? patch.description.trim() || undefined
-        : current.description,
-    durationWeeks:
-      patch.durationWeeks !== undefined
-        ? patch.durationWeeks
-        : current.durationWeeks,
-    status: patch.status ?? current.status,
-    coachIds: [...current.coachIds],
-  };
-  programs = programs.map((p) => (p.id === id ? updated : p));
-  return { ...updated, coachIds: [...updated.coachIds] };
+  const existing = await getProgram(id);
+  if (!existing) return null;
+
+  await executeGraphQL<
+    MutationResponse,
+    {
+      id: string;
+      name?: string;
+      description?: string | null;
+      durationWeeks?: number | null;
+      status?: string;
+    }
+  >(UPDATE_PROGRAM, {
+    id,
+    ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
+    ...(patch.description !== undefined
+      ? { description: patch.description.trim() || null }
+      : {}),
+    ...(patch.durationWeeks !== undefined
+      ? { durationWeeks: patch.durationWeeks }
+      : {}),
+    ...(patch.status !== undefined ? { status: patch.status } : {}),
+  });
+
+  return getProgram(id);
 }
 
 // ---------------------------------------------------------------------------
-// Modules
+// Modules (live Salesforce data via uiapi GraphQL)
 // ---------------------------------------------------------------------------
 
+interface ModuleNode {
+  Id: string;
+  Name?: ScalarValue<string>;
+  Order__c?: ScalarValue<number>;
+  Description__c?: ScalarValue<string>;
+  Program__c?: ScalarValue<string>;
+}
+
+interface ModulesResponse {
+  uiapi?: {
+    query?: {
+      Module__c?: {
+        edges?: Array<{ node?: ModuleNode | null } | null> | null;
+      } | null;
+    } | null;
+  } | null;
+}
+
+function mapModule(node: ModuleNode): ProgramModule {
+  return {
+    id: node.Id,
+    programId: node.Program__c?.value ?? "",
+    name: node.Name?.value ?? "Untitled Module",
+    order:
+      node.Order__c?.value != null ? Math.round(node.Order__c.value) : 0,
+    description: node.Description__c?.value ?? undefined,
+  };
+}
+
 export async function listModules(programId: string): Promise<ProgramModule[]> {
-  return modules
-    .filter((m) => m.programId === programId)
-    .sort((a, b) => a.order - b.order)
-    .map((m) => ({ ...m }));
+  const data = await executeGraphQL<ModulesResponse, { programId: string }>(
+    MODULES_BY_PROGRAM,
+    { programId },
+  );
+  const edges = data.uiapi?.query?.Module__c?.edges ?? [];
+  return edges
+    .map((edge) => edge?.node)
+    .filter((node): node is ModuleNode => node != null)
+    .map(mapModule);
+}
+
+async function getModuleById(id: string): Promise<ProgramModule | null> {
+  const data = await executeGraphQL<ModulesResponse, { id: string }>(
+    MODULE_BY_ID,
+    { id },
+  );
+  const node = data.uiapi?.query?.Module__c?.edges?.[0]?.node ?? null;
+  return node ? mapModule(node) : null;
 }
 
 export async function createModule(
   programId: string,
   input: ProgramModuleInput,
 ): Promise<ProgramModule> {
-  const module: ProgramModule = {
-    id: crypto.randomUUID(),
+  const existing = await listModules(programId);
+  const maxOrder = existing.reduce((max, m) => Math.max(max, m.order), 0);
+  const data = await executeGraphQL<
+    MutationResponse,
+    {
+      programId: string;
+      name: string;
+      order?: number | null;
+      description?: string | null;
+    }
+  >(CREATE_MODULE, {
     programId,
     name: input.name.trim(),
-    order: nextModuleOrder(programId),
-    description: input.description?.trim() || undefined,
-  };
-  modules = [...modules, module];
-  return { ...module };
+    order: maxOrder + 1,
+    description: input.description?.trim() || null,
+  });
+  const id = (Object.values(data.uiapi ?? {})[0]?.Record?.Id ?? null) as
+    | string
+    | null;
+  if (!id) throw new Error("Module creation returned no record Id.");
+  const created = await getModuleById(id);
+  if (!created) throw new Error("Created module could not be reloaded.");
+  return created;
 }
 
 export async function updateModule(
   id: string,
   patch: Partial<ProgramModuleInput>,
 ): Promise<ProgramModule | null> {
-  const existing = modules.find((m) => m.id === id);
+  const existing = await getModuleById(id);
   if (!existing) return null;
-  const updated: ProgramModule = {
-    ...existing,
-    name: patch.name !== undefined ? patch.name.trim() : existing.name,
-    description:
-      patch.description !== undefined
-        ? patch.description.trim() || undefined
-        : existing.description,
-  };
-  modules = modules.map((m) => (m.id === id ? updated : m));
-  return { ...updated };
+
+  await executeGraphQL<
+    MutationResponse,
+    {
+      id: string;
+      name?: string;
+      description?: string | null;
+    }
+  >(UPDATE_MODULE, {
+    id,
+    ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
+    ...(patch.description !== undefined
+      ? { description: patch.description.trim() || null }
+      : {}),
+  });
+
+  return getModuleById(id);
 }
 
 export async function deleteModule(id: string): Promise<void> {
-  const target = modules.find((m) => m.id === id);
-  modules = modules.filter((m) => m.id !== id);
-  if (target) renumber(target.programId);
+  await executeGraphQL<MutationResponse, { id: string }>(DELETE_MODULE, {
+    id,
+  });
+  // Order gaps after delete are harmless: lists sort by Order__c and new
+  // modules use max(order) + 1.
 }
 
 export async function reorderModules(
   programId: string,
   orderedIds: string[],
 ): Promise<ProgramModule[]> {
-  const byId = new Map(modules.map((m) => [m.id, m]));
-  orderedIds.forEach((id, index) => {
-    const module = byId.get(id);
-    if (module && module.programId === programId) {
-      module.order = index + 1;
-    }
-  });
-  renumber(programId);
+  for (const [index, id] of orderedIds.entries()) {
+    await executeGraphQL<
+      MutationResponse,
+      { id: string; order?: number | null }
+    >(UPDATE_MODULE, { id, order: index + 1 });
+  }
   return listModules(programId);
 }
 
 // ---------------------------------------------------------------------------
-// Participant assignment (via Participant__c.Program__c lookup)
+// Coach assignment (transitional session-local overlay; participant
+// assignment moved to participantService)
 // ---------------------------------------------------------------------------
 
-export async function listProgramParticipants(
-  programId: string,
-): Promise<ProgramParticipantSummary[]> {
-  return participants
-    .filter((p) => p.programId === programId)
-    .map(({ id, name, programId: pid }) => ({ id, name, programId: pid }));
+async function coachesForNames(
+  names: string[],
+): Promise<ProgramCoachSummary[]> {
+  const coaches = await listCoaches();
+  return coaches
+    .filter((coach) => names.includes(coach.name))
+    .map((coach) => ({ ...coach }));
 }
-
-export async function searchParticipants(
-  query: string,
-): Promise<ProgramParticipantSummary[]> {
-  const needle = query.trim().toLowerCase();
-  return participants
-    .filter(
-      (p) => needle === "" || p.name.toLowerCase().includes(needle),
-    )
-    .map(({ id, name, programId }) => ({ id, name, programId }));
-}
-
-export async function assignParticipant(
-  participantId: string,
-  programId: string,
-): Promise<void> {
-  participants = participants.map((p) =>
-    p.id === participantId ? { ...p, programId } : p,
-  );
-}
-
-export async function unassignParticipant(
-  participantId: string,
-): Promise<void> {
-  participants = participants.map((p) =>
-    p.id === participantId ? { ...p, programId: undefined } : p,
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Coach assignment
-// ---------------------------------------------------------------------------
 
 export async function listProgramCoaches(
   programId: string,
 ): Promise<ProgramCoachSummary[]> {
-  const program = programs.find((p) => p.id === programId);
+  const program = await getProgram(programId);
   if (!program) return [];
-  return program.coachIds
-    .map((id) => coaches.find((c) => c.id === id))
-    .filter((c): c is ProgramCoachSummary => c !== undefined)
-    .map((c) => ({ ...c }));
+  return coachesForNames(coachNamesFor(programId, program.name));
 }
 
 export async function listAvailableCoaches(
   programId: string,
 ): Promise<ProgramCoachSummary[]> {
-  const program = programs.find((p) => p.id === programId);
-  const assigned = new Set(program?.coachIds ?? []);
+  const [assigned, coaches] = await Promise.all([
+    listProgramCoaches(programId),
+    listCoaches(),
+  ]);
+  const assignedIds = new Set(assigned.map((coach) => coach.id));
   return coaches
-    .filter((c) => !assigned.has(c.id))
-    .map((c) => ({ ...c }));
+    .filter((coach) => !assignedIds.has(coach.id))
+    .map((coach) => ({ ...coach }));
 }
 
 export async function assignCoach(
   programId: string,
   coachId: string,
 ): Promise<void> {
-  programs = programs.map((p) =>
-    p.id === programId && !p.coachIds.includes(coachId)
-      ? { ...p, coachIds: [...p.coachIds, coachId] }
-      : p,
-  );
+  const name = await coachNameForId(coachId);
+  if (!name) return;
+  const program = await getProgram(programId);
+  if (!program) return;
+  const names = coachNamesFor(programId, program.name);
+  if (!names.includes(name)) {
+    programCoachSeed[programId] = [...names, name];
+  }
 }
 
 export async function unassignCoach(
   programId: string,
   coachId: string,
 ): Promise<void> {
-  programs = programs.map((p) =>
-    p.id === programId
-      ? { ...p, coachIds: p.coachIds.filter((id) => id !== coachId) }
-      : p,
+  const name = await coachNameForId(coachId);
+  const program = await getProgram(programId);
+  if (!name || !program) return;
+  programCoachSeed[programId] = coachNamesFor(programId, program.name).filter(
+    (entry) => entry !== name,
   );
 }
 
 // ---------------------------------------------------------------------------
-// Learning path (per-participant curriculum)
+// Learning path (per-participant curriculum, live Salesforce data)
 // ---------------------------------------------------------------------------
 
-function nextLearningPathOrder(participantId: string): number {
-  const orders = learningPathItems
-    .filter((item) => item.participantId === participantId)
-    .map((item) => item.order);
-  return orders.length === 0 ? 1 : Math.max(...orders) + 1;
+interface LearningPathNode {
+  Id: string;
+  Title__c?: ScalarValue<string>;
+  Order__c?: ScalarValue<number>;
+  Status__c?: ScalarValue<string>;
+  Estimated_Weeks__c?: ScalarValue<number>;
+  Participant__c?: ScalarValue<string>;
+  Program__c?: ScalarValue<string>;
 }
 
-function renumberLearningPath(participantId: string): void {
-  learningPathItems
-    .filter((item) => item.participantId === participantId)
-    .sort((a, b) => a.order - b.order)
-    .forEach((item, index) => {
-      item.order = index + 1;
-    });
+interface LearningPathResponse {
+  uiapi?: {
+    query?: {
+      Learning_Path__c?: {
+        edges?: Array<{ node?: LearningPathNode | null } | null> | null;
+      } | null;
+    } | null;
+  } | null;
+}
+
+function toLearningPathStatus(
+  value: string | null | undefined,
+): LearningPathItemStatus {
+  if (
+    value === "Planned" ||
+    value === "In Progress" ||
+    value === "Completed"
+  ) {
+    return value;
+  }
+  console.warn(
+    `Unknown Learning Path Status__c "${value}", falling back to Planned.`,
+  );
+  return "Planned";
+}
+
+function mapLearningPathItem(node: LearningPathNode): LearningPathItem {
+  return {
+    id: node.Id,
+    participantId: node.Participant__c?.value ?? "",
+    programId: node.Program__c?.value ?? "",
+    title: node.Title__c?.value ?? "Untitled Item",
+    order: node.Order__c?.value != null ? Math.round(node.Order__c.value) : 0,
+    estimatedWeeks:
+      node.Estimated_Weeks__c?.value != null
+        ? Math.round(node.Estimated_Weeks__c.value)
+        : undefined,
+    status: toLearningPathStatus(node.Status__c?.value),
+  };
 }
 
 export async function listLearningPath(
   participantId: string,
 ): Promise<LearningPathItem[]> {
-  return learningPathItems
-    .filter((item) => item.participantId === participantId)
-    .sort((a, b) => a.order - b.order)
-    .map((item) => ({ ...item }));
+  const data = await executeGraphQL<LearningPathResponse, { participantId: string }>(
+    LEARNING_PATHS_BY_PARTICIPANT,
+    { participantId },
+  );
+  const edges = data.uiapi?.query?.Learning_Path__c?.edges ?? [];
+  return edges
+    .map((edge) => edge?.node)
+    .filter((node): node is LearningPathNode => node != null)
+    .map(mapLearningPathItem);
+}
+
+async function getLearningPathItemById(
+  id: string,
+): Promise<LearningPathItem | null> {
+  const data = await executeGraphQL<LearningPathResponse, { id: string }>(
+    LEARNING_PATH_BY_ID,
+    { id },
+  );
+  const node = data.uiapi?.query?.Learning_Path__c?.edges?.[0]?.node ?? null;
+  return node ? mapLearningPathItem(node) : null;
 }
 
 export async function getLearningPathProgress(
   participantId: string,
 ): Promise<LearningPathProgress> {
-  const items = learningPathItems.filter(
-    (item) => item.participantId === participantId,
-  );
+  const items = await listLearningPath(participantId);
   const completed = items.filter(
     (item) => item.status === "Completed",
   ).length;
@@ -383,9 +558,8 @@ export async function getLearningPathProgress(
 export async function getLearningPathWeeks(
   participantId: string,
 ): Promise<number> {
-  return learningPathItems
-    .filter((item) => item.participantId === participantId)
-    .reduce((sum, item) => sum + (item.estimatedWeeks ?? 0), 0);
+  const items = await listLearningPath(participantId);
+  return items.reduce((sum, item) => sum + (item.estimatedWeeks ?? 0), 0);
 }
 
 export async function addLearningPathItem(
@@ -393,57 +567,81 @@ export async function addLearningPathItem(
   programId: string,
   input: LearningPathItemInput,
 ): Promise<LearningPathItem> {
-  const item: LearningPathItem = {
-    id: crypto.randomUUID(),
+  const existing = await listLearningPath(participantId);
+  const maxOrder = existing.reduce((max, item) => Math.max(max, item.order), 0);
+  const data = await executeGraphQL<
+    MutationResponse,
+    {
+      participantId: string;
+      programId: string;
+      title: string;
+      order?: number | null;
+      status?: string | null;
+      estimatedWeeks?: number | null;
+    }
+  >(CREATE_LEARNING_PATH_ITEM, {
     participantId,
     programId,
     title: input.title.trim(),
-    order: nextLearningPathOrder(participantId),
-    estimatedWeeks: input.estimatedWeeks,
+    order: maxOrder + 1,
     status: input.status,
-  };
-  learningPathItems = [...learningPathItems, item];
-  return { ...item };
+    estimatedWeeks: input.estimatedWeeks ?? null,
+  });
+  const id = (Object.values(data.uiapi ?? {})[0]?.Record?.Id ?? null) as
+    | string
+    | null;
+  if (!id) throw new Error("Learning path item creation returned no Id.");
+  const created = await getLearningPathItemById(id);
+  if (!created) throw new Error("Created learning path item not found.");
+  return created;
 }
 
 export async function updateLearningPathItem(
   id: string,
   patch: Partial<LearningPathItemInput>,
 ): Promise<LearningPathItem | null> {
-  const existing = learningPathItems.find((item) => item.id === id);
+  const existing = await getLearningPathItemById(id);
   if (!existing) return null;
-  const updated: LearningPathItem = {
-    ...existing,
-    title: patch.title !== undefined ? patch.title.trim() : existing.title,
-    estimatedWeeks:
-      patch.estimatedWeeks !== undefined
-        ? patch.estimatedWeeks
-        : existing.estimatedWeeks,
-    status: patch.status ?? existing.status,
-  };
-  learningPathItems = learningPathItems.map((item) =>
-    item.id === id ? updated : item,
-  );
-  return { ...updated };
+
+  await executeGraphQL<
+    MutationResponse,
+    {
+      id: string;
+      title?: string;
+      order?: number | null;
+      status?: string | null;
+      estimatedWeeks?: number | null;
+    }
+  >(UPDATE_LEARNING_PATH_ITEM, {
+    id,
+    ...(patch.title !== undefined ? { title: patch.title.trim() } : {}),
+    ...(patch.estimatedWeeks !== undefined
+      ? { estimatedWeeks: patch.estimatedWeeks }
+      : {}),
+    ...(patch.status !== undefined ? { status: patch.status } : {}),
+  });
+
+  return getLearningPathItemById(id);
 }
 
 export async function deleteLearningPathItem(id: string): Promise<void> {
-  const target = learningPathItems.find((item) => item.id === id);
-  learningPathItems = learningPathItems.filter((item) => item.id !== id);
-  if (target) renumberLearningPath(target.participantId);
+  await executeGraphQL<MutationResponse, { id: string }>(
+    DELETE_LEARNING_PATH_ITEM,
+    { id },
+  );
+  // Order gaps after delete are harmless: lists sort by Order__c and new
+  // items use max(order) + 1.
 }
 
 export async function reorderLearningPathItems(
   participantId: string,
   orderedIds: string[],
 ): Promise<LearningPathItem[]> {
-  const byId = new Map(learningPathItems.map((item) => [item.id, item]));
-  orderedIds.forEach((id, index) => {
-    const item = byId.get(id);
-    if (item && item.participantId === participantId) {
-      item.order = index + 1;
-    }
-  });
-  renumberLearningPath(participantId);
+  for (const [index, id] of orderedIds.entries()) {
+    await executeGraphQL<
+      MutationResponse,
+      { id: string; order?: number | null }
+    >(UPDATE_LEARNING_PATH_ITEM, { id, order: index + 1 });
+  }
   return listLearningPath(participantId);
 }

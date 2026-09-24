@@ -1,0 +1,25 @@
+query GetPrograms {
+  uiapi {
+    query {
+      Program__c(first: 200, orderBy: { Name: { order: ASC } }) {
+        edges {
+          node {
+            Id
+            Name @optional {
+              value
+            }
+            Description__c @optional {
+              value
+            }
+            DurationWeeks__c @optional {
+              value
+            }
+            Status__c @optional {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

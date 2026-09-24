@@ -1,0 +1,7 @@
+mutation DeleteModule($id: IdOrRef!) {
+  uiapi {
+    Module__cDelete(input: { Id: $id }) {
+      Id
+    }
+  }
+}

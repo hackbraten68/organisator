@@ -1,0 +1,22 @@
+query ListCoaches {
+  uiapi {
+    query {
+      Coach_Profile__c(first: 200, orderBy: { Name: { order: ASC } }) {
+        edges {
+          node {
+            Id
+            Name @optional {
+              value
+            }
+            Email__c @optional {
+              value
+            }
+            Role__c @optional {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}
