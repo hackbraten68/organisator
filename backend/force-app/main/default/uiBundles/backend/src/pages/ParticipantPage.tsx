@@ -98,8 +98,10 @@ export default function ParticipantPage() {
       return compareByOnboarding(a, b);
     });
 
+  // Fall back to the full list so the details stay visible when the
+  // current filter view is empty (e.g. inbox cleared, all Ready).
   const effectiveSelectedId =
-    selectedId ?? visibleParticipants[0]?.id ?? null;
+    selectedId ?? visibleParticipants[0]?.id ?? participants[0]?.id ?? null;
   const selectedParticipant =
     participants.find((p) => p.id === effectiveSelectedId) ?? null;
 
@@ -224,7 +226,7 @@ export default function ParticipantPage() {
         </Card>
       )}
 
-      {!loading && !error && participant && (
+      {!loading && !error && participants.length > 0 && (
         <>
           <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
             {/* Teilnehmerliste */}
@@ -305,6 +307,7 @@ export default function ParticipantPage() {
 
             {/* Detailformular + Onboarding-Checkliste */}
 
+            {participant ? (
             <div className="space-y-6">
               <Card>
               <CardHeader>
@@ -457,10 +460,24 @@ export default function ParticipantPage() {
 
             <OnboardingChecklist participant={participant} />
             </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                  <Users className="size-12 text-muted-foreground mb-4" />
+                  <h2 className="text-lg font-semibold mb-1">
+                    No participant selected
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Select a participant from the list to view details.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Individuelles Curriculum des ausgewählten Teilnehmers */}
 
+          {participant && (
           <div className="mt-6">
             <ParticipantLearningPath
               key={participant.id}
@@ -469,6 +486,7 @@ export default function ParticipantPage() {
               programId={participant.programId}
             />
           </div>
+          )}
         </>
       )}
     </div>
