@@ -26,6 +26,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import ParticipantLearningPath from "@/components/participants/ParticipantLearningPath";
 import OnboardingBadge from "@/components/participants/OnboardingBadge";
+import OnboardingChecklist from "@/components/participants/OnboardingChecklist";
 import CompletionBar from "@/components/participants/CompletionBar";
 import {
   getCompletion,
@@ -302,9 +303,10 @@ export default function ParticipantPage() {
               </CardContent>
             </Card>
 
-            {/* Detailformular */}
+            {/* Detailformular + Onboarding-Checkliste */}
 
-            <Card>
+            <div className="space-y-6">
+              <Card>
               <CardHeader>
                 <CardTitle>Participant Details</CardTitle>
               </CardHeader>
@@ -452,6 +454,9 @@ export default function ParticipantPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <OnboardingChecklist participant={participant} />
+            </div>
           </div>
 
           {/* Individuelles Curriculum des ausgewählten Teilnehmers */}
