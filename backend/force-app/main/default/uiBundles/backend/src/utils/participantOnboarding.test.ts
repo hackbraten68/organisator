@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
+import type { Participant } from "@/types/participant";
 import {
   getCompletion,
   getMissingFields,
   getOnboardingCounts,
   needsAttention,
-  type Participant,
 } from "./participantOnboarding";
 
 function makeParticipant(overrides: Partial<Participant> = {}): Participant {

@@ -22,8 +22,16 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import ParticipantLearningPath from "@/components/participants/ParticipantLearningPath";
+import OnboardingBadge from "@/components/participants/OnboardingBadge";
+import CompletionBar from "@/components/participants/CompletionBar";
+import {
+  getCompletion,
+  getOnboardingCounts,
+  needsAttention,
+} from "@/utils/participantOnboarding";
 import {
   listParticipants,
   updateParticipant,
@@ -37,12 +45,22 @@ import {
 
 const NONE = "__none";
 
+type ParticipantFilter = "needs-attention" | "active" | "all";
+
+function compareByOnboarding(a: Participant, b: Participant): number {
+  const pa = getCompletion(a).percent;
+  const pb = getCompletion(b).percent;
+  if (pa !== pb) return pa - pb;
+  return a.name.localeCompare(b.name);
+}
+
 export default function ParticipantPage() {
   const [reload, setReload] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [participant, setParticipant] = useState<Participant | null>(null);
   const [prevSelectionKey, setPrevSelectionKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [filter, setFilter] = useState<ParticipantFilter>("needs-attention");
 
   const { data, loading, error } = useAsyncData(async () => {
     const [participantList, programList, coachList] = await Promise.all([
@@ -61,8 +79,26 @@ export default function ParticipantPage() {
   const programs = data?.programs ?? [];
   const coaches = data?.coaches ?? [];
 
+  const counts = getOnboardingCounts(participants);
+
+  const visibleParticipants = [...participants]
+    .filter((p) => {
+      if (filter === "needs-attention") return needsAttention(p);
+      if (filter === "active") return p.status === "Active";
+      return true;
+    })
+    .sort((a, b) => {
+      if (filter === "all") {
+        const na = needsAttention(a);
+        const nb = needsAttention(b);
+        if (na !== nb) return na ? -1 : 1;
+        if (!na) return a.name.localeCompare(b.name);
+      }
+      return compareByOnboarding(a, b);
+    });
+
   const effectiveSelectedId =
-    selectedId ?? participants[0]?.id ?? null;
+    selectedId ?? visibleParticipants[0]?.id ?? null;
   const selectedParticipant =
     participants.find((p) => p.id === effectiveSelectedId) ?? null;
 
@@ -198,29 +234,69 @@ export default function ParticipantPage() {
               </CardHeader>
 
               <CardContent>
+                <Tabs
+                  value={filter}
+                  onValueChange={(value) =>
+                    setFilter(value as ParticipantFilter)
+                  }
+                >
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="needs-attention">
+                      Needs Attention ({counts.needsAttention})
+                    </TabsTrigger>
+                    <TabsTrigger value="active">
+                      Active ({counts.active})
+                    </TabsTrigger>
+                    <TabsTrigger value="all">
+                      All Participants ({counts.total})
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Program</TableHead>
+                      <TableHead>Onboarding</TableHead>
                     </TableRow>
                   </TableHeader>
 
                   <TableBody>
-                    {participants.map((p) => (
-                      <TableRow
-                        key={p.id}
-                        className={`cursor-pointer ${
-                          p.id === effectiveSelectedId ? "bg-accent" : ""
-                        }`}
-                        onClick={() => handleParticipantChange(p.id)}
-                      >
-                        <TableCell>{p.name}</TableCell>
-                        <TableCell>{p.status}</TableCell>
-                        <TableCell>{p.programName ?? "—"}</TableCell>
+                    {visibleParticipants.map((p) => {
+                      const completion = getCompletion(p);
+                      return (
+                        <TableRow
+                          key={p.id}
+                          className={`cursor-pointer ${
+                            p.id === effectiveSelectedId ? "bg-accent" : ""
+                          }`}
+                          onClick={() => handleParticipantChange(p.id)}
+                        >
+                          <TableCell>{p.name}</TableCell>
+                          <TableCell>{p.status}</TableCell>
+                          <TableCell>{p.programName ?? "—"}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <OnboardingBadge state={completion.state} />
+                              <CompletionBar percent={completion.percent} />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {visibleParticipants.length === 0 && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={4}
+                          className="text-center text-muted-foreground"
+                        >
+                          {filter === "needs-attention"
+                            ? "All participants are fully onboarded."
+                            : "No participants in this view."}
+                        </TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
