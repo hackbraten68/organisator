@@ -583,3 +583,15 @@ sf project deploy start \
 ```
 
 Use the Tooling API to verify the resulting field definitions before creating dependent test data or implementing the next Salesforce Flow.
+
+
+## Scratch Org Rebuild Result
+
+A completely fresh scratch org was created:
+
+```bash
+sf org create scratch \
+  --definition-file config/project-scratch-def.json \
+  --alias backendtest \
+  --set-default \
+  --target-dev-hub test
