@@ -1,5 +1,19 @@
 # Current UI Structure
 
+> Status note (2026-09-24): this was a pre-implementation planning snapshot.
+> Actual structure diverged — see below. The app now reads/writes live
+> Salesforce data (no mocks); details in `docs/AGENTS.md` finding 10.
+>
+> Actual pages: `Home`, `AccountObjectDetailPage`, `NotFound`,
+> `ParticipantPage`, `programs/ProgramsPage`, `programs/ProgramDetailPage`.
+> Actual API layers: `src/api/program/` (programService + `query/*.graphql`),
+> `src/api/participant/` (participantService + `query/*.graphql`),
+> `src/api/coach/` (coachService + `query/*.graphql`),
+> `src/api/account/` + `src/api/graphqlClient.ts` (executeGraphQL).
+> Actual types: `src/types/participant.ts`, `src/types/program.ts`,
+> `src/types/navigation.ts`. Navigation derives from route handles
+> (`showInNavigation`, `label`, `icon`) via `src/router-utils.tsx`.
+
 ## Existing Application Architecture
 
 The Salesforce UI Bundle already contains a modern React application.
@@ -168,19 +182,7 @@ Sam Dillenburg
 
 ## Next Implementation
 
-Inspect routing configuration.
-
-Files:
-
-```text
-src/routes.tsx
-src/app.tsx
-```
-
-Determine:
-
-- router implementation
-- page registration
-- navigation integration
-
-Before creating ParticipantPage.
+Done — routing uses `react-router` object routes with typed handles
+(`NavigationHandle`: `showInNavigation`, `label`, `icon`); the sidebar in
+`src/appLayout.tsx` renders them automatically. Open roadmap:
+`docs/frontend/certification-roadmap-proposal.md`.

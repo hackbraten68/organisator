@@ -34,11 +34,11 @@ Lead
 └── Opportunity
     └── Contact
 
-Academy layer
+Academy layer (actual API names in the org)
 Program__c
 Participant__c
-CoachProfile__c
-LearningPath__c
+Coach_Profile__c
+Learning_Path__c
 Project__c
 Module__c
 ```
@@ -48,27 +48,59 @@ The current implementation is Sprint 1 and focuses on:
 ```text
 Program__c
 Participant__c
-CoachProfile__c
+Coach_Profile__c
+Learning_Path__c
+Module__c
 ```
 
 ---
 
 ## Current state
 
-The following custom objects have been generated and successfully deployed:
+The following custom objects exist in `backendtest` and are retrieved into
+`force-app/main/default/objects/`:
 
 ```text
 Program__c
 Participant__c
-CoachProfile__c
+Coach_Profile__c
+Learning_Path__c
+Module__c
 ```
 
-The following fields have been generated for `Program__c`:
+`Program__c` fields:
 
 ```text
 Description__c      Long Text Area(32768)
 DurationWeeks__c    Number(2,0)
+Status__c           Picklist (Draft, Active, Archived; default Draft)
 ```
+
+`Learning_Path__c` fields (object name contains an underscore):
+
+```text
+Participant__c      Lookup(Participant__c, required)
+Program__c          Lookup(Program__c, required)
+Title__c            Text(255, required)
+Order__c            Number(3,0)
+Status__c           Picklist (Planned, In Progress, Completed; default Planned)
+Estimated_Weeks__c  Number(2,0) — note the underscore (org truth, not a typo)
+```
+
+`Module__c` fields:
+
+```text
+Program__c          Lookup(Program__c, required)
+Order__c            Number(3,0)
+Description__c      Long Text Area(32768)
+```
+
+`Participant__c` fields: Status__c (picklist, default Onboarding), Email__c,
+Discord__c, GitHub__c, StartDate__c, ExpectedEndDate__c, Program__c lookup,
+Coach_Profile__c lookup, Contact__c lookup.
+
+`Coach_Profile__c` fields: Capacity__c, Discord__c, Email__c, GitHub__c,
+Role__c, Status__c.
 
 Correct local structure:
 
@@ -243,7 +275,9 @@ To isolate the custom objects from the frontend bundle, deploy selected metadata
 sf project deploy start \
   --metadata CustomObject:Program__c \
   --metadata CustomObject:Participant__c \
-  --metadata CustomObject:CoachProfile__c \
+  --metadata CustomObject:Coach_Profile__c \
+  --metadata CustomObject:Learning_Path__c \
+  --metadata CustomObject:Module__c \
   --target-org backendtest
 ```
 
@@ -377,6 +411,100 @@ fish: Unknown command: ``
 
 Only copy the command contents, not the surrounding Markdown fence.
 
+### 9. Never use `sf schema generate` — create schema manually, then retrieve
+
+`sf schema generate sobject` / `sf schema generate field` produced broken
+results in this project (nested project structures, missing XML namespaces,
+fields invisible to SOQL/REST despite successful deployment). See
+`docs/AGENTS-salesforce-runtime-schema-troubleshooting.md` for the full
+root-cause analysis.
+
+Binding rule:
+
+1. Create objects and fields manually in Setup → Object Manager.
+2. Retrieve the result into source format:
+
+```bash
+sf project retrieve start \
+  --metadata CustomObject:Learning_Path__c \
+  --metadata CustomObject:Module__c \
+  --metadata CustomField:Program__c.Status__c \
+  --target-org backendtest
+```
+
+3. Verify the retrieved structure before anything else:
+
+```bash
+find force-app/main/default/objects/Learning_Path__c \
+     force-app/main/default/objects/Module__c -type f | sort
+```
+
+Field metadata must land as
+`objects/<Object>/fields/<Field>.field-meta.xml`. A nested `force-app`
+directory inside `uiBundles/` means a generator ran from the wrong working
+directory — delete it.
+
+### 10. UI bundle reads and writes Salesforce through uiapi GraphQL
+
+Architecture (do not bypass the service layer from components):
+
+```text
+Component
+  -> src/api/<domain>/<domain>Service.ts
+    -> src/api/<domain>/query/*.graphql (?raw import)
+      -> src/api/graphqlClient.ts (executeGraphQL)
+        -> createDataSDK().graphql.query / .mutate
+```
+
+Verified facts about the uiapi GraphQL schema (API 67.0, validated live
+against `backendtest`):
+
+- Reads: `uiapi { query { Object__c(first, orderBy, where) { edges { node } } }`.
+  Lookup filters work as `where: { Program__c: { eq: $programId } }`;
+  record lookup as `where: { Id: { eq: $id } }` with variable type `ID!`
+  (lookup equality takes `IdOrRef!`).
+- Custom fields return `{ value }` (picklists as API-name strings, numbers
+  as floats — coerce with `Math.round` for integer fields).
+- Lookup fields return the related record Id in `value`; `displayValue` is
+  `null` for lookups — join parent names client-side from list queries.
+- Mutations are per-object operations directly under `uiapi`
+  (there is NO intermediate `mutation {}` level):
+  `Program__cCreate`, `Program__cUpdate`, `Program__cDelete`,
+  `Learning_Path__cCreate`, `Module__cDelete`, … (introspect
+  `UIAPIMutations` for the full list).
+- Shapes: create/update take `input: { <Object>: { …representation… } }`
+  (update additionally `Id: IdOrRef!`); create/update payloads select
+  `{ Record { Id } }`; delete takes `input: { Id }` and selects `{ Id }`.
+- Representation scalars: text → `String`, long text → `LongTextArea`,
+  numbers → `Double`, picklists → `Picklist` (pass quoted strings, never
+  bare enums), dates → `Date`, emails → `Email`, lookups → `IdOrRef`.
+- Passing explicit `null` clears a field (verified for text and lookups);
+  omitting a variable leaves the server value untouched.
+- Introspection is throttled (`BadFaithIntrospection`): query at most one
+  `__type(...) { inputFields }` per request.
+- `executeGraphQL` routes operations starting with the `mutation` keyword to
+  `sdk.graphql.mutate`; everything else goes to `query`. Keep exactly one
+  operation per `.graphql` file so `?raw` imports route correctly.
+
+### 11. Confirm the target org before trusting object sightings
+
+A `Module__c` object ("Modul", certification-flavored fields, no Program
+lookup) was found in the `hubScratch` org — it belongs to a different
+context and expires with that scratch org. It is NOT the Organisator
+`Module__c`. Always verify object identity with the Tooling API against
+`backendtest` before reusing anything:
+
+```bash
+sf data query \
+  --target-org backendtest \
+  --use-tooling-api \
+  --query "
+SELECT QualifiedApiName, DataType
+FROM FieldDefinition
+WHERE EntityDefinition.QualifiedApiName='Module__c'
+ORDER BY QualifiedApiName"
+```
+
 ---
 
 ## Field configuration decisions
@@ -493,96 +621,41 @@ sf data query \
   --query "SELECT Id, Name FROM Program__c"
 ```
 
-Program records created during troubleshooting:
+Seed records in `backendtest` (all verified live):
 
 ```text
-TEST
-IT-Pro
-IT-Pro Advanced
+Program__c            IT Pro (Active, 24 weeks, a049b000009jVgnAAE)
+Program__c            IT Pro Advanced (Active, 18 weeks, a049b000009lKMSAA2)
+Coach_Profile__c      Sam Dillenburg, Sandra Krüger, Ghaith Saidani, Frank Blum
+Participant__c        Max Mustermann (Onboarding, linked to IT Pro + Sam Dillenburg)
+Learning_Path__c      CLP (Completed, 6 wks) -> AWS SAA (In Progress, 8 wks)
+                      -> KCNA (Planned, 10 wks), all for Max Mustermann
+Module__c             IT Fundamentals, Windows Administration,
+                      Linux Administration, Networking, Azure Fundamentals
+                      (orders 1-5, all for IT Pro)
 ```
 
-The `TEST` record can be deleted later if it is no longer needed.
+The UI bundle reads and writes all of the above through the service layer
+(`src/api/program`, `src/api/participant`, `src/api/coach`) — no mock data
+remains except the session-local program↔coach assignment overlay (no
+junction object exists yet).
 
 ---
 
-## Mandatory next step
+## Current next steps
 
-Continue with the fields and relationships on `Participant__c`.
-
-```text
-Participant__c
-├── Status__c
-├── Email__c
-├── Discord__c
-├── Github__c
-├── StartDate__c
-├── ExpectedEndDate__c
-├── Program__c Lookup
-├── CoachProfile__c Lookup
-└── Contact__c Lookup
-```
-
-Recommended field types:
+Schema and live data integration for Programs, Modules, Learning Paths,
+Participants and Coaches are done (see finding 10). Remaining roadmap from
+`docs/frontend/certification-roadmap-proposal.md`:
 
 ```text
-Status__c            Picklist
-Email__c             Email
-Discord__c           Text(255)
-Github__c            Text(255)
-StartDate__c         Date
-ExpectedEndDate__c   Date
-Program__c           Lookup(Program__c)
-CoachProfile__c      Lookup(CoachProfile__c)
-Contact__c           Lookup(Contact)
+Certification Catalog
+Drag-and-Drop Roadmap
+Progress reporting across participants
 ```
 
-Recommended values for `Status__c`:
-
-```text
-Onboarding
-Active
-Paused
-Graduated
-Placed
-Dropped
-```
-
-Recommended default:
-
-```text
-Onboarding
-```
-
-Before generating these fields, always return to the project root:
-
-```bash
-cd /home/sam/github/organisator/backend
-pwd
-```
-
-Then generate each field against the correct local object folder:
-
-```bash
-sf schema generate field \
-  --object force-app/main/default/objects/Participant__c \
-  --label "Status"
-```
-
-After all Participant fields are generated, verify the directory structure before deployment:
-
-```bash
-tree force-app/main/default/objects/Participant__c
-```
-
-Deploy only `Participant__c` and its fields:
-
-```bash
-sf project deploy start \
-  --source-dir force-app/main/default/objects/Participant__c \
-  --target-org backendtest
-```
-
-Use the Tooling API to verify the resulting field definitions before creating dependent test data or implementing the next Salesforce Flow.
+Binding workflow rules for any future schema work: finding 9
+(manual creation, then retrieve — never `sf schema generate`).
 
 
 ## Scratch Org Rebuild Result
