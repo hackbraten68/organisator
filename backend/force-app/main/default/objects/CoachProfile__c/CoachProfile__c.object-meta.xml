@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject>
+    <pluralLabel>Coach Profiles</pluralLabel>
+    <fullName>CoachProfile__c</fullName>
+    <description>own object for coaches</description>
+    <nameField>
+        <label>Coach Profile Name</label>
+        <type>Text</type>
+    </nameField>
+    <enableHistory>true</enableHistory>
+    <enableActivities>true</enableActivities>
+    <enableSearch>true</enableSearch>
+    <enableFeeds>true</enableFeeds>
+    <enableReports>true</enableReports>
+    <enableBulkApi>true</enableBulkApi>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <sharingModel>ReadWrite</sharingModel>
+    <label>Coach Profile</label>
+    <deploymentStatus>Deployed</deploymentStatus>
+</CustomObject>

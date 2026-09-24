@@ -1,0 +1,9 @@
+{
+  "permsetAssignments": {
+    "assignments": {
+      "backend_Access": {
+        "assignee": "currentUser"
+      }
+    }
+  }
+}
