@@ -41,7 +41,7 @@ export default function ProgramDetailPage() {
   const refresh = () => setReload((value) => value + 1);
 
   return (
-    <div className="container mx-auto max-w-7xl p-6">
+    <div className="container mx-auto max-w-[1500px] p-6">
       <ObjectBreadcrumb
         listPath="/programs"
         listLabel="Programs"

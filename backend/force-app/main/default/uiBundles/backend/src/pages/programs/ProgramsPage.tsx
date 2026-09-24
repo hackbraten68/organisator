@@ -57,7 +57,7 @@ export default function ProgramsPage() {
   }, [data, search, statusFilter]);
 
   return (
-    <div className="container mx-auto max-w-7xl p-6">
+    <div className="container mx-auto max-w-[1500px] p-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Programs</h1>

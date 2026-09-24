@@ -198,7 +198,7 @@ export default function ParticipantPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-7xl p-6">
+    <div className="container mx-auto max-w-[1500px] p-6">
       {loading && <ParticipantPageSkeleton />}
 
       {error && (
@@ -228,7 +228,7 @@ export default function ParticipantPage() {
 
       {!loading && !error && participants.length > 0 && (
         <>
-          <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
+          <div className="grid gap-6 lg:grid-cols-[480px_1fr]">
             {/* Teilnehmerliste */}
 
             <Card>
@@ -276,9 +276,13 @@ export default function ParticipantPage() {
                           }`}
                           onClick={() => handleParticipantChange(p.id)}
                         >
-                          <TableCell>{p.name}</TableCell>
+                          <TableCell className="max-w-36 truncate">
+                            {p.name}
+                          </TableCell>
                           <TableCell>{p.status}</TableCell>
-                          <TableCell>{p.programName ?? "—"}</TableCell>
+                          <TableCell className="max-w-32 truncate">
+                            {p.programName ?? "—"}
+                          </TableCell>
                           <TableCell>
                             <div className="flex flex-col gap-1">
                               <OnboardingBadge state={completion.state} />
@@ -495,7 +499,7 @@ export default function ParticipantPage() {
 
 function ParticipantPageSkeleton() {
   return (
-    <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[480px_1fr]">
       <Card>
         <CardHeader>
           <Skeleton className="h-6 w-32" />
