@@ -1,9 +1,12 @@
 import type { RouteObject } from 'react-router';
+
 import AppLayout from './appLayout';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
+import AccountObjectDetail from './pages/AccountObjectDetailPage';
+import ParticipantPage from './pages/ParticipantPage';
+
 import { Search as GlobalSearch, config } from "./features/search";
-import AccountObjectDetail from "./pages/AccountObjectDetailPage";
 
 export const routes: RouteObject[] = [
   {
@@ -13,25 +16,39 @@ export const routes: RouteObject[] = [
       {
         index: true,
         element: <Home />,
-        handle: { showInNavigation: true, label: "Home" }
+        handle: {
+          showInNavigation: true,
+          label: "Home"
+        }
       },
       {
         path: "search",
         element: (
-					<GlobalSearch
-						config={config}
-						title="Search"
-						searchPlaceholder="Search accounts, contacts, opportunities, and content..."
-					/>
-				),
-        handle: { showInNavigation: true, label: "Search" }
+          <GlobalSearch
+            config={config}
+            title="Search"
+            searchPlaceholder="Search accounts, contacts, opportunities, and content..."
+          />
+        ),
+        handle: {
+          showInNavigation: true,
+          label: "Search"
+        }
+      },
+      {
+        path: "participants",
+        element: <ParticipantPage />,
+        handle: {
+          showInNavigation: true,
+          label: "Participants"
+        }
       },
       {
         path: "accounts/:recordId",
         element: <AccountObjectDetail />
       },
       {
-        path: '*',
+        path: "*",
         element: <NotFound />
       }
     ]
