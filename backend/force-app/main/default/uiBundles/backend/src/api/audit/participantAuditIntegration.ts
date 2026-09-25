@@ -15,15 +15,13 @@
  * - Error handling
  */
 
-import type { Participant, ParticipantPatch } from '@/types/participant';
-import type { AuditActorType, AuditEvent, EVENT_TYPES } from '@/types/audit';
+import type { Participant } from '@/types/participant';
+import type { AuditActorType, AuditEvent } from '@/types/audit';
 import { EVENT_TYPES } from '@/types/audit';
 import { auditService } from './auditService';
 import {
   compareFieldChanges,
   applyFieldRedaction,
-  generateUUID,
-  createParticipantPatchFields,
 } from './auditService';
 
 /**
@@ -63,6 +61,7 @@ export async function recordParticipantStatusChange(
   const changes = [
     {
       field: 'Status__c',
+      changed: oldStatus !== newStatus,
       oldValue: oldStatus,
       newValue: newStatus,
     },
@@ -170,11 +169,13 @@ export async function recordParticipantCreation(
   const changes = [
     {
       field: 'Name',
+      changed: true,
       oldValue: undefined,
       newValue: participant.name,
     },
     {
       field: 'Status__c',
+      changed: true,
       oldValue: undefined,
       newValue: participant.status,
     },
@@ -183,6 +184,7 @@ export async function recordParticipantCreation(
   if (participant.email) {
     changes.push({
       field: 'Email__c',
+      changed: true,
       oldValue: undefined,
       newValue: participant.email,
     });
@@ -191,6 +193,7 @@ export async function recordParticipantCreation(
   if (participant.programId) {
     changes.push({
       field: 'Program__c',
+      changed: true,
       oldValue: undefined,
       newValue: participant.programId,
     });
@@ -199,6 +202,7 @@ export async function recordParticipantCreation(
   if (participant.coachId) {
     changes.push({
       field: 'Coach_Profile__c',
+      changed: true,
       oldValue: undefined,
       newValue: participant.coachId,
     });
@@ -231,7 +235,7 @@ export async function recordParticipantCreation(
  */
 export async function recordParticipantArchived(
   participantId: string,
-  participant: Participant,
+  _participant: Participant,
   options: AuditOptions,
 ): Promise<AuditEvent> {
   return auditService.record({
@@ -257,7 +261,7 @@ export async function recordParticipantArchived(
  */
 export async function recordParticipantRestored(
   participantId: string,
-  participant: Participant,
+  _participant: Participant,
   options: AuditOptions,
 ): Promise<AuditEvent> {
   return auditService.record({

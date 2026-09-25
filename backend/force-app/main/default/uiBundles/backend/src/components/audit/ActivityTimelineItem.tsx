@@ -10,7 +10,7 @@ import { ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import type { ActivityGrouping, AuditEvent, AuditActorType } from '@/types/audit';
+import type { ActivityGrouping, AuditEvent } from '@/types/audit';
 import { ActorBadge } from './ActorBadge';
 import { DomainBadge } from './DomainBadge';
 import { ChangeSetViewer } from './ChangeSetViewer';
@@ -26,40 +26,12 @@ export interface ActivityTimelineItemProps {
 /**
  * Get icon/color for actor type
  */
-function getActorTypeColor(type: AuditActorType): string {
-  switch (type) {
-    case 'staff':
-      return 'bg-blue-100 text-blue-900';
-    case 'participant':
-      return 'bg-green-100 text-green-900';
-    case 'system':
-      return 'bg-gray-100 text-gray-900';
-    case 'integration':
-      return 'bg-purple-100 text-purple-900';
-    default:
-      return 'bg-gray-100 text-gray-900';
-  }
-}
-
-/**
- * Get actor type label
- */
-function getActorTypeLabel(type: AuditActorType): string {
-  const labels: Record<AuditActorType, string> = {
-    staff: 'Team',
-    participant: 'Teilnehmer',
-    system: 'System',
-    integration: 'Integration',
-  };
-  return labels[type];
-}
 
 export function ActivityTimelineItem({
   group,
   isExpanded,
   onToggleExpand,
   onSelectEvent,
-  participantId,
 }: ActivityTimelineItemProps) {
   const primary = group.events[0]!;
   const isMulti = group.events.length > 1;

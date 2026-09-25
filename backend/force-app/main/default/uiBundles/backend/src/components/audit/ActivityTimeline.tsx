@@ -13,9 +13,6 @@
  */
 
 import { useState } from 'react';
-import { formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale';
-import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -193,7 +190,7 @@ export function ActivityTimeline({
         <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-border" />
 
         {/* Events */}
-        {grouped.map((group, index) => (
+        {grouped.map((group) => (
           <div key={group.correlationId} className="relative pl-16">
             {/* Event dot */}
             <div className="absolute left-0 top-2 w-4 h-4 rounded-full bg-primary border-4 border-background" />

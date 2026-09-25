@@ -14,26 +14,16 @@ import type {
   AuditEvent,
   CreateAuditEventInput,
   FieldChange,
-  AuditFieldPolicyConfig,
+  AuditDomain,
   AuditFieldStrategy,
-  AuditSensitivity,
-  AuditVisibility,
 } from '@/types/audit';
 import {
-  AUDIT_FIELD_STRATEGIES,
   DEFAULT_FIELD_POLICIES,
   DEFAULT_DOMAIN_VISIBILITY,
   DEFAULT_DOMAIN_SENSITIVITY,
   METADATA_ALLOWLISTS,
-  AuditFieldStrategy,
-  AuditDomain,
 } from '@/types/audit';
 import { createAuditEventRecord, getParticipantActivity } from './auditApiService';
-
-/**
- * Redaction indicator for sensitive values
- */
-const REDACTED_MARKER = '[redacted]';
 
 /**
  * Maximum size of metadata JSON to prevent injection attacks
@@ -85,7 +75,7 @@ export function compareFieldChanges(
  * @returns Field changes with values redacted per policy
  */
 export function applyFieldRedaction(
-  changes: FieldComparison[],
+  changes: Array<{ field: string; oldValue?: unknown; newValue?: unknown }>,
   domain: AuditDomain,
   userPermissions?: { canSeeRedacted?: boolean },
 ): FieldChange[] {
@@ -331,8 +321,8 @@ export const auditService = {
    * Fetch organization-wide audit events (requires permission)
    */
   async getOrganizationEvents(
-    filters: Record<string, unknown> = {},
-    limit: number = 50,
+    _filters: Record<string, unknown> = {},
+    _limit: number = 50,
   ): Promise<AuditEvent[]> {
     // TODO: Implement GraphQL query with authorization
     return [];
@@ -346,7 +336,7 @@ export function createFieldChange(
   field: string,
   oldValue: unknown,
   newValue: unknown,
-  displayType?: string,
+  _displayType?: string,
 ): FieldComparison {
   return {
     field,

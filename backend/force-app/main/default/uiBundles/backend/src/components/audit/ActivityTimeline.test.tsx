@@ -1,0 +1,51 @@
+import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { ActivityTimeline } from "./ActivityTimeline";
+import type { AuditEvent } from "@/types/audit";
+
+const statusChangedEvent: AuditEvent = {
+  id: "a0AA000000000001AAA",
+  recordedAt: "2026-09-25T10:00:01.000Z",
+  occurredAt: "2026-09-25T10:00:00.000Z",
+  schemaVersion: 1,
+  eventType: "participant.status_changed",
+  domain: "participant",
+  action: "status_changed",
+  actorType: "staff",
+  actorId: "005000000000001AAA",
+  actorDisplayNameSnapshot: "Test Coach",
+  subjectType: "Participant__c",
+  subjectId: "a0PA000000000001AAA",
+  participantId: "a0PA000000000001AAA",
+  source: "web",
+  correlationId: "corr-1",
+  changedFields: ["Status__c"],
+  changes: [
+    {
+      field: "Status__c",
+      oldValue: "Onboarding",
+      newValue: "Active",
+      displayType: "status",
+      redacted: false,
+    },
+  ],
+  metadata: {},
+  visibility: "staff",
+  sensitivity: "normal",
+};
+
+describe("ActivityTimeline (Option A slice)", () => {
+  it("renders participant.status_changed with actor and summary", () => {
+    render(<ActivityTimeline events={[statusChangedEvent]} />);
+
+    expect(screen.getByText("Test Coach (Team)")).toBeInTheDocument();
+    expect(
+      screen.getByText('Status von „Onboarding" auf „Active" geändert'),
+    ).toBeInTheDocument();
+  });
+
+  it("renders empty state when no events", () => {
+    render(<ActivityTimeline events={[]} />);
+    expect(screen.getByText("Keine Aktivitäten vorhanden")).toBeInTheDocument();
+  });
+});

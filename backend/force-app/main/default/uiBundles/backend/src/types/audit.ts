@@ -193,6 +193,7 @@ export interface CreateAuditEventInput {
   action: AuditAction;
   actorType: AuditActorType;
   actorId?: string;                     // Will be captured from server context if not provided
+  actorDisplayNameSnapshot?: string;    // Frozen actor name at event time
   subjectType: string;
   subjectId: string;
   participantId?: string;

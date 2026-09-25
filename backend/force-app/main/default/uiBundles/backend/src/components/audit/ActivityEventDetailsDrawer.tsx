@@ -24,7 +24,6 @@ export function ActivityEventDetailsDrawer({
   event,
   isOpen,
   onClose,
-  participantId,
 }: ActivityEventDetailsDrawerProps) {
   if (!isOpen) return null;
 

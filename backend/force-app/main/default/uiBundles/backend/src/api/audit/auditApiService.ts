@@ -10,7 +10,7 @@
  */
 
 import { executeGraphQL } from '../graphqlClient';
-import type { AuditEvent, AuditEventFilter, AuditEventCursor } from '@/types/audit';
+import type { AuditEvent } from '@/types/audit';
 import GET_PARTICIPANT_ACTIVITY_TIMELINE from './query/GetParticipantActivityTimeline.graphql?raw';
 import CREATE_AUDIT_EVENT from './query/CreateAuditEvent.graphql?raw';
 
@@ -170,9 +170,9 @@ export async function getParticipantActivity(
  * TODO: Implement with proper authorization checks and filtering
  */
 export async function getOrganizationAuditEvents(
-  filters: AuditEventFilter = {},
-  limit: number = 50,
-  after?: string,
+  _filters: Record<string, unknown> = {},
+  _limit: number = 50,
+  _after?: string,
 ): Promise<{ events: AuditEvent[]; hasNextPage: boolean; nextCursor?: string }> {
   // Placeholder for organization-wide query
   // Would require a different GraphQL query with more filtering options
