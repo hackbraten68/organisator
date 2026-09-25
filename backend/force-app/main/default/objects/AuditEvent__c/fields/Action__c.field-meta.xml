@@ -10,94 +10,134 @@
         <valueSetDefinition>
             <sorted>false</sorted>
             <value>
-                <fullName>Create</fullName>
+                <fullName>created</fullName>
                 <default>false</default>
-                <label>Create</label>
+                <label>created</label>
             </value>
             <value>
-                <fullName>Update</fullName>
+                <fullName>updated</fullName>
                 <default>false</default>
-                <label>Update</label>
+                <label>updated</label>
             </value>
             <value>
-                <fullName>Delete</fullName>
+                <fullName>deleted</fullName>
                 <default>false</default>
-                <label>Delete</label>
+                <label>deleted</label>
             </value>
             <value>
-                <fullName>View</fullName>
+                <fullName>archived</fullName>
                 <default>false</default>
-                <label>View</label>
+                <label>archived</label>
             </value>
             <value>
-                <fullName>Login</fullName>
+                <fullName>restored</fullName>
                 <default>false</default>
-                <label>Login</label>
+                <label>restored</label>
             </value>
             <value>
-                <fullName>Logout</fullName>
+                <fullName>status_changed</fullName>
                 <default>false</default>
-                <label>Logout</label>
+                <label>status_changed</label>
             </value>
             <value>
-                <fullName>Enroll</fullName>
+                <fullName>submitted</fullName>
                 <default>false</default>
-                <label>Enroll</label>
+                <label>submitted</label>
             </value>
             <value>
-                <fullName>Unenroll</fullName>
+                <fullName>approved</fullName>
                 <default>false</default>
-                <label>Unenroll</label>
+                <label>approved</label>
             </value>
             <value>
-                <fullName>Assign</fullName>
+                <fullName>rejected</fullName>
                 <default>false</default>
-                <label>Assign</label>
+                <label>rejected</label>
             </value>
             <value>
-                <fullName>Unassign</fullName>
+                <fullName>cancelled</fullName>
                 <default>false</default>
-                <label>Unassign</label>
+                <label>cancelled</label>
             </value>
             <value>
-                <fullName>Start</fullName>
+                <fullName>assigned</fullName>
                 <default>false</default>
-                <label>Start</label>
+                <label>assigned</label>
             </value>
             <value>
-                <fullName>Complete</fullName>
+                <fullName>started</fullName>
                 <default>false</default>
-                <label>Complete</label>
+                <label>started</label>
             </value>
             <value>
-                <fullName>Submit</fullName>
+                <fullName>stopped</fullName>
                 <default>false</default>
-                <label>Submit</label>
+                <label>stopped</label>
             </value>
             <value>
-                <fullName>Approve</fullName>
+                <fullName>checked_in</fullName>
                 <default>false</default>
-                <label>Approve</label>
+                <label>checked_in</label>
             </value>
             <value>
-                <fullName>Reject</fullName>
+                <fullName>checked_out</fullName>
                 <default>false</default>
-                <label>Reject</label>
+                <label>checked_out</label>
             </value>
             <value>
-                <fullName>Export</fullName>
+                <fullName>corrected</fullName>
                 <default>false</default>
-                <label>Export</label>
+                <label>corrected</label>
             </value>
             <value>
-                <fullName>Import</fullName>
+                <fullName>flagged</fullName>
                 <default>false</default>
-                <label>Import</label>
+                <label>flagged</label>
             </value>
             <value>
-                <fullName>Execute</fullName>
+                <fullName>reviewed</fullName>
                 <default>false</default>
-                <label>Execute</label>
+                <label>reviewed</label>
+            </value>
+            <value>
+                <fullName>rescheduled</fullName>
+                <default>false</default>
+                <label>rescheduled</label>
+            </value>
+            <value>
+                <fullName>attendance_changed</fullName>
+                <default>false</default>
+                <label>attendance_changed</label>
+            </value>
+            <value>
+                <fullName>document_added</fullName>
+                <default>false</default>
+                <label>document_added</label>
+            </value>
+            <value>
+                <fullName>answer_updated</fullName>
+                <default>false</default>
+                <label>answer_updated</label>
+            </value>
+            <value>
+                <fullName>reported</fullName>
+                <default>false</default>
+                <label>reported</label>
+            </value>
+            <value>
+                <fullName>entry_created</fullName>
+                <default>false</default>
+                <label>entry_created</label>
+            </value>
+            <value>
+                <fullName>entry_updated</fullName>
+                <default>false</default>
+                <label>entry_updated</label>
+            </value>
+            <value>
+                <fullName>entry_deleted</fullName>
+                <default>false</default>
+                <label>entry_deleted</label>
             </value>
         </valueSetDefinition>
     </valueSet>

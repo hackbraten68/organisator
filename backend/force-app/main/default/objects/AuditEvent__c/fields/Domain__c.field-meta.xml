@@ -10,49 +10,49 @@
         <valueSetDefinition>
             <sorted>false</sorted>
             <value>
-                <fullName>Participant</fullName>
+                <fullName>workbook</fullName>
                 <default>false</default>
-                <label>Participant</label>
+                <label>workbook</label>
             </value>
             <value>
-                <fullName>Program</fullName>
+                <fullName>absence</fullName>
                 <default>false</default>
-                <label>Program</label>
+                <label>absence</label>
             </value>
             <value>
-                <fullName>Module</fullName>
+                <fullName>appointment</fullName>
                 <default>false</default>
-                <label>Module</label>
+                <label>appointment</label>
             </value>
             <value>
-                <fullName>Enrollment</fullName>
+                <fullName>classbook</fullName>
                 <default>false</default>
-                <label>Enrollment</label>
+                <label>classbook</label>
             </value>
             <value>
-                <fullName>Assessment</fullName>
+                <fullName>daily_checkin</fullName>
                 <default>false</default>
-                <label>Assessment</label>
+                <label>daily_checkin</label>
             </value>
             <value>
-                <fullName>Coach</fullName>
+                <fullName>time_tracking</fullName>
                 <default>false</default>
-                <label>Coach</label>
+                <label>time_tracking</label>
             </value>
             <value>
-                <fullName>Communication</fullName>
+                <fullName>authentication</fullName>
                 <default>false</default>
-                <label>Communication</label>
+                <label>authentication</label>
             </value>
             <value>
-                <fullName>System</fullName>
+                <fullName>participant</fullName>
                 <default>false</default>
-                <label>System</label>
+                <label>participant</label>
             </value>
             <value>
-                <fullName>Security</fullName>
+                <fullName>system</fullName>
                 <default>false</default>
-                <label>Security</label>
+                <label>system</label>
             </value>
         </valueSetDefinition>
     </valueSet>
