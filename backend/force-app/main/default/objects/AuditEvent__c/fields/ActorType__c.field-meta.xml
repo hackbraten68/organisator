@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>ActorType__c</fullName>
+    <label>Actor Type</label>
+    <required>true</required>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>staff</fullName>
+                <default>false</default>
+                <label>staff</label>
+            </value>
+            <value>
+                <fullName>participant</fullName>
+                <default>false</default>
+                <label>participant</label>
+            </value>
+            <value>
+                <fullName>system</fullName>
+                <default>false</default>
+                <label>system</label>
+            </value>
+            <value>
+                <fullName>integration</fullName>
+                <default>false</default>
+                <label>integration</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
