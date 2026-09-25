@@ -711,3 +711,14 @@ If Organisator operates in EU or serves EU subjects:
 **Last Updated:** 2026-09-24  
 **Status:** Design Phase
 
+## 14. ADR: Audit ist Nebenprozess (2026-09-25)
+
+`updateParticipant()` (und künftig alle Domain-Mutationen) schreibt Audit-Events
+best-effort: Audit-Fehler werden geloggt (`console.error("Failed to write audit
+event", err)`), lassen den Save aber nie fehlschlagen. Begründung: Die
+Business-Aktion (Participant aktualisieren) darf nicht scheitern, nur weil das
+Logging kaputt ist. Verdrahtung auf Service-Ebene (`participantService`
+statt Page), damit `assign/unassign`/Import/API-Pfade automatisch erfasst
+werden. Actor vorerst `system`, bis der authentifizierte SDK-Kontext
+verfügbar ist.
+

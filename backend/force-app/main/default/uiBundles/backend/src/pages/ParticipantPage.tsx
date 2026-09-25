@@ -25,6 +25,7 @@ import { toast } from "@/components/ui/sonner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import ParticipantLearningPath from "@/components/participants/ParticipantLearningPath";
+import ParticipantActivity from "@/components/participants/ParticipantActivity";
 import OnboardingBadge from "@/components/participants/OnboardingBadge";
 import OnboardingChecklist from "@/components/participants/OnboardingChecklist";
 import CompletionBar from "@/components/participants/CompletionBar";
@@ -470,6 +471,7 @@ export default function ParticipantPage() {
             </Card>
 
             <OnboardingChecklist participant={participant} />
+            <ParticipantActivity participantId={participant.id} refreshKey={reload} />
             </div>
             ) : (
               <Card>

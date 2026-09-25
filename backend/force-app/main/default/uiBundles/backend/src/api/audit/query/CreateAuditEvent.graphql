@@ -1,7 +1,7 @@
 mutation CreateAuditEvent(
   $occurredAt: DateTime!
   $eventType: String!
-  $schemaVersion: Int!
+  $schemaVersion: Double!
   $domain: Picklist!
   $action: Picklist!
   $actorType: Picklist!
@@ -15,10 +15,10 @@ mutation CreateAuditEvent(
   $source: Picklist!
   $correlationId: String
   $requestId: String
-  $reason: String
-  $changedFields: String!
-  $changes: String!
-  $metadata: String!
+  $reason: LongTextArea
+  $changedFields: LongTextArea!
+  $changes: LongTextArea!
+  $metadata: LongTextArea!
   $visibility: Picklist!
   $sensitivity: Picklist!
 ) {

@@ -8,6 +8,8 @@
 import { executeGraphQL } from "../graphqlClient";
 import { listPrograms } from "../program/programService";
 import { listCoaches } from "../coach/coachService";
+import { recordParticipantStatusChange, recordParticipantUpdate } from "../audit/participantAuditIntegration";
+import { generateUUID } from "../audit/auditService";
 import type {
   Participant,
   ParticipantPatch,
@@ -226,7 +228,55 @@ export async function updateParticipant(
     ...(patch.coachId !== undefined ? { coachId: patch.coachId } : {}),
   });
 
-  return getParticipant(id);
+  const saved = await getParticipant(id);
+
+  // Audit is a side process: events are recorded best-effort and audit
+  // failures are swallowed + logged so they never block the save.
+  // TODO: resolve the real actor from the authenticated SDK context
+  // (currently recorded as system).
+  //
+  // One save may produce two events sharing a correlationId:
+  // - participant.status_changed for status transitions
+  // - participant.updated for all other field changes (status excluded
+  //   from its diff so the two events do not duplicate each other)
+  if (saved) {
+    const actor = { id: "SYSTEM", type: "system" as const, displayName: "System" };
+    const newStatus = patch.status;
+    const statusChanged =
+      newStatus !== undefined && newStatus !== existing.status;
+    const correlationId = generateUUID();
+    if (statusChanged && newStatus !== undefined) {
+      try {
+        await recordParticipantStatusChange(id, existing.status, newStatus, {
+          actor,
+          correlationId,
+        });
+      } catch (err) {
+        console.error("Failed to write audit event", err);
+      }
+    }
+    try {
+      await recordParticipantUpdate(
+        id,
+        { ...existing, status: saved.status },
+        saved,
+        { actor, correlationId },
+      );
+    } catch (err) {
+      // recordParticipantUpdate throws when nothing (besides status)
+      // changed — expected, not an error worth logging.
+      if (
+        err instanceof Error &&
+        err.message.includes("No fields changed")
+      ) {
+        // no-op
+      } else {
+        console.error("Failed to write audit event", err);
+      }
+    }
+  }
+
+  return saved;
 }
 
 export async function assignParticipant(
