@@ -1,5 +1,5 @@
 query GetParticipantActivityTimeline(
-  $participantId: IdOrRef!
+  $participantId: ID!
   $limit: Int
   $after: String
 ) {
