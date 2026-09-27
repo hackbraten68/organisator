@@ -40,9 +40,20 @@ export function useAuditActorInit() {
     setPhase("done");
   }, []);
 
+  const chooseUser = useCallback((choice: { userId?: string; firstName: string }) => {
+    const trimmed = choice.firstName.trim();
+    if (!trimmed) return;
+    setActor(
+      choice.userId
+        ? setSessionActorOverride({ userId: choice.userId, firstName: trimmed })
+        : setSessionActorOverride(trimmed),
+    );
+    setPhase("done");
+  }, []);
+
   const dismissPicker = useCallback(() => {
     setPhase("done");
   }, []);
 
-  return { phase, actor, needsPicker: phase === "pick", ready: phase === "done", chooseName, dismissPicker };
+  return { phase, actor, needsPicker: phase === "pick", ready: phase === "done", chooseName, chooseUser, dismissPicker };
 }

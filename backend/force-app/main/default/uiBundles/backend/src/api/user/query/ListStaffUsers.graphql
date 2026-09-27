@@ -1,0 +1,32 @@
+query ListStaffUsers($limit: Int) {
+  uiapi {
+    query {
+      User(
+        where: { IsActive: { eq: true } }
+        orderBy: { Name: { order: ASC } }
+        first: $limit
+      ) {
+        edges {
+          node {
+            Id
+            FirstName @optional {
+              value
+            }
+            LastName @optional {
+              value
+            }
+            Name @optional {
+              value
+            }
+            Username @optional {
+              value
+            }
+            UserType @optional {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

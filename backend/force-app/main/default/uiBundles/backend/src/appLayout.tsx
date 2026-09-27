@@ -66,7 +66,7 @@ export default function AppLayout() {
 		<div className="min-h-screen bg-background">
 			<ActorPicker
 				isOpen={actorInit.needsPicker}
-				onChoose={actorInit.chooseName}
+				onChoose={actorInit.chooseUser}
 				onDismiss={actorInit.dismissPicker}
 			/>
 			<header className="bg-card border-b border-border sticky top-0 z-30">

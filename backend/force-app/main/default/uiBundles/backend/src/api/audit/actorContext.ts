@@ -9,9 +9,11 @@
  *      platform-sdk itself derives the app identity from) may carry a user id
  *      or username — resolved to a `User` record via UIAPI, display name is
  *      the FIRST NAME ONLY (privacy decision 2026-09-27).
- *   2. Session self-attestation: the user picks their first name once per
- *      browser session (ActorPicker). `actorType: staff`, no id — honest
- *      about being unverified.
+ *   2. Session self-attestation: the user picks THEMSELF from the org's
+ *      active Standard users once per browser session (ActorPicker).
+ *      `actorType: staff`, display name first-name-only, but the id is the
+ *      REAL Salesforce User id — verifiable, no typos, no duplicates.
+ *      Still self-selected (no cryptographic proof), honestly so.
  *   3. Fallback `SYSTEM` — auditable absence of identity, never a guess.
  *
  * Spike result 2026-09-27 (live, backendtest): `User` is exposed via UIAPI;
@@ -30,6 +32,7 @@ import { executeGraphQL } from "../graphqlClient";
 import type { ActorInfo } from "@/types/audit";
 import GET_USER_BY_ID from "../user/query/GetUserById.graphql?raw";
 import GET_USER_BY_USERNAME from "../user/query/GetUserByUsername.graphql?raw";
+import LIST_STAFF_USERS from "../user/query/ListStaffUsers.graphql?raw";
 
 export const SYSTEM_ACTOR: ActorInfo = {
   id: "SYSTEM",
@@ -63,6 +66,7 @@ interface UserNode {
   LastName?: { value?: string | null } | null;
   Name?: { value?: string | null } | null;
   Username?: { value?: string | null } | null;
+  UserType?: { value?: string | null } | null;
 }
 
 interface UserQueryResponse {
@@ -139,30 +143,96 @@ export async function resolveUserActor(ref: {
   }
 }
 
-/** Self-attested first name for this browser session (ActorPicker). No id by
- * design: unverified, but honest. sessionStorage = gone with the tab. */
+/** Self-attested session actor. v2 shape carries the real Salesforce User id
+ * (picked from the org user list); v1 shape (firstName only, no userId) is
+ * still accepted so older sessions keep working. sessionStorage = gone with
+ * the tab. */
+export interface StaffUserChoice {
+  id: string;
+  firstName: string;
+  fullName: string;
+  username?: string;
+}
+
 export function getSessionActorOverride(): ActorInfo | null {
   try {
     const raw = sessionStorage.getItem(SESSION_ACTOR_KEY);
     if (!raw) return null;
-    const firstName = (
-      JSON.parse(raw) as { firstName?: unknown } | null
-    )?.firstName;
-    if (typeof firstName !== "string" || firstName.trim() === "") return null;
-    return { type: "staff", displayName: firstName.trim() };
+    const stored = JSON.parse(raw) as {
+      firstName?: unknown;
+      userId?: unknown;
+    } | null;
+    const firstName = typeof stored?.firstName === "string" ? stored.firstName.trim() : "";
+    if (!firstName) return null;
+    const actor: ActorInfo = { type: "staff", displayName: firstName };
+    if (typeof stored?.userId === "string" && stored.userId) actor.id = stored.userId;
+    return actor;
   } catch {
     return null;
   }
 }
 
-export function setSessionActorOverride(firstName: string): ActorInfo {
-  const actor: ActorInfo = { type: "staff", displayName: firstName.trim() };
-  sessionStorage.setItem(SESSION_ACTOR_KEY, JSON.stringify({ firstName: actor.displayName }));
+export function setSessionActorOverride(firstName: string): ActorInfo;
+export function setSessionActorOverride(choice: { userId: string; firstName: string }): ActorInfo;
+export function setSessionActorOverride(
+  firstNameOrChoice: string | { userId: string; firstName: string },
+): ActorInfo {
+  const firstName =
+    typeof firstNameOrChoice === "string" ? firstNameOrChoice.trim() : firstNameOrChoice.firstName.trim();
+  const userId = typeof firstNameOrChoice === "string" ? undefined : firstNameOrChoice.userId;
+  const actor: ActorInfo = { type: "staff", displayName: firstName };
+  if (userId) actor.id = userId;
+  sessionStorage.setItem(
+    SESSION_ACTOR_KEY,
+    JSON.stringify(userId ? { userId, firstName } : { firstName }),
+  );
   return actor;
 }
 
 export function clearSessionActorOverride(): void {
   sessionStorage.removeItem(SESSION_ACTOR_KEY);
+}
+
+interface StaffUserListResponse {
+  uiapi?: {
+    query?: {
+      User?: { edges?: Array<{ node?: UserNode | null } | null> | null } | null;
+    } | null;
+  } | null;
+}
+
+/**
+ * Active human users of the org for the ActorPicker. Filtered to
+ * `UserType = Standard` (no AutomatedProcess/CsnOnly/integration users),
+ * display name is first-name-only per privacy decision. Never throws —
+ * an empty list makes the picker fall back to freetext.
+ */
+export async function listStaffUsers(limit = 50): Promise<StaffUserChoice[]> {
+  try {
+    const data = await executeGraphQL<StaffUserListResponse, { limit: number }>(
+      LIST_STAFF_USERS,
+      { limit },
+    );
+    const edges = data?.uiapi?.query?.User?.edges ?? [];
+    const users: StaffUserChoice[] = [];
+    for (const edge of edges) {
+      const node = edge?.node;
+      if (!node?.Id || node.UserType?.value !== "Standard") continue;
+      const firstName =
+        node.FirstName?.value?.trim() || firstToken(node.Name?.value);
+      if (!firstName) continue;
+      users.push({
+        id: node.Id,
+        firstName,
+        fullName: node.Name?.value?.trim() || firstName,
+        username: node.Username?.value ?? undefined,
+      });
+    }
+    return users;
+  } catch (err) {
+    console.debug("[audit] Staff user list failed, picker falls back to freetext", err);
+    return [];
+  }
 }
 
 // Module state: base actor (SYSTEM until platform resolution lands).
