@@ -144,7 +144,7 @@ export function ActivityEventDetailsDrawer({
                 {event.correlationId && (
                   <div>
                     <p className="text-xs text-muted-foreground">Korrelations-ID</p>
-                    <p className="text-xs font-mono text-amber-600">
+                    <p className="text-xs font-mono text-amber-600 dark:text-amber-400">
                       {event.correlationId}
                     </p>
                   </div>
@@ -152,7 +152,7 @@ export function ActivityEventDetailsDrawer({
                 {event.requestId && (
                   <div>
                     <p className="text-xs text-muted-foreground">Anfrage-ID</p>
-                    <p className="text-xs font-mono text-amber-600">
+                    <p className="text-xs font-mono text-amber-600 dark:text-amber-400">
                       {event.requestId}
                     </p>
                   </div>

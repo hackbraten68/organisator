@@ -79,6 +79,76 @@ describe("ParticipantActivity", () => {
     });
   });
 
+  it("toggles categories with OR semantics and resets all filters", async () => {
+    const user = userEvent.setup();
+    const appointmentEvent: AuditEvent = {
+      ...statusChangedEvent,
+      id: "a0AA000000000002AAA",
+      eventType: "appointment.created",
+      domain: "appointment",
+      action: "created",
+      actorDisplayNameSnapshot: "Other Coach",
+      correlationId: "corr-2",
+    };
+    const absenceEvent: AuditEvent = {
+      ...statusChangedEvent,
+      id: "a0AA000000000003AAA",
+      eventType: "absence.reported",
+      domain: "absence",
+      action: "reported",
+      actorDisplayNameSnapshot: "Third Coach",
+      correlationId: "corr-3",
+    };
+    mockedActivity.mockResolvedValueOnce({
+      events: [statusChangedEvent, appointmentEvent, absenceEvent],
+      hasNextPage: false,
+      nextCursor: undefined,
+    });
+
+    render(<ParticipantActivity participantId="p-1" />);
+    await screen.findByText("Test Coach (Team)");
+
+    // No selection = all events.
+    expect(screen.getByText("Other Coach (Team)")).toBeInTheDocument();
+    expect(screen.getByText("Third Coach (Team)")).toBeInTheDocument();
+
+    // Single category filters down to that category.
+    await user.click(screen.getByRole("button", { name: "Termine" }));
+    expect(screen.queryByText("Test Coach (Team)")).not.toBeInTheDocument();
+    expect(screen.getByText("Other Coach (Team)")).toBeInTheDocument();
+    expect(screen.getByText(/1 Filter aktiv/)).toBeInTheDocument();
+
+    // Second category adds via OR instead of narrowing further.
+    await user.click(screen.getByRole("button", { name: "Abwesenheit" }));
+    expect(screen.getByText("Other Coach (Team)")).toBeInTheDocument();
+    expect(screen.getByText("Third Coach (Team)")).toBeInTheDocument();
+    expect(screen.getByText(/2 Filter aktiv/)).toBeInTheDocument();
+
+    // Re-click removes a single category again.
+    await user.click(screen.getByRole("button", { name: "Termine" }));
+    expect(screen.queryByText("Other Coach (Team)")).not.toBeInTheDocument();
+    expect(screen.getByText("Third Coach (Team)")).toBeInTheDocument();
+
+    // Reset clears the whole selection.
+    await user.click(screen.getByRole("button", { name: /zurücksetzen/i }));
+    expect(screen.getByText("Test Coach (Team)")).toBeInTheDocument();
+    expect(screen.getByText("Other Coach (Team)")).toBeInTheDocument();
+    expect(screen.getByText("Third Coach (Team)")).toBeInTheDocument();
+    expect(screen.queryByText(/Filter aktiv/)).not.toBeInTheDocument();
+  });
+
+  it("documents unknown-category behavior as empty result", async () => {
+    const { filterForAudience } = await import("@/api/audit/activityProjection");
+    expect(
+      filterForAudience(
+        [statusChangedEvent],
+        "coach",
+        // @ts-expect-error deliberate: unknown categories must not leak events
+        { categories: ["not_a_category"] },
+      ),
+    ).toEqual([]);
+  });
+
   it("filters events by search query and resets", async () => {
     const user = userEvent.setup();
     const appointmentEvent: AuditEvent = {

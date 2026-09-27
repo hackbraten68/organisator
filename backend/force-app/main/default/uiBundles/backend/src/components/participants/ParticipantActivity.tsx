@@ -101,11 +101,12 @@ export function ParticipantActivity({
     return filterActivityEvents(projected, { query, range });
   }, [events, audience, selectedCategories, showTechnical, query, range]);
 
-  const filtersActive =
-    query.trim() !== "" ||
-    range?.from != null ||
-    selectedCategories.length > 0 ||
-    showTechnical;
+  const activeFilterCount =
+    selectedCategories.length +
+    (showTechnical ? 1 : 0) +
+    (query.trim() !== "" ? 1 : 0) +
+    (range?.from != null ? 1 : 0);
+  const filtersActive = activeFilterCount > 0;
 
   function toggleCategory(category: ActivityCategory) {
     setSelectedCategories((prev) =>
@@ -162,10 +163,11 @@ export function ParticipantActivity({
         </div>
         {filtersActive && !loading && (
           <p className="mb-3 text-xs text-muted-foreground" role="status">
-            {visibleEvents.length} von {events.length} Einträgen
+            {activeFilterCount} Filter aktiv · {visibleEvents.length} von{" "}
+            {events.length} Einträgen
           </p>
         )}
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-2">
           {ACTIVITY_CATEGORIES.map((category) => {
             const active = selectedCategories.includes(category);
             return (
@@ -173,6 +175,7 @@ export function ParticipantActivity({
                 key={category}
                 variant={active ? "default" : "outline"}
                 size="sm"
+                aria-pressed={active}
                 onClick={() => toggleCategory(category)}
               >
                 {CATEGORY_LABELS[category]}
@@ -182,12 +185,16 @@ export function ParticipantActivity({
           <Button
             variant={showTechnical ? "default" : "outline"}
             size="sm"
+            aria-pressed={showTechnical}
             onClick={() => setShowTechnical((v) => !v)}
             title="Technische Events einblenden (Supervisor)"
           >
             Technik
           </Button>
         </div>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Mehrfachauswahl möglich, Kategorien werden mit ODER verknüpft.
+        </p>
         <ActivityTimeline
           events={visibleEvents}
           loading={loading}

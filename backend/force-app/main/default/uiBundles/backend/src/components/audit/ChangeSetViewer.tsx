@@ -65,37 +65,37 @@ export function ChangeSetViewer({ changes }: ChangeSetViewerProps) {
           </p>
 
           {change.redacted ? (
-            <p className="text-xs text-amber-600 italic">
+            <p className="text-xs text-amber-600 dark:text-amber-400 italic">
               Feld wurde geändert (Wert geschwärzt)
             </p>
           ) : change.oldValue === undefined ? (
             // Creation
             <p className="text-xs">
-              <span className="text-green-600">+</span>{' '}
-              <code className="bg-green-50 px-1 rounded">
+              <span className="text-green-600 dark:text-green-400 font-semibold" aria-hidden="true">+</span>{' '}
+              <code className="bg-green-50 dark:bg-green-950 text-green-900 dark:text-green-200 px-1 rounded">
                 {formatValue(change.newValue)}
               </code>
             </p>
           ) : change.newValue === undefined ? (
             // Deletion
             <p className="text-xs">
-              <span className="text-red-600">−</span>{' '}
-              <code className="bg-red-50 px-1 rounded">
+              <span className="text-red-600 dark:text-red-400 font-semibold" aria-hidden="true">−</span>{' '}
+              <code className="bg-red-50 dark:bg-red-950 text-red-900 dark:text-red-200 px-1 rounded">
                 {formatValue(change.oldValue)}
               </code>
             </p>
           ) : (
-            // Update
+            // Update: label + symbol carry the meaning, not color alone.
             <div className="text-xs space-y-1">
               <p>
-                <span className="text-red-600">von:</span>{' '}
-                <code className="bg-red-50 px-1 rounded">
+                <span className="text-red-600 dark:text-red-400 font-semibold">Vorher:</span>{' '}
+                <code className="bg-red-50 dark:bg-red-950 text-red-900 dark:text-red-200 px-1 rounded">
                   {formatValue(change.oldValue)}
                 </code>
               </p>
               <p>
-                <span className="text-green-600">zu:</span>{' '}
-                <code className="bg-green-50 px-1 rounded">
+                <span className="text-green-600 dark:text-green-400 font-semibold">Nachher:</span>{' '}
+                <code className="bg-green-50 dark:bg-green-950 text-green-900 dark:text-green-200 px-1 rounded">
                   {formatValue(change.newValue)}
                 </code>
               </p>

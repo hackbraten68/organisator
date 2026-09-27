@@ -14,10 +14,10 @@ export interface ActorBadgeProps {
 }
 
 const ACTOR_COLORS: Record<AuditActorType, { bg: string; text: string }> = {
-  staff: { bg: 'bg-blue-100', text: 'text-blue-900' },
-  participant: { bg: 'bg-green-100', text: 'text-green-900' },
-  system: { bg: 'bg-gray-100', text: 'text-gray-900' },
-  integration: { bg: 'bg-purple-100', text: 'text-purple-900' },
+  staff: { bg: 'bg-blue-100 dark:bg-blue-950', text: 'text-blue-900 dark:text-blue-200' },
+  participant: { bg: 'bg-green-100 dark:bg-green-950', text: 'text-green-900 dark:text-green-200' },
+  system: { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-900 dark:text-gray-200' },
+  integration: { bg: 'bg-purple-100 dark:bg-purple-950', text: 'text-purple-900 dark:text-purple-200' },
 };
 
 const ACTOR_LABELS: Record<AuditActorType, string> = {
