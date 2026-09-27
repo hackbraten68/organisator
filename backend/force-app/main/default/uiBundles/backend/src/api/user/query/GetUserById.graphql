@@ -17,6 +17,21 @@ query GetUserById($id: ID!) {
             Username @optional {
               value
             }
+            SmallPhotoUrl @optional {
+              value
+            }
+            Profile @optional {
+              Id
+              Name @optional {
+                value
+              }
+            }
+            UserRole @optional {
+              Id
+              Name @optional {
+                value
+              }
+            }
           }
         }
       }

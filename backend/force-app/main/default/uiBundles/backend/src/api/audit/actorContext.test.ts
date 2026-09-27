@@ -7,6 +7,7 @@ import {
   readSfdcEnvIdentity,
   resolveAuditActor,
   resolveUserActor,
+  resolveUserDetails,
   resetAuditActorForTests,
   SESSION_ACTOR_KEY,
   setSessionActorOverride,
@@ -185,5 +186,60 @@ describe("listStaffUsers", () => {
     mockedExecute.mockRejectedValueOnce(new Error("down"));
 
     await expect(listStaffUsers()).resolves.toEqual([]);
+  });
+});
+
+describe("resolveUserDetails", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function detailsResponse() {
+    return {
+      uiapi: {
+        query: {
+          User: {
+            edges: [
+              {
+                node: {
+                  Id: "0059b00000gUfkFAAS",
+                  FirstName: { value: "Samuel" },
+                  LastName: { value: "Dillenburg" },
+                  Name: { value: "Samuel Dillenburg" },
+                  Username: { value: "sam@example.com" },
+                  SmallPhotoUrl: { value: "https://example.com/photo.jpg" },
+                  Profile: { Id: "00e1", Name: { value: "System Administrator" } },
+                  UserRole: null,
+                },
+              },
+            ],
+          },
+        },
+      },
+    };
+  }
+
+  it("maps profile, missing role, and photo", async () => {
+    mockedExecute.mockResolvedValueOnce(detailsResponse());
+
+    const details = await resolveUserDetails("0059b00000gUfkFAAS");
+
+    expect(details).toEqual({
+      userId: "0059b00000gUfkFAAS",
+      firstName: "Samuel",
+      fullName: "Samuel Dillenburg",
+      username: "sam@example.com",
+      photoUrl: "https://example.com/photo.jpg",
+      profileName: "System Administrator",
+    });
+    expect(details).not.toHaveProperty("roleName");
+  });
+
+  it("returns null when the user cannot be resolved", async () => {
+    mockedExecute.mockResolvedValueOnce({ uiapi: { query: { User: { edges: [] } } } });
+    await expect(resolveUserDetails("0059b00000gUfkFAAS")).resolves.toBeNull();
+
+    mockedExecute.mockRejectedValueOnce(new Error("down"));
+    await expect(resolveUserDetails("0059b00000gUfkFAAS")).resolves.toBeNull();
   });
 });

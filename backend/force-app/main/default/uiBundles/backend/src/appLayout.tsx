@@ -7,6 +7,7 @@ import { getNavigationRoutes, type NavigationItem } from "./router-utils";
 import { useSessionLoginAudit } from "./hooks/useSessionLoginAudit";
 import { useAuditActorInit } from "./hooks/useAuditActor";
 import { ActorPicker } from "./components/audit/ActorPicker";
+import { SidebarUser } from "./components/audit/SidebarUser";
 import { processOutboxOnce } from "./api/audit/auditOutbox";
 import { useEffect, useState } from "react";
 
@@ -93,9 +94,17 @@ export default function AppLayout() {
 				<aside className="hidden lg:block w-64 shrink-0">
 					<nav
 						aria-label="Main navigation"
-						className="sticky top-16 bg-card border-r border-border min-h-[calc(100vh-4rem)] p-3"
+						className="sticky top-16 bg-card border-r border-border min-h-[calc(100vh-4rem)] p-3 flex flex-col"
 					>
 						<NavigationLinks items={items} />
+						<div className="mt-auto border-t border-border pt-2">
+							<SidebarUser
+								actor={actorInit.actor}
+								details={actorInit.details}
+								resolving={actorInit.phase === "resolving"}
+								onSwitchUser={() => void actorInit.switchUser()}
+							/>
+						</div>
 					</nav>
 				</aside>
 
@@ -106,7 +115,7 @@ export default function AppLayout() {
 							onClick={closeMobileMenu}
 							aria-hidden="true"
 						/>
-						<aside className="fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border p-3 lg:hidden">
+						<aside className="fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border p-3 lg:hidden flex flex-col">
 							<div className="flex items-center justify-between px-1 pb-3">
 								<span className="text-lg font-semibold text-foreground">
 									Organisator
@@ -125,6 +134,17 @@ export default function AppLayout() {
 									onNavigate={closeMobileMenu}
 								/>
 							</nav>
+							<div className="mt-auto border-t border-border pt-2">
+								<SidebarUser
+									actor={actorInit.actor}
+									details={actorInit.details}
+									resolving={actorInit.phase === "resolving"}
+									onSwitchUser={() => {
+										closeMobileMenu();
+										void actorInit.switchUser();
+									}}
+								/>
+							</div>
 						</aside>
 					</>
 				)}

@@ -67,6 +67,9 @@ interface UserNode {
   Name?: { value?: string | null } | null;
   Username?: { value?: string | null } | null;
   UserType?: { value?: string | null } | null;
+  SmallPhotoUrl?: { value?: string | null } | null;
+  Profile?: { Id?: string; Name?: { value?: string | null } | null } | null;
+  UserRole?: { Id?: string; Name?: { value?: string | null } | null } | null;
 }
 
 interface UserQueryResponse {
@@ -143,6 +146,49 @@ export async function resolveUserActor(ref: {
   }
 }
 
+/** Full identity details for the sidebar user card. Everything except names
+ * is optional: roles and photos are often missing (e.g. scratch orgs).
+ * Null when unresolvable — the card degrades to actor basics. */
+export interface ActorDetails {
+  userId: string;
+  firstName: string;
+  fullName: string;
+  username?: string;
+  photoUrl?: string;
+  profileName?: string;
+  roleName?: string;
+}
+
+/** Resolve full details for a known User id. Never throws (null on failure). */
+export async function resolveUserDetails(userId: string): Promise<ActorDetails | null> {
+  try {
+    const data = await executeGraphQL<UserQueryResponse, { id: string }>(
+      GET_USER_BY_ID,
+      { id: userId },
+    );
+    const node = data?.uiapi?.query?.User?.edges?.[0]?.node;
+    const firstName =
+      node?.FirstName?.value?.trim() || firstToken(node?.Name?.value);
+    if (!node?.Id || !firstName) return null;
+    const details: ActorDetails = {
+      userId: node.Id,
+      firstName,
+      fullName: node.Name?.value?.trim() || firstName,
+    };
+    const username = node.Username?.value?.trim();
+    if (username) details.username = username;
+    const photoUrl = node.SmallPhotoUrl?.value?.trim();
+    if (photoUrl) details.photoUrl = photoUrl;
+    const profileName = node.Profile?.Name?.value?.trim();
+    if (profileName) details.profileName = profileName;
+    const roleName = node.UserRole?.Name?.value?.trim();
+    if (roleName) details.roleName = roleName;
+    return details;
+  } catch (err) {
+    console.debug("[audit] User details resolution failed", err);
+    return null;
+  }
+}
 /** Self-attested session actor. v2 shape carries the real Salesforce User id
  * (picked from the org user list); v1 shape (firstName only, no userId) is
  * still accepted so older sessions keep working. sessionStorage = gone with
@@ -268,4 +314,14 @@ export function resolveAuditActor(): Promise<ActorInfo> {
 export function resetAuditActorForTests(): void {
   baseActor = SYSTEM_ACTOR;
   pending = null;
+}
+
+/**
+ * Re-run resolution (e.g. after the session override changed via "Benutzer
+ * wechseln"): drops the cached promise so the next resolveAuditActor()
+ * re-reads platform identity + override.
+ */
+export function refreshAuditActor(): Promise<ActorInfo> {
+  pending = null;
+  return resolveAuditActor();
 }
