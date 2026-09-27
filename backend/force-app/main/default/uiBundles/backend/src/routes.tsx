@@ -54,6 +54,14 @@ export const routes: RouteObject[] = [
         } satisfies NavigationHandle
       },
       {
+        // Canonical participant deep link: /participants/:id selects the
+        // participant (?tab=uebersicht|verlauf|lernpfad, ?event=<AuditEventId>
+        // opens the verlauf tab with the event highlighted + details open).
+        // /participants (no id) keeps the legacy auto-first behavior.
+        path: "participants/:participantId",
+        element: <ParticipantPage />,
+      },
+      {
         path: "programs",
         children: [
           {

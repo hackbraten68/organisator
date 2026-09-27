@@ -12,7 +12,7 @@
  * - Loading and error states
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -27,6 +27,8 @@ export interface ActivityTimelineProps {
   onLoadMore?: () => Promise<void>;
   hasMore?: boolean;
   participantId?: string; // For participant-specific display
+  /** Deep link (?event=): highlight + auto-open this event's details once. */
+  highlightEventId?: string | null;
 }
 
 /**
@@ -142,12 +144,38 @@ export function ActivityTimeline({
   onLoadMore,
   hasMore = false,
   participantId,
+  highlightEventId = null,
 }: ActivityTimelineProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<AuditEvent | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const highlightHandled = useRef<string | null>(null);
 
   const grouped = groupEventsByCorrelation(events);
+
+  // Deep link: open the linked event's details once it is loaded, scroll it
+  // into view, and keep it highlighted. Runs once per highlightEventId.
+  useEffect(() => {
+    if (!highlightEventId || loading || highlightHandled.current === highlightEventId) return;
+    const target = events.find((e) => e.id === highlightEventId);
+    if (!target) return;
+    highlightHandled.current = highlightEventId;
+    const groupKey = target.correlationId ?? target.id;
+    setExpandedId(groupKey);
+    setSelectedEvent(target);
+    requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-correlation-id="${CSS.escape(groupKey)}"]`)
+        ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+  }, [highlightEventId, loading, events]);
+
+  const highlightMissed =
+    highlightEventId != null &&
+    !loading &&
+    error == null &&
+    events.length > 0 &&
+    !events.some((e) => e.id === highlightEventId);
 
   const handleLoadMore = async () => {
     if (onLoadMore && !isLoadingMore) {
@@ -193,6 +221,14 @@ export function ActivityTimeline({
 
   return (
     <div className="space-y-4">
+      {highlightMissed && (
+        <Alert role="status">
+          <AlertDescription>
+            Das verlinkte Ereignis wurde nicht gefunden — es ist möglicherweise
+            gefiltert, noch nicht geladen oder für diese Ansicht nicht sichtbar.
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Timeline */}
       <div className="space-y-2 relative">
         {/* Vertical line */}
@@ -200,7 +236,16 @@ export function ActivityTimeline({
 
         {/* Events */}
         {grouped.map((group) => (
-          <div key={group.correlationId} className="relative pl-16">
+          <div
+            key={group.correlationId}
+            data-correlation-id={group.correlationId}
+            className={`relative pl-16 rounded-md ${
+              highlightEventId != null &&
+              group.events.some((e) => e.id === highlightEventId)
+                ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                : ""
+            }`}
+          >
             {/* Event dot */}
             <div className="absolute left-0 top-2 w-4 h-4 rounded-full bg-primary border-4 border-background" />
 

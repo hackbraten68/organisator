@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { AlertCircle, Users } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -31,6 +32,16 @@ const NONE = "__none";
 
 type ParticipantTab = "uebersicht" | "verlauf" | "lernpfad";
 
+const PARTICIPANT_TABS: ParticipantTab[] = ["uebersicht", "verlauf", "lernpfad"];
+
+function tabFromParams(params: URLSearchParams): ParticipantTab {
+  const tab = params.get("tab");
+  if (PARTICIPANT_TABS.includes(tab as ParticipantTab)) return tab as ParticipantTab;
+  // A deep-linked event implies the verlauf tab even without ?tab=.
+  if (params.get("event")) return "verlauf";
+  return "uebersicht";
+}
+
 function compareByOnboarding(a: Participant, b: Participant): number {
   const pa = getCompletion(a).percent;
   const pb = getCompletion(b).percent;
@@ -39,13 +50,16 @@ function compareByOnboarding(a: Participant, b: Participant): number {
 }
 
 export default function ParticipantPage() {
+  const navigate = useNavigate();
+  const { participantId: routeParticipantId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [reload, setReload] = useState(0);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [participant, setParticipant] = useState<Participant | null>(null);
   const [prevSelectionKey, setPrevSelectionKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState<ParticipantFilter>("needs-attention");
-  const [tab, setTab] = useState<ParticipantTab>("uebersicht");
+  const [tab, setTab] = useState<ParticipantTab>(() => tabFromParams(searchParams));
+  const unknownIdNotified = useRef<string | null>(null);
   // Edit mode lives here (not in the summary card) so a list reload after
   // save — which briefly unmounts the detail column via the skeleton — does
   // not silently drop the user back to view mode.
@@ -88,8 +102,30 @@ export default function ParticipantPage() {
 
   // Fall back to the full list so the details stay visible when the
   // current filter view is empty (e.g. inbox cleared, all Ready).
+  // Route id wins over manual selection; unknown route ids fall back to the
+  // legacy auto-first behavior with a one-time notice.
+  const knownRouteId =
+    routeParticipantId != null &&
+    participants.some((p) => p.id === routeParticipantId)
+      ? routeParticipantId
+      : null;
+  if (
+    routeParticipantId != null &&
+    !loading &&
+    participants.length > 0 &&
+    knownRouteId == null &&
+    unknownIdNotified.current !== routeParticipantId
+  ) {
+    unknownIdNotified.current = routeParticipantId;
+    toast.error("Teilnehmer nicht gefunden", {
+      description: "Es wird der erste Teilnehmer der Liste gezeigt.",
+    });
+  }
   const effectiveSelectedId =
-    selectedId ?? visibleParticipants[0]?.id ?? participants[0]?.id ?? null;
+    knownRouteId ??
+    visibleParticipants[0]?.id ??
+    participants[0]?.id ??
+    null;
   const selectedParticipant =
     participants.find((p) => p.id === effectiveSelectedId) ?? null;
 
@@ -106,9 +142,25 @@ export default function ParticipantPage() {
   }
 
   function handleParticipantChange(id: string) {
-    setSelectedId(id);
     setTab("uebersicht");
     setEditing(false);
+    if (id === routeParticipantId) return;
+    // Canonical deep link: selection lives in the URL from here on.
+    navigate(`/participants/${id}`);
+  }
+
+  function handleTabChange(value: ParticipantTab) {
+    setTab(value);
+    // Keep the tab shareable (?tab=), preserving a deep-linked ?event= so a
+    // copied link stays complete while switching tabs.
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", value);
+        return next;
+      },
+      { replace: true },
+    );
   }
 
   function updateField<K extends keyof Participant>(
@@ -246,7 +298,7 @@ export default function ParticipantPage() {
 
               <Tabs
                 value={tab}
-                onValueChange={(value) => setTab(value as ParticipantTab)}
+                onValueChange={(value) => handleTabChange(value as ParticipantTab)}
               >
                 <TabsList variant="line" className="mb-4">
                   <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
@@ -274,6 +326,7 @@ export default function ParticipantPage() {
                     <ParticipantActivity
                       participantId={participant.id}
                       refreshKey={reload}
+                      highlightEventId={searchParams.get("event")}
                     />
                   )}
                 </TabsContent>

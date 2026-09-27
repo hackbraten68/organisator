@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +27,8 @@ interface ParticipantActivityProps {
   refreshKey?: number;
   /** Default audience view. Coach excludes technical events. */
   audience?: ActivityAudience;
+  /** Deep link (?event=): highlight + auto-open this event's details. */
+  highlightEventId?: string | null;
 }
 
 const CATEGORY_LABELS: Record<ActivityCategory, string> = {
@@ -63,6 +65,7 @@ export function ParticipantActivity({
   participantId,
   refreshKey = 0,
   audience = "coach",
+  highlightEventId = null,
 }: ParticipantActivityProps) {
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
@@ -73,6 +76,20 @@ export function ParticipantActivity({
   const [showTechnical, setShowTechnical] = useState(false);
   const [query, setQuery] = useState("");
   const [range, setRange] = useState<DateRange | undefined>(undefined);
+  // A deep link must find its event: local filters are cleared once so the
+  // highlight can't hide behind the user's search/date/category selection.
+  // Audience scoping stays untouched (share-safe: unauthorized viewers simply
+  // see the "not found" note below, never the event).
+  const filtersClearedForHighlight = useRef(false);
+  useEffect(() => {
+    if (highlightEventId && !filtersClearedForHighlight.current) {
+      filtersClearedForHighlight.current = true;
+      setQuery("");
+      setRange(undefined);
+      setSelectedCategories([]);
+      setShowTechnical(false);
+    }
+  }, [highlightEventId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -215,6 +232,7 @@ export function ParticipantActivity({
           hasMore={hasMore}
           onLoadMore={handleLoadMore}
           participantId={participantId}
+          highlightEventId={highlightEventId}
         />
       </CardContent>
     </Card>

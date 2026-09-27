@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes } from "react-router";
 import ParticipantPage from "./ParticipantPage";
 import { listParticipants, updateParticipant } from "@/api/participant/participantService";
 import { listPrograms } from "@/api/program/programService";
@@ -26,6 +27,21 @@ vi.mock("@/components/participants/ParticipantActivity", () => ({
 vi.mock("@/components/ui/sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
+
+/**
+ * Router harness: the page reads selection (?tab/?event) and navigation
+ * from react-router, so every render needs a Router context.
+ */
+function renderAt(path: string): void {
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/participants" element={<ParticipantPage />} />
+        <Route path="/participants/:participantId" element={<ParticipantPage />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
 
 const mockedList = vi.mocked(listParticipants);
 const mockedUpdate = vi.mocked(updateParticipant);
@@ -57,7 +73,7 @@ describe("ParticipantPage status save", () => {
     vi.mocked(listPrograms).mockResolvedValue([]);
     vi.mocked(listCoaches).mockResolvedValue([]);
 
-    render(<ParticipantPage />);
+    renderAt("/participants");
 
     // Initial load: needs-attention row visible with old status.
     await screen.findByRole("table");
@@ -101,12 +117,12 @@ describe("ParticipantPage status save", () => {
  * the Verlauf tab is opened (no audit fetch on initial page load).
  */
 describe("ParticipantPage tabs", () => {
-  async function renderLoadedPage() {
+  async function renderLoadedPage(path = "/participants") {
     const user = userEvent.setup();
     mockedList.mockResolvedValue([BEFORE]);
     vi.mocked(listPrograms).mockResolvedValue([]);
     vi.mocked(listCoaches).mockResolvedValue([]);
-    render(<ParticipantPage />);
+    renderAt(path);
     await screen.findByRole("table");
     return user;
   }
@@ -132,6 +148,47 @@ describe("ParticipantPage tabs", () => {
     expect(
       screen.getByRole("heading", { name: "Max Mustermann" }),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * Deep links: canonical /participants/:id route, ?tab= preselection, and
+ * graceful fallback for unknown ids.
+ */
+describe("ParticipantPage deep links", () => {
+  async function renderLoadedPage(path: string) {
+    mockedList.mockResolvedValue([BEFORE]);
+    vi.mocked(listPrograms).mockResolvedValue([]);
+    vi.mocked(listCoaches).mockResolvedValue([]);
+    renderAt(path);
+    await screen.findByRole("table");
+  }
+
+  it("selects the participant from the route id", async () => {
+    await renderLoadedPage("/participants/p1");
+
+    expect(
+      screen.getByRole("heading", { name: "Max Mustermann" }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the Verlauf tab (with activity) directly via ?tab=", async () => {
+    await renderLoadedPage("/participants/p1?tab=verlauf");
+
+    expect(await screen.findByTestId("activity-stub")).toBeInTheDocument();
+  });
+
+  it("falls back to the first participant for unknown route ids", async () => {
+    const { toast } = await import("@/components/ui/sonner");
+    await renderLoadedPage("/participants/unknown-id");
+
+    expect(
+      screen.getByRole("heading", { name: "Max Mustermann" }),
+    ).toBeInTheDocument();
+    expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+      "Teilnehmer nicht gefunden",
+      expect.anything(),
+    );
   });
 });
 

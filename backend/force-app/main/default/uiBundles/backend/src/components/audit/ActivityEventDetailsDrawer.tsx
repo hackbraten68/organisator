@@ -6,6 +6,8 @@
  */
 
 import { format } from 'date-fns';
+import { useState } from 'react';
+import { Check, Link2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type { AuditEvent } from '@/types/audit';
 import { ActorBadge } from './ActorBadge';
 import { DomainBadge } from './DomainBadge';
@@ -32,6 +35,23 @@ export function ActivityEventDetailsDrawer({
 }: ActivityEventDetailsDrawerProps) {
   const occurredDate = new Date(event.occurredAt);
   const recordedDate = new Date(event.recordedAt);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  // Canonical deep link to this event. Built from the current location
+  // (already the participant route incl. basename) — share-safe by design:
+  // viewers without access see an empty timeline, never the event.
+  async function copyDeepLink() {
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", "verlauf");
+    url.searchParams.set("event", event.id);
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy deep link", err);
+    }
+  }
 
   return (
     <Dialog
@@ -235,6 +255,22 @@ export function ActivityEventDetailsDrawer({
             <p className="text-xs font-mono text-muted-foreground break-all">
               {event.id}
             </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={copyDeepLink}
+              aria-live="polite"
+            >
+              {linkCopied ? (
+                <>
+                  <Check className="size-4" /> Link kopiert
+                </>
+              ) : (
+                <>
+                  <Link2 className="size-4" /> Link zu diesem Ereignis kopieren
+                </>
+              )}
+            </Button>
           </div>
         </div>
       </DialogContent>

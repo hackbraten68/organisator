@@ -49,3 +49,36 @@ describe("ActivityTimeline (Option A slice)", () => {
     expect(screen.getByText("Keine Aktivitäten vorhanden")).toBeInTheDocument();
   });
 });
+
+describe("ActivityTimeline deep link (?event=)", () => {
+  it("auto-opens the linked event details and highlights its group", async () => {
+    render(
+      <ActivityTimeline
+        events={[statusChangedEvent]}
+        highlightEventId={statusChangedEvent.id}
+      />,
+    );
+
+    // Details drawer opens automatically with the event id visible.
+    expect(await screen.findByText(statusChangedEvent.id)).toBeInTheDocument();
+    // The containing group carries the highlight ring + scroll anchor.
+    const anchor = document.querySelector(
+      `[data-correlation-id="${statusChangedEvent.correlationId}"]`,
+    );
+    expect(anchor?.className).toContain("ring-2");
+  });
+
+  it("shows a notice when the linked event is not in the result set", () => {
+    render(
+      <ActivityTimeline events={[statusChangedEvent]} highlightEventId="missing-id" />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Das verlinkte Ereignis wurde nicht gefunden",
+    );
+    // …but the timeline itself still renders.
+    expect(
+      screen.getByText('Status von „Onboarding" auf „Active" geändert'),
+    ).toBeInTheDocument();
+  });
+});
