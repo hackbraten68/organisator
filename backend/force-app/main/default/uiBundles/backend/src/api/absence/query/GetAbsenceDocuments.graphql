@@ -1,0 +1,34 @@
+query GetAbsenceDocuments($absenceId: ID!) {
+  uiapi {
+    query {
+      ContentDocumentLink(where: { LinkedEntityId: { eq: $absenceId } }, first: 50) {
+        edges {
+          node {
+            Id
+            ContentDocumentId
+            LinkedEntityId
+            ShareType
+            Visibility
+            ContentDocument {
+              Id
+              Title
+              FileType
+              LatestPublishedVersionId
+              ContentVersions(first: 1, where: { IsLatest: { eq: true } }) {
+                edges {
+                  node {
+                    Id
+                    Title
+                    ContentSize
+                    FileExtension
+                    VersionData
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

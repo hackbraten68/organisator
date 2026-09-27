@@ -1,0 +1,13 @@
+query GetDocLink($cvId: ID!) {
+  uiapi {
+    query {
+      ContentVersion(where: { Id: { eq: $cvId } }, first: 1) {
+        edges {
+          node {
+            ContentDocumentId
+          }
+        }
+      }
+    }
+  }
+}

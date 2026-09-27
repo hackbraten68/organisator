@@ -1,0 +1,16 @@
+mutation RejectAbsence($id: ID!, $rejectedAt: DateTime!, $coachComment: String!) {
+  uiapi {
+    Absence__cUpdate(input: {
+      Id: $id
+      Absence__c: {
+        Status__c: "Rejected"
+        RejectedAt__c: $rejectedAt
+        CoachComment__c: $coachComment
+      }
+    }) {
+      Record {
+        Id
+      }
+    }
+  }
+}

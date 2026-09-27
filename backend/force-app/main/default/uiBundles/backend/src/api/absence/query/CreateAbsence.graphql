@@ -1,0 +1,25 @@
+mutation CreateAbsence(
+  $participantId: ID!
+  $type: String!
+  $status: String
+  $startDate: Date!
+  $endDate: Date!
+  $reason: String
+) {
+  uiapi {
+    Absence__cCreate(input: {
+      Absence__c: {
+        Participant__c: $participantId
+        Type__c: $type
+        Status__c: $status
+        StartDate__c: $startDate
+        EndDate__c: $endDate
+        Reason__c: $reason
+      }
+    }) {
+      Record {
+        Id
+      }
+    }
+  }
+}

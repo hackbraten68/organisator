@@ -1,0 +1,14 @@
+mutation CancelAbsence($id: ID!) {
+  uiapi {
+    Absence__cUpdate(input: {
+      Id: $id
+      Absence__c: {
+        Status__c: "Cancelled"
+      }
+    }) {
+      Record {
+        Id
+      }
+    }
+  }
+}
