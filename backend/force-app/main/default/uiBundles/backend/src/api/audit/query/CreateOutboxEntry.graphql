@@ -19,7 +19,7 @@ mutation CreateOutboxEntry(
           SubjectId__c: $subjectId
           ParticipantId__c: $participantId
           Error__c: $error
-          Retry_Count__c: $retryCount
+          RetryCount__c: $retryCount
           CorrelationId__c: $correlationId
           NextRetryAt__c: $nextRetryAt
         }

@@ -27,7 +27,7 @@ query ListOutboxEntries($status: Picklist!, $limit: Int) {
             Error__c @optional {
               value
             }
-            Retry_Count__c @optional {
+            RetryCount__c @optional {
               value
             }
             CorrelationId__c @optional {

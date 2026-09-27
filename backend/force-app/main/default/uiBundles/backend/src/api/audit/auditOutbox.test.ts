@@ -48,7 +48,7 @@ function outboxNode(overrides: Record<string, unknown> = {}) {
     SubjectId__c: { value: "a059b00000gdNKkAAM" },
     ParticipantId__c: { value: "a059b00000gdNKkAAM" },
     Error__c: { value: "GraphQL Error: boom" },
-    Retry_Count__c: { value: 0 },
+    RetryCount__c: { value: 0 },
     CorrelationId__c: { value: "corr-1" },
     NextRetryAt__c: null,
     ...overrides,
@@ -133,7 +133,7 @@ describe("auditOutbox", () => {
 
   it(`fails terminally after ${MAX_OUTBOX_RETRIES} attempts`, async () => {
     mockedExecute.mockResolvedValueOnce(
-      listResponse([outboxNode({ Retry_Count__c: { value: MAX_OUTBOX_RETRIES - 1 } })]),
+      listResponse([outboxNode({ RetryCount__c: { value: MAX_OUTBOX_RETRIES - 1 } })]),
     );
     mockedRecord.mockRejectedValueOnce(new Error("still down"));
     mockedExecute.mockResolvedValueOnce({

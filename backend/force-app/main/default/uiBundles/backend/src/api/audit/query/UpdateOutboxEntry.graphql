@@ -12,7 +12,7 @@ mutation UpdateOutboxEntry(
         AuditOutbox__c: {
           Status__c: $status
           Error__c: $error
-          Retry_Count__c: $retryCount
+          RetryCount__c: $retryCount
           NextRetryAt__c: $nextRetryAt
         }
       }

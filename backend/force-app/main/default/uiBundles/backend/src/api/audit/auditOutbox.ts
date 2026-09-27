@@ -46,7 +46,7 @@ interface OutboxNode {
   SubjectId__c?: { value?: string | null } | null;
   ParticipantId__c?: { value?: string | null } | null;
   Error__c?: { value?: string | null } | null;
-  Retry_Count__c?: { value?: number | null } | null;
+  RetryCount__c?: { value?: number | null } | null;
   CorrelationId__c?: { value?: string | null } | null;
   NextRetryAt__c?: { value?: string | null } | null;
   CreatedDate?: { value?: string | null } | null;
@@ -76,7 +76,7 @@ function toEntry(node: OutboxNode): AuditOutboxEntry | null {
     subjectId: node.SubjectId__c?.value ?? undefined,
     participantId: node.ParticipantId__c?.value ?? undefined,
     error: node.Error__c?.value ?? undefined,
-    retryCount: node.Retry_Count__c?.value ?? 0,
+    retryCount: node.RetryCount__c?.value ?? 0,
     correlationId: node.CorrelationId__c?.value ?? undefined,
     nextRetryAt: node.NextRetryAt__c?.value ?? undefined,
   };
@@ -176,7 +176,7 @@ export interface OutboxProcessResult {
 /**
  * One worker run: replay due PENDING entries (NextRetryAt null or past).
  * - Replay ok → PROCESSED.
- * - Replay fails + retries left → PENDING with incremented Retry_Count__c
+ * - Replay fails + retries left → PENDING with incremented RetryCount__c
  *   and backoff NextRetryAt (counted as skipped: still in flight).
  * - Replay fails + retries exhausted → FAILED (terminal for the worker).
  * - Unparseable payload → FAILED immediately (retrying can't help).
