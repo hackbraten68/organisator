@@ -1,0 +1,25 @@
+query GetUserByUsername($username: String!) {
+  uiapi {
+    query {
+      User(where: { Username: { eq: $username } }, first: 1) {
+        edges {
+          node {
+            Id
+            FirstName @optional {
+              value
+            }
+            LastName @optional {
+              value
+            }
+            Name @optional {
+              value
+            }
+            Username @optional {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

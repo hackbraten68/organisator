@@ -5,6 +5,8 @@ import { Toaster } from "./components/ui/sonner";
 import { Menu, X } from "lucide-react";
 import { getNavigationRoutes, type NavigationItem } from "./router-utils";
 import { useSessionLoginAudit } from "./hooks/useSessionLoginAudit";
+import { useAuditActorInit } from "./hooks/useAuditActor";
+import { ActorPicker } from "./components/audit/ActorPicker";
 import { useState } from "react";
 
 function navigationLinkClass(isActive: boolean) {
@@ -46,10 +48,18 @@ export default function AppLayout() {
 	const [mobileOpen, setMobileOpen] = useState(false);
 	const items = getNavigationRoutes();
 	const closeMobileMenu = () => setMobileOpen(false);
-	useSessionLoginAudit();
+	const actorInit = useAuditActorInit();
+	// Login audit waits for actor resolution so the event carries the real
+	// actor (or a picked name) instead of a premature SYSTEM.
+	useSessionLoginAudit(actorInit.ready);
 
 	return (
 		<div className="min-h-screen bg-background">
+			<ActorPicker
+				isOpen={actorInit.needsPicker}
+				onChoose={actorInit.chooseName}
+				onDismiss={actorInit.dismissPicker}
+			/>
 			<header className="bg-card border-b border-border sticky top-0 z-30">
 				<div className="px-4 sm:px-6 lg:px-8">
 					<div className="flex items-center gap-3 h-16">

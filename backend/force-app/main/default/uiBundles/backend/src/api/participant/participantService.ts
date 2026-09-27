@@ -9,6 +9,7 @@ import { executeGraphQL } from "../graphqlClient";
 import { listPrograms } from "../program/programService";
 import { listCoaches } from "../coach/coachService";
 import { recordParticipantCreation, recordParticipantStatusChange, recordParticipantUpdate } from "../audit/participantAuditIntegration";
+import { getAuditActor } from "../audit/actorContext";
 import { generateUUID } from "../audit/auditService";
 import type {
   Participant,
@@ -232,16 +233,15 @@ export async function updateParticipant(
   const saved = await getParticipant(id);
 
   // Audit is a side process: events are recorded best-effort and audit
-  // failures are swallowed + logged so they never block the save.
-  // TODO: resolve the real actor from the authenticated SDK context
-  // (currently recorded as system).
+  // failures are swallowed + logged so they never block the save. The actor
+  // is the resolved session actor (SYSTEM until resolution, see actorContext).
   //
   // One save may produce two events sharing a correlationId:
   // - participant.status_changed for status transitions
   // - participant.updated for all other field changes (status excluded
   //   from its diff so the two events do not duplicate each other)
   if (saved) {
-    const actor = { id: "SYSTEM", type: "system" as const, displayName: "System" };
+    const actor = getAuditActor();
     const newStatus = patch.status;
     const statusChanged =
       newStatus !== undefined && newStatus !== existing.status;
@@ -333,7 +333,7 @@ export async function createParticipant(
 
   try {
     await recordParticipantCreation(created.id, created, {
-      actor: { id: "SYSTEM", type: "system", displayName: "System" },
+      actor: getAuditActor(),
     });
   } catch (err) {
     console.error(

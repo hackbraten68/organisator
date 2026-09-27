@@ -25,10 +25,12 @@ import {
 } from './auditService';
 
 /**
- * Actor context for audit logging
+ * Actor context for audit logging. `id` is optional: self-attested session
+ * actors (ActorPicker) carry a first name but no verified Salesforce User id.
+ * Downstream `actorId` is optional too (service defaults to 'SYSTEM').
  */
 export interface AuditActor {
-  id: string;
+  id?: string;
   type: AuditActorType;
   displayName: string;
 }

@@ -1,0 +1,25 @@
+query GetUserById($id: ID!) {
+  uiapi {
+    query {
+      User(where: { Id: { eq: $id } }, first: 1) {
+        edges {
+          node {
+            Id
+            FirstName @optional {
+              value
+            }
+            LastName @optional {
+              value
+            }
+            Name @optional {
+              value
+            }
+            Username @optional {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

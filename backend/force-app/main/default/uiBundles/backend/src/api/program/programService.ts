@@ -35,6 +35,7 @@ import {
   recordLearningPathItemReordered,
   recordLearningPathItemUpdated,
 } from "../audit/learningPathAuditIntegration";
+import { getAuditActor } from "../audit/actorContext";
 import GET_PROGRAMS from "./query/GetPrograms.graphql?raw";
 import GET_PROGRAM from "./query/GetProgram.graphql?raw";
 import PROGRAM_COUNTS from "./query/ProgramCounts.graphql?raw";
@@ -582,15 +583,9 @@ export async function getLearningPathWeeks(
 
 // ---------------------------------------------------------------------------
 // Learning path audit: side process per ADR-14. Events are recorded
-// best-effort AFTER the confirmed mutation and never block it.
+// best-effort AFTER the confirmed mutation and never block it. The actor is
+// the resolved session actor (SYSTEM until resolution, see actorContext).
 // TODO: outbox/retry so sustained audit outages stay visible/replayable.
-// TODO: resolve the real actor from the authenticated SDK context
-// (currently recorded as system).
-const SYSTEM_ACTOR = {
-  id: "SYSTEM",
-  type: "system" as const,
-  displayName: "System",
-};
 
 function logAuditFailure(eventType: string, subjectId: string, err: unknown) {
   // IDs only, never payloads: audit failures must not leak PII into logs.
@@ -631,7 +626,7 @@ export async function addLearningPathItem(  participantId: string,
   // Audit is a side process (ADR-14): best-effort after the confirmed
   // read-back, never blocking the mutation.
   try {
-    await recordLearningPathItemCreated(created, { actor: SYSTEM_ACTOR });
+    await recordLearningPathItemCreated(created, { actor: getAuditActor() });
   } catch (err) {
     logAuditFailure("learning_path.item_created", created.id, err);
   }
@@ -670,7 +665,7 @@ export async function updateLearningPathItem(
   if (saved) {
     try {
       await recordLearningPathItemUpdated(existing, saved, {
-        actor: SYSTEM_ACTOR,
+        actor: getAuditActor(),
       });
     } catch (err) {
       if (
@@ -708,7 +703,7 @@ export async function deleteLearningPathItem(id: string): Promise<void> {
           estimatedWeeks: snapshot.estimatedWeeks,
           status: snapshot.status,
         },
-        { actor: SYSTEM_ACTOR },
+        { actor: getAuditActor() },
       );
     } catch (err) {
       logAuditFailure("learning_path.item_deleted", id, err);
@@ -753,7 +748,7 @@ export async function reorderLearningPathItems(
           previousPosition,
           newPosition: moved.order,
         },
-        { actor: SYSTEM_ACTOR, correlationId },
+        { actor: getAuditActor(), correlationId },
       );
     } catch (err) {
       logAuditFailure("learning_path.item_reordered", movedId, err);
