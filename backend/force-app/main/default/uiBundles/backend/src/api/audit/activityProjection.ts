@@ -91,11 +91,13 @@ export const ACTIVITY_PROJECTION_RULES = {
   "workbook.submitted": { category: "learning", audiences: COACH_STAFF_PARTICIPANT, includeInActivity: true, technical: false },
   "workbook.reviewed": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
 
-  // Learning path (curriculum plan; staff visibility upstream)
+  // Learning path (curriculum plan; staff visibility upstream).
+  // item_reordered stays backend-only: tracked in the store/explorer, but
+  // deliberately excluded from all frontend timelines (noise).
   "learning_path.item_created": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
   "learning_path.item_updated": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
   "learning_path.item_deleted": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
-  "learning_path.item_reordered": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
+  "learning_path.item_reordered": { category: "learning", audiences: COACH_STAFF, includeInActivity: false, technical: false },
 
   // Absence (eigene Kategorie: anderer Prozess, andere Sensitivität als attendance)
   "absence.reported": { category: "absence", audiences: COACH_STAFF_PARTICIPANT, includeInActivity: true, technical: false },

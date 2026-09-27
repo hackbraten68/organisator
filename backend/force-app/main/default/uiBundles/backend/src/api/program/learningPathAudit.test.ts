@@ -310,7 +310,6 @@ describe("learning path audit", () => {
       "learning_path.item_created",
       "learning_path.item_updated",
       "learning_path.item_deleted",
-      "learning_path.item_reordered",
     ]) {
       const typed = { ...event, eventType: type };
       expect(
@@ -319,6 +318,36 @@ describe("learning path audit", () => {
       ).toEqual([event.id]);
       expect(filterForAudience([typed], "staff")).toHaveLength(1);
       expect(filterForAudience([typed], "participant")).toEqual([]);
+    }
+  });
+
+  it("9b: item_reordered is backend-only, hidden from every timeline", async () => {
+    const reordered: AuditEvent = {
+      id: "a0AA000000000004AAA",
+      recordedAt: "2026-09-25T10:00:01.000Z",
+      occurredAt: "2026-09-25T10:00:00.000Z",
+      schemaVersion: 1,
+      eventType: "learning_path.item_reordered",
+      domain: "learning_path",
+      action: "reordered",
+      actorType: "system",
+      subjectType: "LearningPathItem__c",
+      subjectId: "lp-1",
+      participantId: "p-1",
+      source: "web",
+      changedFields: ["Order__c"],
+      changes: [],
+      metadata: {},
+      visibility: "staff",
+      sensitivity: "normal",
+    };
+    // Raw store keeps it; no audience timeline (not even with technical flag).
+    expect([reordered]).toHaveLength(1);
+    for (const audience of ["coach", "staff", "supervisor", "auditor", "participant"] as const) {
+      expect(filterForAudience([reordered], audience)).toEqual([]);
+      expect(
+        filterForAudience([reordered], audience, { includeTechnicalEvents: true }),
+      ).toEqual([]);
     }
   });
 

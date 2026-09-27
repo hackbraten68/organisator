@@ -734,7 +734,9 @@ Updates teilen eine `correlationId`); gleiche Position = kein Event.
 `metadata` = allowlist-gefilterter Kontext (Titel nur Snapshot, IDs tragen
 Identität). Events entstehen nur nach bestätigtem Mutation-Read-back;
 No-Op-Updates erzeugen kein Event. Fehler-Logs enthalten Event-Typ +
-Subject-ID, niemals Payloads (kein PII im Log).
+Subject-ID, niemals Payloads (kein PII im Log). `item_reordered` ist
+bewusst timeline-unsichtbar (`includeInActivity: false`): im Store/Explorer
+weiter getrackt, aber aus allen Frontend-Timelines raus (Rauschen).
 
 **Technische Schuld (dokumentiert, nicht blockierend):** Fällt der
 Audit-Write dauerhaft aus, entsteht trotz erfolgreicher Mutationen eine
