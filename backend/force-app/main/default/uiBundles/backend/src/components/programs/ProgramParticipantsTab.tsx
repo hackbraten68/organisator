@@ -31,7 +31,7 @@ import {
 import { toast } from "@/components/ui/sonner";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import {
-  getLearningPathProgress,
+  computeLearningPathProgress,
   getProgram,
   listLearningPath,
   listPrograms,
@@ -78,10 +78,10 @@ export default function ProgramParticipantsTab({
     const durationWeeks = program?.durationWeeks;
     return Promise.all(
       assignedList.map(async (participant) => {
-        const [items, progress] = await Promise.all([
-          listLearningPath(participant.id),
-          getLearningPathProgress(participant.id),
-        ]);
+        // Single fetch per participant: roadmap and progress derive from the
+        // same item list (getLearningPathProgress would re-query).
+        const items = await listLearningPath(participant.id);
+        const progress = computeLearningPathProgress(items);
         return {
           id: participant.id,
           name: participant.name,

@@ -547,10 +547,14 @@ async function getLearningPathItemById(
   return node ? mapLearningPathItem(node) : null;
 }
 
-export async function getLearningPathProgress(
-  participantId: string,
-): Promise<LearningPathProgress> {
-  const items = await listLearningPath(participantId);
+/**
+ * Pure progress computation over already loaded items: one fetch serves both
+ * roadmap and progress (avoids a second Learning_Path__c query per
+ * participant, e.g. in ProgramParticipantsTab).
+ */
+export function computeLearningPathProgress(
+  items: LearningPathItem[],
+): LearningPathProgress {
   const completed = items.filter(
     (item) => item.status === "Completed",
   ).length;
@@ -560,6 +564,13 @@ export async function getLearningPathProgress(
     completed,
     percent: total === 0 ? 0 : Math.round((completed / total) * 100),
   };
+}
+
+export async function getLearningPathProgress(
+  participantId: string,
+): Promise<LearningPathProgress> {
+  const items = await listLearningPath(participantId);
+  return computeLearningPathProgress(items);
 }
 
 export async function getLearningPathWeeks(

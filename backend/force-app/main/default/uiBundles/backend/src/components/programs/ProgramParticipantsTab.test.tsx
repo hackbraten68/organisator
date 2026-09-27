@@ -3,7 +3,6 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ProgramParticipantsTab from "./ProgramParticipantsTab";
 import {
-  getLearningPathProgress,
   getProgram,
   listLearningPath,
   listPrograms,
@@ -15,12 +14,17 @@ import {
 } from "@/api/participant/participantService";
 import type { Program } from "@/types/program";
 
-vi.mock("@/api/program/programService", () => ({
-  getLearningPathProgress: vi.fn(),
-  getProgram: vi.fn(),
-  listLearningPath: vi.fn(),
-  listPrograms: vi.fn(),
-}));
+vi.mock("@/api/program/programService", async (importOriginal) => {
+  // Keep the pure helper real; only the GraphQL-backed functions are stubbed.
+  const actual =
+    await importOriginal<typeof import("@/api/program/programService")>();
+  return {
+    ...actual,
+    getProgram: vi.fn(),
+    listLearningPath: vi.fn(),
+    listPrograms: vi.fn(),
+  };
+});
 vi.mock("@/api/participant/participantService", () => ({
   assignParticipant: vi.fn(),
   listProgramParticipants: vi.fn(),
@@ -59,11 +63,6 @@ describe("ProgramParticipantsTab move confirmation", () => {
       { id: "c2", name: "Fresh" },
     ]);
     vi.mocked(listLearningPath).mockResolvedValue([]);
-    vi.mocked(getLearningPathProgress).mockResolvedValue({
-      total: 0,
-      completed: 0,
-      percent: 0,
-    } as never);
     vi.mocked(assignParticipant).mockResolvedValue(undefined as never);
   });
 
@@ -126,5 +125,38 @@ describe("ProgramParticipantsTab move confirmation", () => {
       expect(assignParticipant).toHaveBeenCalledWith("c2", PROGRAM_ID);
     });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * One Learning_Path__c fetch per participant serves both roadmap and
+ * progress (computeLearningPathProgress derives from the same item list
+ * instead of firing a second query).
+ */
+describe("ProgramParticipantsTab progress", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getProgram).mockResolvedValue({
+      id: PROGRAM_ID,
+      name: "IT Pro Advanced",
+    } as never);
+    vi.mocked(listPrograms).mockResolvedValue([]);
+    vi.mocked(listProgramParticipants).mockResolvedValue([
+      { id: "p1", name: "Lena", programId: PROGRAM_ID },
+    ]);
+    vi.mocked(searchParticipants).mockResolvedValue([]);
+    vi.mocked(listLearningPath).mockResolvedValue([
+      { id: "lp-1", title: "HTML & CSS", status: "Completed" },
+      { id: "lp-2", title: "JavaScript", status: "Planned" },
+    ] as never);
+  });
+
+  it("derives roadmap and progress from a single fetch", async () => {
+    render(<ProgramParticipantsTab programId={PROGRAM_ID} />);
+
+    await screen.findByText("Lena");
+    expect(vi.mocked(listLearningPath)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(listLearningPath)).toHaveBeenCalledWith("p1");
+    expect(await screen.findByText("1/2")).toBeInTheDocument();
   });
 });
