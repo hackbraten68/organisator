@@ -46,3 +46,6 @@ $RECYCLE.BIN/
 **/__pycache__/
 **/.venv/
 **/venv/
+
+# Dev seed manifest (org-specific record IDs, never commit)
+scripts/.seed-manifest.json
