@@ -41,6 +41,19 @@ const CATEGORY_LABELS: Record<ActivityCategory, string> = {
 };
 
 /**
+ * Categories without a pill (deliberate, not a bug):
+ * - audit: always empty by design (audit.viewed/exported carry
+ *   includeInActivity:false — reading the audit log must not append to it).
+ * - security: no writer exists yet (no login events). Re-enable together
+ *   with login tracking (TODO(login-tracking)).
+ */
+const HIDDEN_CATEGORIES: ActivityCategory[] = ["audit", "security"];
+
+const VISIBLE_CATEGORIES = ACTIVITY_CATEGORIES.filter(
+  (category) => !HIDDEN_CATEGORIES.includes(category),
+);
+
+/**
  * Participant activity section: audience-specific projection of the central
  * audit store. Default is the fachliche coach view without technical events.
  * Category/audience/search/date filtering applies only to the already
@@ -168,7 +181,7 @@ export function ParticipantActivity({
           </p>
         )}
         <div className="flex flex-wrap gap-2 mb-2">
-          {ACTIVITY_CATEGORIES.map((category) => {
+          {VISIBLE_CATEGORIES.map((category) => {
             const active = selectedCategories.includes(category);
             return (
               <Button

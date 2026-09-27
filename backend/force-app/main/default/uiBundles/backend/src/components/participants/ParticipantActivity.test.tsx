@@ -149,6 +149,26 @@ describe("ParticipantActivity", () => {
     ).toEqual([]);
   });
 
+  it("hides pills for categories that can never show content", async () => {
+    mockedActivity.mockResolvedValueOnce({
+      events: [statusChangedEvent],
+      hasNextPage: false,
+      nextCursor: undefined,
+    });
+
+    render(<ParticipantActivity participantId="p-1" />);
+    await screen.findByText("Test Coach (Team)");
+
+    // Deliberate, not a bug: audit is empty by design (self-reading log
+    // must not append to itself), security has no writer yet
+    // (TODO(login-tracking)). All content-bearing categories stay.
+    expect(screen.queryByRole("button", { name: "Audit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sicherheit" })).not.toBeInTheDocument();
+    for (const label of ["Verlauf", "Termine", "Anwesenheit", "Abwesenheit", "Lernen", "Verwaltung"]) {
+      expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+    }
+  });
+
   it("filters events by search query and resets", async () => {
     const user = userEvent.setup();
     const appointmentEvent: AuditEvent = {
