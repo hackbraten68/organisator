@@ -24,6 +24,7 @@ export const AUDIT_DOMAINS = [
   'time_tracking',
   'authentication',
   'system',
+  'learning_path',
 ] as const;
 
 export type AuditDomain = (typeof AUDIT_DOMAINS)[number];
@@ -58,6 +59,7 @@ export const AUDIT_ACTIONS = [
   'entry_created',
   'entry_updated',
   'entry_deleted',
+  'reordered',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -285,6 +287,12 @@ export const DEFAULT_FIELD_POLICIES: Record<string, AuditFieldPolicyConfig> = {
     Duration: { strategy: 'FULL', displayType: 'numeric' },
     CorrectionReason: { strategy: 'REDACTED', displayType: 'text', allowRedactionByPermission: true },
   },
+  learning_path: {
+    Title: { strategy: 'FULL', displayType: 'text' },
+    Order__c: { strategy: 'FULL', displayType: 'numeric' },
+    EstimatedWeeks__c: { strategy: 'FULL', displayType: 'numeric' },
+    Status: { strategy: 'FULL', displayType: 'status' },
+  },
 };
 
 /**
@@ -300,6 +308,7 @@ export const DEFAULT_DOMAIN_VISIBILITY: Record<AuditDomain, AuditVisibility> = {
   time_tracking: 'staff',
   authentication: 'restricted',
   system: 'staff',
+  learning_path: 'staff',
 };
 
 export const DEFAULT_DOMAIN_SENSITIVITY: Record<AuditDomain, AuditSensitivity> = {
@@ -312,6 +321,7 @@ export const DEFAULT_DOMAIN_SENSITIVITY: Record<AuditDomain, AuditSensitivity> =
   time_tracking: 'normal',
   authentication: 'restricted',
   system: 'normal',
+  learning_path: 'normal',
 };
 
 /**
@@ -368,6 +378,15 @@ export const METADATA_ALLOWLISTS: Record<AuditDomain, Set<string>> = {
     'jobName',
     'status',
     'recordCount',
+  ]),
+  learning_path: new Set([
+    'title',
+    'programId',
+    'previousPosition',
+    'newPosition',
+    'estimatedWeeks',
+    'status',
+    'source',
   ]),
 };
 
@@ -429,6 +448,12 @@ export const EVENT_TYPES = {
   // System/Auth
   SYSTEM_JOB_EXECUTED: 'system.created' as const,
   AUTHENTICATION_LOGIN: 'authentication.created' as const,
+
+  // Learning Path (participant curriculum plan)
+  LEARNING_PATH_ITEM_CREATED: 'learning_path.item_created' as const,
+  LEARNING_PATH_ITEM_UPDATED: 'learning_path.item_updated' as const,
+  LEARNING_PATH_ITEM_DELETED: 'learning_path.item_deleted' as const,
+  LEARNING_PATH_ITEM_REORDERED: 'learning_path.item_reordered' as const,
 } as const;
 
 /**

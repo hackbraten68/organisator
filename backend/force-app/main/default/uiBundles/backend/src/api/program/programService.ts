@@ -28,6 +28,13 @@ import type {
 } from "@/types/program";
 import { executeGraphQL } from "../graphqlClient";
 import { listCoaches } from "../coach/coachService";
+import { generateUUID } from "../audit/auditService";
+import {
+  recordLearningPathItemCreated,
+  recordLearningPathItemDeleted,
+  recordLearningPathItemReordered,
+  recordLearningPathItemUpdated,
+} from "../audit/learningPathAuditIntegration";
 import GET_PROGRAMS from "./query/GetPrograms.graphql?raw";
 import GET_PROGRAM from "./query/GetProgram.graphql?raw";
 import PROGRAM_COUNTS from "./query/ProgramCounts.graphql?raw";
@@ -562,8 +569,24 @@ export async function getLearningPathWeeks(
   return items.reduce((sum, item) => sum + (item.estimatedWeeks ?? 0), 0);
 }
 
-export async function addLearningPathItem(
-  participantId: string,
+// ---------------------------------------------------------------------------
+// Learning path audit: side process per ADR-14. Events are recorded
+// best-effort AFTER the confirmed mutation and never block it.
+// TODO: outbox/retry so sustained audit outages stay visible/replayable.
+// TODO: resolve the real actor from the authenticated SDK context
+// (currently recorded as system).
+const SYSTEM_ACTOR = {
+  id: "SYSTEM",
+  type: "system" as const,
+  displayName: "System",
+};
+
+function logAuditFailure(eventType: string, subjectId: string, err: unknown) {
+  // IDs only, never payloads: audit failures must not leak PII into logs.
+  console.error(`Failed to write audit event ${eventType} for ${subjectId}`, err);
+}
+
+export async function addLearningPathItem(  participantId: string,
   programId: string,
   input: LearningPathItemInput,
 ): Promise<LearningPathItem> {
@@ -593,6 +616,14 @@ export async function addLearningPathItem(
   if (!id) throw new Error("Learning path item creation returned no Id.");
   const created = await getLearningPathItemById(id);
   if (!created) throw new Error("Created learning path item not found.");
+
+  // Audit is a side process (ADR-14): best-effort after the confirmed
+  // read-back, never blocking the mutation.
+  try {
+    await recordLearningPathItemCreated(created, { actor: SYSTEM_ACTOR });
+  } catch (err) {
+    logAuditFailure("learning_path.item_created", created.id, err);
+  }
   return created;
 }
 
@@ -621,27 +652,102 @@ export async function updateLearningPathItem(
     ...(patch.status !== undefined ? { status: patch.status } : {}),
   });
 
-  return getLearningPathItemById(id);
+  const saved = await getLearningPathItemById(id);
+
+  // Audit only when the patch carried a fachliche Änderung: the integration
+  // throws on no-op diffs, which is expected, not an error worth logging.
+  if (saved) {
+    try {
+      await recordLearningPathItemUpdated(existing, saved, {
+        actor: SYSTEM_ACTOR,
+      });
+    } catch (err) {
+      if (
+        err instanceof Error &&
+        err.message.includes("No fields changed")
+      ) {
+        // no-op
+      } else {
+        logAuditFailure("learning_path.item_updated", id, err);
+      }
+    }
+  }
+
+  return saved;
 }
 
 export async function deleteLearningPathItem(id: string): Promise<void> {
+  // Snapshot BEFORE the mutation: afterwards the item may be gone.
+  const snapshot = await getLearningPathItemById(id);
+
   await executeGraphQL<MutationResponse, { id: string }>(
     DELETE_LEARNING_PATH_ITEM,
     { id },
   );
+
+  if (snapshot) {
+    try {
+      await recordLearningPathItemDeleted(
+        {
+          id: snapshot.id,
+          participantId: snapshot.participantId,
+          programId: snapshot.programId,
+          title: snapshot.title,
+          order: snapshot.order,
+          estimatedWeeks: snapshot.estimatedWeeks,
+          status: snapshot.status,
+        },
+        { actor: SYSTEM_ACTOR },
+      );
+    } catch (err) {
+      logAuditFailure("learning_path.item_deleted", id, err);
+    }
+  }
   // Order gaps after delete are harmless: lists sort by Order__c and new
   // items use max(order) + 1.
 }
 
+/**
+ * Reorder learning-path items. The caller passes the fachlich moved item;
+ * exactly ONE `learning_path.item_reordered` is recorded for it, no matter
+ * how many technical position updates run underneath. All updates share one
+ * correlationId. Same position = no fachliche Änderung = no event.
+ */
 export async function reorderLearningPathItems(
   participantId: string,
   orderedIds: string[],
+  movedId: string,
 ): Promise<LearningPathItem[]> {
+  const before = await listLearningPath(participantId);
+  const previousPosition = before.find((item) => item.id === movedId)?.order;
+
+  const correlationId = generateUUID();
   for (const [index, id] of orderedIds.entries()) {
     await executeGraphQL<
       MutationResponse,
       { id: string; order?: number | null }
     >(UPDATE_LEARNING_PATH_ITEM, { id, order: index + 1 });
   }
-  return listLearningPath(participantId);
+  const after = await listLearningPath(participantId);
+  const moved = after.find((item) => item.id === movedId);
+
+  if (moved && previousPosition !== undefined && moved.order !== previousPosition) {
+    try {
+      await recordLearningPathItemReordered(
+        {
+          itemId: moved.id,
+          participantId: moved.participantId,
+          programId: moved.programId,
+          title: moved.title,
+          previousPosition,
+          newPosition: moved.order,
+        },
+        { actor: SYSTEM_ACTOR, correlationId },
+      );
+    } catch (err) {
+      logAuditFailure("learning_path.item_reordered", movedId, err);
+    }
+  }
+
+  return after;
 }

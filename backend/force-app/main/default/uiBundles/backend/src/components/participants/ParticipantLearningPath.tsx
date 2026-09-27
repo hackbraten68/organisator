@@ -149,6 +149,7 @@ export default function ParticipantLearningPath({
       await reorderLearningPathItems(
         participantId,
         ordered.map((item) => item.id),
+        id,
       );
       refresh();
     } catch (err) {

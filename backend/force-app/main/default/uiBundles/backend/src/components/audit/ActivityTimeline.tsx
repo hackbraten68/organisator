@@ -101,6 +101,7 @@ function formatEventAsActivity(event: AuditEvent): string {
     entry_created: 'Eintrag erstellt',
     entry_updated: 'Eintrag geändert',
     entry_deleted: 'Eintrag gelöscht',
+    reordered: 'umsortiert',
   };
 
   const action = actionLabels[event.action] ?? event.action;

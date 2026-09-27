@@ -22,6 +22,7 @@ const DOMAIN_LABELS: Record<AuditDomain, string> = {
   time_tracking: 'Zeiterfassung',
   authentication: 'Authentifizierung',
   system: 'System',
+  learning_path: 'Lernpfad',
 };
 
 const ACTION_LABELS: Record<AuditAction, string> = {
@@ -51,6 +52,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   entry_created: 'Eintrag erstellt',
   entry_updated: 'Eintrag geändert',
   entry_deleted: 'Eintrag gelöscht',
+  reordered: 'umsortiert',
 };
 
 export function DomainBadge({ domain, action }: DomainBadgeProps) {

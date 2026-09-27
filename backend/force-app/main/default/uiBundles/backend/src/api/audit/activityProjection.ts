@@ -91,6 +91,12 @@ export const ACTIVITY_PROJECTION_RULES = {
   "workbook.submitted": { category: "learning", audiences: COACH_STAFF_PARTICIPANT, includeInActivity: true, technical: false },
   "workbook.reviewed": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
 
+  // Learning path (curriculum plan; staff visibility upstream)
+  "learning_path.item_created": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
+  "learning_path.item_updated": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
+  "learning_path.item_deleted": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
+  "learning_path.item_reordered": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
+
   // Absence (eigene Kategorie: anderer Prozess, andere Sensitivität als attendance)
   "absence.reported": { category: "absence", audiences: COACH_STAFF_PARTICIPANT, includeInActivity: true, technical: false },
   "absence.updated": { category: "absence", audiences: COACH_STAFF, includeInActivity: true, technical: false },

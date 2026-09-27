@@ -722,3 +722,25 @@ statt Page), damit `assign/unassign`/Import/API-Pfade automatisch erfasst
 werden. Actor vorerst `system`, bis der authentifizierte SDK-Kontext
 verfügbar ist.
 
+## 15. ADR: Lernpfad-Audit-Semantik + Outbox-Schuld (2026-09-27)
+
+Erweitert ADR-14 auf die Lernpfad-Mutationen (`programService`):
+eine fachliche Aktion = genau ein Event
+(`learning_path.item_created/updated/deleted/reordered`).
+Ein Reorder-Vorgang mit N technischen Positions-Updates produziert ein
+einziges `item_reordered` (Aufrufer übergibt `movedId` + Positionen, alle
+Updates teilen eine `correlationId`); gleiche Position = kein Event.
+`changes` = tatsächlich geänderte Werte (vorher/nachher),
+`metadata` = allowlist-gefilterter Kontext (Titel nur Snapshot, IDs tragen
+Identität). Events entstehen nur nach bestätigtem Mutation-Read-back;
+No-Op-Updates erzeugen kein Event. Fehler-Logs enthalten Event-Typ +
+Subject-ID, niemals Payloads (kein PII im Log).
+
+**Technische Schuld (dokumentiert, nicht blockierend):** Fällt der
+Audit-Write dauerhaft aus, entsteht trotz erfolgreicher Mutationen eine
+Lücke in der History. Für echte Nachvollziehbarkeit braucht es eine
+Outbox/Retry-Queue (Events persistent puffern, asynchron nachliefern,
+Monitoring bei Stillstand). Bis dahin gilt: Fehler sind in den Logs
+erkennbar (`Failed to write audit event <type> for <subjectId>`), aber
+nicht automatisch nachspielbar.
+
