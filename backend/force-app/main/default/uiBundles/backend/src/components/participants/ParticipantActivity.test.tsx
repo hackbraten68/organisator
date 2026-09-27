@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { ParticipantActivity } from "./ParticipantActivity";
 import { getParticipantActivity } from "@/api/audit/auditApiService";
 import type { AuditEvent } from "@/types/audit";
@@ -76,5 +77,44 @@ describe("ParticipantActivity", () => {
     await waitFor(() => {
       expect(screen.getByText(/Fehler beim Laden der Aktivitätshistorie/)).toBeInTheDocument();
     });
+  });
+
+  it("filters events by search query and resets", async () => {
+    const user = userEvent.setup();
+    const appointmentEvent: AuditEvent = {
+      ...statusChangedEvent,
+      id: "a0AA000000000002AAA",
+      eventType: "appointment.created",
+      domain: "appointment",
+      action: "created",
+      occurredAt: "2026-09-20T09:00:00.000Z",
+      actorDisplayNameSnapshot: "Other Coach",
+      reason: "Routine check-in",
+    };
+    mockedActivity.mockResolvedValueOnce({
+      events: [statusChangedEvent, appointmentEvent],
+      hasNextPage: false,
+      nextCursor: undefined,
+    });
+
+    render(<ParticipantActivity participantId="p-1" />);
+    await screen.findByText("Test Coach (Team)");
+
+    await user.type(
+      screen.getByRole("textbox", { name: "Verlauf durchsuchen" }),
+      "routine",
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/1 von 2 Einträgen/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Test Coach (Team)")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /zurücksetzen/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Coach (Team)")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/von 2 Einträgen/)).not.toBeInTheDocument();
   });
 });

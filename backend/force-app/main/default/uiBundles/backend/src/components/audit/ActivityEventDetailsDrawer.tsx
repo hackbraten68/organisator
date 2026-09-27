@@ -1,12 +1,17 @@
 /**
  * Activity Event Details Drawer Component
- * 
+ *
  * Side panel showing complete details of an audit event.
+ * Built on shadcn Dialog (right-side panel variant).
  */
 
 import { format } from 'date-fns';
-import { X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import type { AuditEvent } from '@/types/audit';
 import { ActorBadge } from './ActorBadge';
@@ -25,36 +30,27 @@ export function ActivityEventDetailsDrawer({
   isOpen,
   onClose,
 }: ActivityEventDetailsDrawerProps) {
-  if (!isOpen) return null;
-
   const occurredDate = new Date(event.occurredAt);
   const recordedDate = new Date(event.recordedAt);
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 h-screen w-96 bg-background border-l shadow-lg z-50 overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 border-b bg-muted/50 p-4 flex items-center justify-between">
-          <h2 className="font-semibold">Ereignisdetails</h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="h-8 w-8"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent
+        showCloseButton
+        aria-describedby={undefined}
+        className="left-auto right-0 top-0 h-screen max-h-screen w-full max-w-96 translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-none border-l border-t-0 border-r-0 border-b-0 p-0 data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right"
+      >
+        <DialogHeader className="border-b bg-muted/50 p-4">
+          <DialogTitle>Ereignisdetails</DialogTitle>
+        </DialogHeader>
 
         {/* Content */}
-        <div className="p-4 space-y-6">
+        <div className="overflow-y-auto p-4 space-y-6">
           {/* Event type and domain */}
           <div className="space-y-2">
             <label className="text-xs font-semibold text-muted-foreground">
@@ -241,8 +237,8 @@ export function ActivityEventDetailsDrawer({
             </p>
           </div>
         </div>
-      </div>
-    </>
+      </DialogContent>
+    </Dialog>
   );
 }
 

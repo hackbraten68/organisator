@@ -93,6 +93,14 @@ function formatEventAsActivity(event: AuditEvent): string {
     corrected: 'korrigiert',
     flagged: 'gekennzeichnet',
     reviewed: 'überprüft',
+    assigned: 'zugewiesen',
+    started: 'gestartet',
+    stopped: 'beendet',
+    answer_updated: 'Antwort geändert',
+    reported: 'gemeldet',
+    entry_created: 'Eintrag erstellt',
+    entry_updated: 'Eintrag geändert',
+    entry_deleted: 'Eintrag gelöscht',
   };
 
   const action = actionLabels[event.action] ?? event.action;

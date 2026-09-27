@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ParticipantPage from "./ParticipantPage";
@@ -20,6 +20,9 @@ vi.mock("@/api/coach/coachService", () => ({
 vi.mock("@/components/participants/ParticipantLearningPath", () => ({
   default: () => null,
 }));
+vi.mock("@/components/participants/ParticipantActivity", () => ({
+  default: () => <div data-testid="activity-stub" />,
+}));
 vi.mock("@/components/ui/sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
@@ -36,6 +39,10 @@ const BEFORE: Participant = {
 };
 
 const AFTER: Participant = { ...BEFORE, status: "Active" };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 /**
  * Regression test: changing the status and saving must keep showing the new
@@ -55,6 +62,9 @@ describe("ParticipantPage status save", () => {
     // Initial load: needs-attention row visible with old status.
     await screen.findByRole("table");
     expect(statusOfRow("Max Mustermann", "Onboarding")).toBeInTheDocument();
+
+    // Details form is behind the Edit toggle of the summary card.
+    await user.click(screen.getByRole("button", { name: "Edit" }));
 
     // Change status in the details form (first combobox = Status).
     const statusSelect = screen.getAllByRole("combobox")[0];
@@ -83,6 +93,45 @@ describe("ParticipantPage status save", () => {
     await waitFor(() => {
       expect(statusOfRow("Max Mustermann", "Active")).toBeInTheDocument();
     });
+  });
+});
+
+/**
+ * Tab layout: sticky header always visible, activity lazy-loads only when
+ * the Verlauf tab is opened (no audit fetch on initial page load).
+ */
+describe("ParticipantPage tabs", () => {
+  async function renderLoadedPage() {
+    const user = userEvent.setup();
+    mockedList.mockResolvedValue([BEFORE]);
+    vi.mocked(listPrograms).mockResolvedValue([]);
+    vi.mocked(listCoaches).mockResolvedValue([]);
+    render(<ParticipantPage />);
+    await screen.findByRole("table");
+    return user;
+  }
+
+  it("shows sticky header with name and status on the overview tab", async () => {
+    await renderLoadedPage();
+
+    expect(
+      screen.getByRole("heading", { name: "Max Mustermann" }),
+    ).toBeInTheDocument();
+    // Default tab is Übersicht: summary visible, activity not mounted.
+    expect(screen.getByText("max@example.com")).toBeInTheDocument();
+    expect(screen.queryByTestId("activity-stub")).not.toBeInTheDocument();
+  });
+
+  it("mounts the activity only when the Verlauf tab is opened", async () => {
+    const user = await renderLoadedPage();
+
+    await user.click(screen.getByRole("tab", { name: "Verlauf" }));
+
+    expect(await screen.findByTestId("activity-stub")).toBeInTheDocument();
+    // Header stays visible above the tab content.
+    expect(
+      screen.getByRole("heading", { name: "Max Mustermann" }),
+    ).toBeInTheDocument();
   });
 });
 

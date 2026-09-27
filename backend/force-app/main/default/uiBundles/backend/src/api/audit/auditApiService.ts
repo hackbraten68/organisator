@@ -11,6 +11,8 @@
 
 import { executeGraphQL } from '../graphqlClient';
 import type { AuditEvent } from '@/types/audit';
+import type { ActivityAudience, ActivityCategory } from './activityProjection';
+import { filterForAudience } from './activityProjection';
 import GET_PARTICIPANT_ACTIVITY_TIMELINE from './query/GetParticipantActivityTimeline.graphql?raw';
 import CREATE_AUDIT_EVENT from './query/CreateAuditEvent.graphql?raw';
 
@@ -118,17 +120,34 @@ function mapAuditEventNode(node: AuditEventNode): AuditEvent {
 }
 
 /**
+ * Projection options for audience-specific activity views.
+ *
+ * Applied ONLY to the already authorized result set: sharing, permissions,
+ * visibility, sensitivity and redaction are enforced upstream (server). This
+ * layer decides what is fachlich relevant to display — never what data the
+ * browser may receive.
+ */
+export interface ActivityProjectionOptions {
+  audience?: ActivityAudience;
+  categories?: ActivityCategory[];
+  includeTechnicalEvents?: boolean;
+}
+
+/**
  * Fetch audit events for a participant (timeline view)
- * 
+ *
  * @param participantId Salesforce participant record ID
  * @param limit Number of events to fetch (default 50, max 200)
  * @param after Pagination cursor (for next page)
+ * @param projection Optional audience/category projection (default: all
+ *   authorized events, unfiltered)
  * @returns Array of audit events
  */
 export async function getParticipantActivity(
   participantId: string,
   limit: number = 50,
   after?: string,
+  projection?: ActivityProjectionOptions,
 ): Promise<{ events: AuditEvent[]; hasNextPage: boolean; nextCursor?: string }> {
   if (limit > 200) limit = 200; // Prevent abuse
 
@@ -144,7 +163,7 @@ export async function getParticipantActivity(
     });
 
     const edges = response.uiapi?.query?.AuditEvent__c?.edges ?? [];
-    const events = edges
+    const allEvents = edges
       .map((edge) => edge?.node)
       .filter((node): node is AuditEventNode => node != null)
       .map(mapAuditEventNode);
@@ -152,6 +171,13 @@ export async function getParticipantActivity(
     const pageInfo = response.uiapi?.query?.AuditEvent__c?.pageInfo;
     const hasNextPage = pageInfo?.hasNextPage ?? false;
     const nextCursor = pageInfo?.endCursor;
+
+    const events = projection?.audience
+      ? filterForAudience(allEvents, projection.audience, {
+          categories: projection.categories,
+          includeTechnicalEvents: projection.includeTechnicalEvents,
+        })
+      : allEvents;
 
     return {
       events,

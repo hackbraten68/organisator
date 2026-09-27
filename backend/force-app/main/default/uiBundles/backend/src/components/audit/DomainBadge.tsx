@@ -43,6 +43,14 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   rescheduled: 'verschoben',
   attendance_changed: 'Anwesenheit geändert',
   document_added: 'Dokument hinzugefügt',
+  assigned: 'zugewiesen',
+  started: 'gestartet',
+  stopped: 'beendet',
+  answer_updated: 'Antwort geändert',
+  reported: 'gemeldet',
+  entry_created: 'Eintrag erstellt',
+  entry_updated: 'Eintrag geändert',
+  entry_deleted: 'Eintrag gelöscht',
 };
 
 export function DomainBadge({ domain, action }: DomainBadgeProps) {

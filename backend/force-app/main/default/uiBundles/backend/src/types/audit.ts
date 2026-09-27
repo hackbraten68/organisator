@@ -50,6 +50,14 @@ export const AUDIT_ACTIONS = [
   'rescheduled',
   'attendance_changed',
   'document_added',
+  'assigned',
+  'started',
+  'stopped',
+  'answer_updated',
+  'reported',
+  'entry_created',
+  'entry_updated',
+  'entry_deleted',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

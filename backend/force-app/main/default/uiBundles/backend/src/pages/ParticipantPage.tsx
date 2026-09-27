@@ -1,34 +1,19 @@
 import { useState } from "react";
 import { AlertCircle, Users } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import ParticipantLearningPath from "@/components/participants/ParticipantLearningPath";
 import ParticipantActivity from "@/components/participants/ParticipantActivity";
-import OnboardingBadge from "@/components/participants/OnboardingBadge";
+import ParticipantListCard, {
+  type ParticipantFilter,
+} from "@/components/participants/ParticipantListCard";
+import ParticipantStickyHeader from "@/components/participants/ParticipantStickyHeader";
+import ParticipantSummaryCard from "@/components/participants/ParticipantSummaryCard";
 import OnboardingChecklist from "@/components/participants/OnboardingChecklist";
-import CompletionBar from "@/components/participants/CompletionBar";
 import {
   getCompletion,
   getOnboardingCounts,
@@ -40,14 +25,11 @@ import {
 } from "@/api/participant/participantService";
 import { listPrograms } from "@/api/program/programService";
 import { listCoaches } from "@/api/coach/coachService";
-import {
-  PARTICIPANT_STATUSES,
-  type Participant,
-} from "@/types/participant";
+import { type Participant } from "@/types/participant";
 
 const NONE = "__none";
 
-type ParticipantFilter = "needs-attention" | "active" | "all";
+type ParticipantTab = "uebersicht" | "verlauf" | "lernpfad";
 
 function compareByOnboarding(a: Participant, b: Participant): number {
   const pa = getCompletion(a).percent;
@@ -63,6 +45,11 @@ export default function ParticipantPage() {
   const [prevSelectionKey, setPrevSelectionKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState<ParticipantFilter>("needs-attention");
+  const [tab, setTab] = useState<ParticipantTab>("uebersicht");
+  // Edit mode lives here (not in the summary card) so a list reload after
+  // save — which briefly unmounts the detail column via the skeleton — does
+  // not silently drop the user back to view mode.
+  const [editing, setEditing] = useState(false);
 
   const { data, loading, error } = useAsyncData(async () => {
     const [participantList, programList, coachList] = await Promise.all([
@@ -120,6 +107,8 @@ export default function ParticipantPage() {
 
   function handleParticipantChange(id: string) {
     setSelectedId(id);
+    setTab("uebersicht");
+    setEditing(false);
   }
 
   function updateField<K extends keyof Participant>(
@@ -235,272 +224,87 @@ export default function ParticipantPage() {
       )}
 
       {!loading && !error && participants.length > 0 && (
-        <>
-          <div className="grid gap-6 lg:grid-cols-[480px_1fr]">
-            {/* Teilnehmerliste */}
+        <div className="grid gap-6 lg:grid-cols-[480px_1fr]">
+          <ParticipantListCard
+            participants={visibleParticipants}
+            counts={counts}
+            filter={filter}
+            effectiveSelectedId={effectiveSelectedId}
+            onFilterChange={setFilter}
+            onSelect={handleParticipantChange}
+          />
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Participants</CardTitle>
-              </CardHeader>
+          {participant ? (
+            <div className="min-w-0">
+              <ParticipantStickyHeader
+                participant={participant}
+                isDirty={isDirty}
+                saving={saving}
+                onReset={handleReset}
+                onSave={handleSave}
+              />
 
-              <CardContent>
-                <Tabs
-                  value={filter}
-                  onValueChange={(value) =>
-                    setFilter(value as ParticipantFilter)
-                  }
-                >
-                  <TabsList className="mb-4">
-                    <TabsTrigger value="needs-attention">
-                      Needs Attention ({counts.needsAttention})
-                    </TabsTrigger>
-                    <TabsTrigger value="active">
-                      Active ({counts.active})
-                    </TabsTrigger>
-                    <TabsTrigger value="all">
-                      All Participants ({counts.total})
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Program</TableHead>
-                      <TableHead>Onboarding</TableHead>
-                    </TableRow>
-                  </TableHeader>
+              <Tabs
+                value={tab}
+                onValueChange={(value) => setTab(value as ParticipantTab)}
+              >
+                <TabsList variant="line" className="mb-4">
+                  <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
+                  <TabsTrigger value="verlauf">Verlauf</TabsTrigger>
+                  <TabsTrigger value="lernpfad">Lernpfad</TabsTrigger>
+                </TabsList>
 
-                  <TableBody>
-                    {visibleParticipants.map((p) => {
-                      const completion = getCompletion(p);
-                      return (
-                        <TableRow
-                          key={p.id}
-                          className={`cursor-pointer ${
-                            p.id === effectiveSelectedId ? "bg-accent" : ""
-                          }`}
-                          onClick={() => handleParticipantChange(p.id)}
-                        >
-                          <TableCell className="max-w-36 truncate">
-                            {p.name}
-                          </TableCell>
-                          <TableCell>{p.status}</TableCell>
-                          <TableCell className="max-w-32 truncate">
-                            {p.programName ?? "—"}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col gap-1">
-                              <OnboardingBadge state={completion.state} />
-                              <CompletionBar percent={completion.percent} />
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    {visibleParticipants.length === 0 && (
-                      <TableRow>
-                        <TableCell
-                          colSpan={4}
-                          className="text-center text-muted-foreground"
-                        >
-                          {filter === "needs-attention"
-                            ? "All participants are fully onboarded."
-                            : "No participants in this view."}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                <TabsContent value="uebersicht" className="space-y-6">
+                  <ParticipantSummaryCard
+                    participant={participant}
+                    programs={programs}
+                    coaches={coaches}
+                    editing={editing}
+                    onToggleEdit={() => setEditing((value) => !value)}
+                    onFieldChange={updateField}
+                    onProgramChange={handleProgramChange}
+                    onCoachChange={handleCoachChange}
+                  />
+                  <OnboardingChecklist participant={participant} />
+                </TabsContent>
 
-            {/* Detailformular + Onboarding-Checkliste */}
-
-            {participant ? (
-            <div className="space-y-6">
-              <Card>
-              <CardHeader>
-                <CardTitle>Participant Details</CardTitle>
-              </CardHeader>
-
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Name</Label>
-
-                    <Input
-                      value={participant.name}
-                      onChange={(e) =>
-                        updateField("name", e.target.value)
-                      }
+                <TabsContent value="verlauf">
+                  {/* Lazy: timeline fetches only when the tab is opened. */}
+                  {tab === "verlauf" && (
+                    <ParticipantActivity
+                      participantId={participant.id}
+                      refreshKey={reload}
                     />
-                  </div>
+                  )}
+                </TabsContent>
 
-                  <div className="space-y-2">
-                    <Label>Status</Label>
-
-                    <Select
-                      value={participant.status}
-                      onValueChange={(value) =>
-                        updateField("status", value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        {PARTICIPANT_STATUSES.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {status}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Email</Label>
-
-                    <Input
-                      type="email"
-                      value={participant.email ?? ""}
-                      onChange={(e) =>
-                        updateField("email", e.target.value)
-                      }
+                <TabsContent value="lernpfad">
+                  {/* Lazy: learning path loads only when the tab is opened. */}
+                  {tab === "lernpfad" && (
+                    <ParticipantLearningPath
+                      key={participant.id}
+                      participantId={participant.id}
+                      participantName={participant.name}
+                      programId={participant.programId}
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>GitHub</Label>
-
-                    <Input
-                      value={participant.github ?? ""}
-                      onChange={(e) =>
-                        updateField("github", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Discord</Label>
-
-                    <Input
-                      value={participant.discord ?? ""}
-                      onChange={(e) =>
-                        updateField("discord", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Program</Label>
-
-                    <Select
-                      value={participant.programId ?? NONE}
-                      onValueChange={handleProgramChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="No program" />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        <SelectItem value={NONE}>
-                          No program
-                        </SelectItem>
-                        {programs.map((program) => (
-                          <SelectItem
-                            key={program.id}
-                            value={program.id}
-                          >
-                            {program.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Coach</Label>
-
-                    <Select
-                      value={participant.coachId ?? NONE}
-                      onValueChange={handleCoachChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="No coach" />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        <SelectItem value={NONE}>
-                          No coach
-                        </SelectItem>
-                        {coaches.map((coach) => (
-                          <SelectItem
-                            key={coach.id}
-                            value={coach.id}
-                          >
-                            {coach.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={handleReset}
-                    disabled={!isDirty || saving}
-                  >
-                    Reset
-                  </Button>
-
-                  <Button
-                    onClick={handleSave}
-                    disabled={!isDirty || saving}
-                  >
-                    {saving ? "Saving…" : "Save Participant"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <OnboardingChecklist participant={participant} />
-            <ParticipantActivity participantId={participant.id} refreshKey={reload} />
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                  <Users className="size-12 text-muted-foreground mb-4" />
-                  <h2 className="text-lg font-semibold mb-1">
-                    No participant selected
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Select a participant from the list to view details.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Individuelles Curriculum des ausgewählten Teilnehmers */}
-
-          {participant && (
-          <div className="mt-6">
-            <ParticipantLearningPath
-              key={participant.id}
-              participantId={participant.id}
-              participantName={participant.name}
-              programId={participant.programId}
-            />
-          </div>
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <Users className="size-12 text-muted-foreground mb-4" />
+                <h2 className="text-lg font-semibold mb-1">
+                  No participant selected
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Select a participant from the list to view details.
+                </p>
+              </CardContent>
+            </Card>
           )}
-        </>
+        </div>
       )}
     </div>
   );
@@ -525,7 +329,7 @@ function ParticipantPageSkeleton() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {[0, 1, 2, 3, 4, 5, 6].map((key) => (
+            {[0, 1, 2, 3, 4, 5].map((key) => (
               <div key={key} className="space-y-2">
                 <Skeleton className="h-4 w-20" />
                 <Skeleton className="h-10 w-full" />
