@@ -54,6 +54,11 @@
                 <default>false</default>
                 <label>system</label>
             </value>
+            <value>
+                <fullName>learning_path</fullName>
+                <default>false</default>
+                <label>learning_path</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

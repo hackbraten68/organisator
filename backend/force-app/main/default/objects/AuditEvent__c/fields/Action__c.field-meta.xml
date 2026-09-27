@@ -139,6 +139,11 @@
                 <default>false</default>
                 <label>entry_deleted</label>
             </value>
+            <value>
+                <fullName>reordered</fullName>
+                <default>false</default>
+                <label>reordered</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>
