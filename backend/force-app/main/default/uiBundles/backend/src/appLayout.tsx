@@ -7,7 +7,8 @@ import { getNavigationRoutes, type NavigationItem } from "./router-utils";
 import { useSessionLoginAudit } from "./hooks/useSessionLoginAudit";
 import { useAuditActorInit } from "./hooks/useAuditActor";
 import { ActorPicker } from "./components/audit/ActorPicker";
-import { useState } from "react";
+import { processOutboxOnce } from "./api/audit/auditOutbox";
+import { useEffect, useState } from "react";
 
 function navigationLinkClass(isActive: boolean) {
 	return `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -52,6 +53,14 @@ export default function AppLayout() {
 	// Login audit waits for actor resolution so the event carries the real
 	// actor (or a picked name) instead of a premature SYSTEM.
 	useSessionLoginAudit(actorInit.ready);
+	// Outbox worker: replay lost audit writes once per app start, best-effort
+	// (ADR-14). At-least-once by design; replays reuse the frozen
+	// correlationId so duplicates collapse in the timeline.
+	useEffect(() => {
+		processOutboxOnce().catch((err) => {
+			console.error("Failed to process audit outbox", err);
+		});
+	}, []);
 
 	return (
 		<div className="min-h-screen bg-background">

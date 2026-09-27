@@ -1,0 +1,25 @@
+mutation UpdateOutboxEntry(
+  $id: IdOrRef!
+  $status: Picklist
+  $error: LongTextArea
+  $retryCount: Double
+  $nextRetryAt: DateTime
+) {
+  uiapi {
+    AuditOutbox__cUpdate(
+      input: {
+        Id: $id
+        AuditOutbox__c: {
+          Status__c: $status
+          Error__c: $error
+          Retry_Count__c: $retryCount
+          NextRetryAt__c: $nextRetryAt
+        }
+      }
+    ) {
+      Record {
+        Id
+      }
+    }
+  }
+}

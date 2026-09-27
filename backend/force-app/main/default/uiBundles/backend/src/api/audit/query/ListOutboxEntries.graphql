@@ -1,0 +1,47 @@
+query ListOutboxEntries($status: Picklist!, $limit: Int) {
+  uiapi {
+    query {
+      AuditOutbox__c(
+        where: { Status__c: { eq: $status } }
+        orderBy: { CreatedDate: { order: ASC } }
+        first: $limit
+      ) {
+        edges {
+          node {
+            Id
+            Status__c @optional {
+              value
+            }
+            EventType__c @optional {
+              value
+            }
+            Payload__c @optional {
+              value
+            }
+            SubjectId__c @optional {
+              value
+            }
+            ParticipantId__c @optional {
+              value
+            }
+            Error__c @optional {
+              value
+            }
+            Retry_Count__c @optional {
+              value
+            }
+            CorrelationId__c @optional {
+              value
+            }
+            NextRetryAt__c @optional {
+              value
+            }
+            CreatedDate {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

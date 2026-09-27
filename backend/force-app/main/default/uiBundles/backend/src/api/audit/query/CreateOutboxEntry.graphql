@@ -1,0 +1,33 @@
+mutation CreateOutboxEntry(
+  $status: Picklist!
+  $eventType: String!
+  $payload: LongTextArea!
+  $subjectId: String
+  $participantId: String
+  $error: LongTextArea
+  $retryCount: Double!
+  $correlationId: String
+  $nextRetryAt: DateTime
+) {
+  uiapi {
+    AuditOutbox__cCreate(
+      input: {
+        AuditOutbox__c: {
+          Status__c: $status
+          EventType__c: $eventType
+          Payload__c: $payload
+          SubjectId__c: $subjectId
+          ParticipantId__c: $participantId
+          Error__c: $error
+          Retry_Count__c: $retryCount
+          CorrelationId__c: $correlationId
+          NextRetryAt__c: $nextRetryAt
+        }
+      }
+    ) {
+      Record {
+        Id
+      }
+    }
+  }
+}

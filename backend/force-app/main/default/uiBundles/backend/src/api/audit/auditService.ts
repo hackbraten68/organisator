@@ -24,6 +24,7 @@ import {
   METADATA_ALLOWLISTS,
 } from '@/types/audit';
 import { createAuditEventRecord, getParticipantActivity } from './auditApiService';
+import { enqueueOutboxEntry } from './auditOutbox';
 
 /**
  * Maximum size of metadata JSON to prevent injection attacks
@@ -301,7 +302,12 @@ export const auditService = {
       return result;
     } catch (err) {
       console.error('Failed to record audit event:', err);
-      // TODO: In production, implement fallback (e.g., async queue, retry, alert)
+      // Outbox fallback (Phase 3): freeze the enriched input — incl. the
+      // correlationId/requestId assigned above, so replays carry the
+      // original correlation — as PENDING instead of only logging.
+      // Still throws: callers treat audit as best-effort side process
+      // (ADR-14) and must keep working without the event.
+      await enqueueOutboxEntry({ ...input, correlationId, requestId }, err);
       throw new Error(`Audit event recording failed: ${err instanceof Error ? err.message : 'unknown error'}`);
     }
   },

@@ -497,6 +497,39 @@ export interface AuditEventPage {
 }
 
 /**
+ * Outbox entry status (AuditOutbox__c.Status__c, restricted picklist).
+ * PENDING → PROCESSED on successful replay, PENDING → FAILED after
+ * MAX_OUTBOX_RETRIES. FAILED can be requeued to PENDING manually
+ * (admin edit) — the worker never touches FAILED on its own.
+ */
+export const AUDIT_OUTBOX_STATUSES = [
+  'PENDING',
+  'PROCESSED',
+  'FAILED',
+] as const;
+
+export type AuditOutboxStatus = (typeof AUDIT_OUTBOX_STATUSES)[number];
+
+/**
+ * A lost audit write waiting for replay. `payload` is the frozen
+ * CreateAuditEventInput (incl. the correlationId/requestId of the failed
+ * attempt, so replays carry the original correlation and duplicates collapse
+ * into one timeline group).
+ */
+export interface AuditOutboxEntry {
+  id: string;
+  status: AuditOutboxStatus;
+  eventType: string;
+  payload: string;              // JSON-serialized CreateAuditEventInput
+  subjectId?: string;
+  participantId?: string;
+  error?: string;
+  retryCount: number;
+  correlationId?: string;
+  nextRetryAt?: string;         // ISO 8601 date
+}
+
+/**
  * Summary of changes for UI display (1 transaction → 1 activity in timeline)
  */
 export interface ActivityGrouping {
