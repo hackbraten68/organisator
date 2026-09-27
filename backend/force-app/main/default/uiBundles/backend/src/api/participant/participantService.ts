@@ -8,7 +8,7 @@
 import { executeGraphQL } from "../graphqlClient";
 import { listPrograms } from "../program/programService";
 import { listCoaches } from "../coach/coachService";
-import { recordParticipantStatusChange, recordParticipantUpdate } from "../audit/participantAuditIntegration";
+import { recordParticipantCreation, recordParticipantStatusChange, recordParticipantUpdate } from "../audit/participantAuditIntegration";
 import { generateUUID } from "../audit/auditService";
 import type {
   Participant,
@@ -17,6 +17,7 @@ import type {
 import type { ProgramParticipantSummary } from "@/types/program";
 import LIST_PARTICIPANTS from "./query/ListParticipants.graphql?raw";
 import GET_PARTICIPANT from "./query/GetParticipant.graphql?raw";
+import CREATE_PARTICIPANT from "./query/CreateParticipant.graphql?raw";
 import UPDATE_PARTICIPANT from "./query/UpdateParticipant.graphql?raw";
 import RECENT_PARTICIPANTS from "./query/RecentParticipants.graphql?raw";
 
@@ -277,6 +278,71 @@ export async function updateParticipant(
   }
 
   return saved;
+}
+/**
+ * Create a participant, then record `participant.created` best-effort
+ * (ADR-14: audit failures never block the mutation).
+ */
+export async function createParticipant(
+  input: Omit<ParticipantPatch, "status"> & { name: string; status?: string },
+): Promise<Participant | null> {
+  const textOrNull = (value: string | null | undefined) => {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+    const trimmed = value.trim();
+    return trimmed === "" ? null : trimmed;
+  };
+
+  const data = await executeGraphQL<
+    MutationResponse,
+    {
+      name: string;
+      status?: string;
+      email?: string | null;
+      github?: string | null;
+      discord?: string | null;
+      startDate?: string | null;
+      expectedEndDate?: string | null;
+      programId?: string | null;
+      coachId?: string | null;
+    }
+  >(CREATE_PARTICIPANT, {
+    name: input.name.trim(),
+    ...(input.status !== undefined ? { status: input.status } : {}),
+    ...(input.email !== undefined ? { email: textOrNull(input.email) } : {}),
+    ...(input.github !== undefined ? { github: textOrNull(input.github) } : {}),
+    ...(input.discord !== undefined
+      ? { discord: textOrNull(input.discord) }
+      : {}),
+    ...(input.startDate !== undefined
+      ? { startDate: input.startDate || null }
+      : {}),
+    ...(input.expectedEndDate !== undefined
+      ? { expectedEndDate: input.expectedEndDate || null }
+      : {}),
+    ...(input.programId !== undefined ? { programId: input.programId } : {}),
+    ...(input.coachId !== undefined ? { coachId: input.coachId } : {}),
+  });
+
+  const id = (Object.values(data.uiapi ?? {})[0]?.Record?.Id ?? null) as
+    | string
+    | null;
+  if (!id) throw new Error("Participant creation returned no Id.");
+  const created = await getParticipant(id);
+  if (!created) throw new Error("Created participant not found.");
+
+  try {
+    await recordParticipantCreation(created.id, created, {
+      actor: { id: "SYSTEM", type: "system", displayName: "System" },
+    });
+  } catch (err) {
+    console.error(
+      `Failed to write audit event participant.created for ${created.id}`,
+      err,
+    );
+  }
+
+  return created;
 }
 
 export async function assignParticipant(

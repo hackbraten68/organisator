@@ -1,0 +1,33 @@
+mutation CreateParticipant(
+  $name: String!
+  $status: Picklist
+  $email: Email
+  $github: String
+  $discord: String
+  $startDate: Date
+  $expectedEndDate: Date
+  $programId: IdOrRef
+  $coachId: IdOrRef
+) {
+  uiapi {
+    Participant__cCreate(
+      input: {
+        Participant__c: {
+          Name: $name
+          Status__c: $status
+          Email__c: $email
+          GitHub__c: $github
+          Discord__c: $discord
+          StartDate__c: $startDate
+          ExpectedEndDate__c: $expectedEndDate
+          Program__c: $programId
+          Coach_Profile__c: $coachId
+        }
+      }
+    ) {
+      Record {
+        Id
+      }
+    }
+  }
+}

@@ -44,10 +44,10 @@ const CATEGORY_LABELS: Record<ActivityCategory, string> = {
  * Categories without a pill (deliberate, not a bug):
  * - audit: always empty by design (audit.viewed/exported carry
  *   includeInActivity:false — reading the audit log must not append to it).
- * - security: no writer exists yet (no login events). Re-enable together
- *   with login tracking (TODO(login-tracking)).
+ * (security returned with login tracking: one authentication.created per
+ * browser session, restricted visibility, supervisor/auditor audiences.)
  */
-const HIDDEN_CATEGORIES: ActivityCategory[] = ["audit", "security"];
+const HIDDEN_CATEGORIES: ActivityCategory[] = ["audit"];
 
 const VISIBLE_CATEGORIES = ACTIVITY_CATEGORIES.filter(
   (category) => !HIDDEN_CATEGORIES.includes(category),

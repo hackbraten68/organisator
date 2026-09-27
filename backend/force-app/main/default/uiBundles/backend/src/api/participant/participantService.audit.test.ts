@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { executeGraphQL } from "../graphqlClient";
 import {
+  recordParticipantCreation,
   recordParticipantStatusChange,
   recordParticipantUpdate,
 } from "../audit/participantAuditIntegration";
-import { updateParticipant } from "./participantService";
+import { createParticipant, updateParticipant } from "./participantService";
 
 vi.mock("../graphqlClient", () => ({
   executeGraphQL: vi.fn(),
@@ -19,17 +20,19 @@ vi.mock("../coach/coachService", () => ({
 }));
 
 vi.mock("../audit/participantAuditIntegration", () => ({
+  recordParticipantCreation: vi.fn(async () => ({ id: "audit-0" })),
   recordParticipantStatusChange: vi.fn(async () => ({ id: "audit-1" })),
   recordParticipantUpdate: vi.fn(async () => ({ id: "audit-2" })),
 }));
 
 const mockedExecute = vi.mocked(executeGraphQL);
+const mockedRecordCreation = vi.mocked(recordParticipantCreation);
 const mockedRecordStatus = vi.mocked(recordParticipantStatusChange);
 const mockedRecordUpdate = vi.mocked(recordParticipantUpdate);
 
 let currentStatus = "Onboarding";
 
-function participantQueryResponse(status: string) {
+function participantQueryResponse(status: string, id = "a059b00000gdNKkAAM") {
   return {
     uiapi: {
       query: {
@@ -37,7 +40,7 @@ function participantQueryResponse(status: string) {
           edges: [
             {
               node: {
-                Id: "a059b00000gdNKkAAM",
+                Id: id,
                 Name: { value: "Max Mustermann" },
                 Status__c: { value: status },
               },
@@ -138,6 +141,53 @@ describe("updateParticipant audit wiring", () => {
       expect(saved?.status).toBe("Paused");
       expect(mockedRecordStatus).toHaveBeenCalledOnce();
       expect(errorSpy).toHaveBeenCalledWith("Failed to write audit event", expect.anything());
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+});
+
+describe("createParticipant audit wiring", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedExecute.mockImplementation(async (operation: string, variables?: unknown) => {
+      if (operation.includes("Participant__cCreate")) {
+        return { uiapi: { Participant__cCreate: { Record: { Id: "a059b00000new000AAA" } } } };
+      }
+      const id = (variables as { id?: string } | undefined)?.id ?? "a059b00000new000AAA";
+      return participantQueryResponse("Onboarding", id);
+    });
+  });
+
+  it("records participant.created after the confirmed read-back", async () => {
+    const created = await createParticipant({ name: "  Lena Neu  " });
+
+    expect(created?.id).toBe("a059b00000new000AAA");
+    expect(mockedRecordCreation).toHaveBeenCalledOnce();
+    expect(mockedRecordCreation).toHaveBeenCalledWith(
+      "a059b00000new000AAA",
+      expect.objectContaining({ name: "Max Mustermann" }),
+      expect.objectContaining({ actor: expect.objectContaining({ type: "system" }) }),
+    );
+    // Name is trimmed before the mutation.
+    const [, variables] = mockedExecute.mock.calls.find(([op]) =>
+      (op as string).includes("Participant__cCreate"),
+    ) as [string, Record<string, unknown>];
+    expect(variables.name).toBe("Lena Neu");
+  });
+
+  it("still returns the participant when the audit write fails", async () => {
+    mockedRecordCreation.mockRejectedValueOnce(new Error("GraphQL Error: boom"));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      const created = await createParticipant({ name: "Lena Neu" });
+
+      expect(created?.id).toBe("a059b00000new000AAA");
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Failed to write audit event participant.created for a059b00000new000AAA",
+        expect.anything(),
+      );
     } finally {
       errorSpy.mockRestore();
     }

@@ -4,6 +4,7 @@ import { Link, NavLink, Outlet } from "react-router";
 import { Toaster } from "./components/ui/sonner";
 import { Menu, X } from "lucide-react";
 import { getNavigationRoutes, type NavigationItem } from "./router-utils";
+import { useSessionLoginAudit } from "./hooks/useSessionLoginAudit";
 import { useState } from "react";
 
 function navigationLinkClass(isActive: boolean) {
@@ -45,6 +46,7 @@ export default function AppLayout() {
 	const [mobileOpen, setMobileOpen] = useState(false);
 	const items = getNavigationRoutes();
 	const closeMobileMenu = () => setMobileOpen(false);
+	useSessionLoginAudit();
 
 	return (
 		<div className="min-h-screen bg-background">

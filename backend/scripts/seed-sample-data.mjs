@@ -19,9 +19,11 @@
  * If service audit logic changes, mirror it here.
  *
  * KNOWN GAPS (documented, not hidden)
- * - Participant creation currently has no production audit writer. The seed
- *   emits participant.created events directly to create a realistic timeline.
  * - Absence/appointment domains have no writers and are not seeded.
+ * - (Closed 2026-09-27: participant.created now has a production writer in
+ *   participantService.createParticipant. The seed still emits these events
+ *   directly because plain Node cannot run createDataSDK-based services;
+ *   shapes mirror recordParticipantCreation 1:1.)
  *
  * USAGE
  *   node scripts/seed-sample-data.mjs [--target-org backendtest] [--dry-run] [--rebuild]

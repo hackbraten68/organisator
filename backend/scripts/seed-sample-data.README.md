@@ -22,9 +22,11 @@ node scripts/seed-sample-data.mjs --target-org backendtest --rebuild   # Cleanup
 
 ## Known Gaps (bewusst, nicht versteckt)
 
-- `participant.created` hat keinen Produktiv-Writer — der Seed emittiert diese
-  Events direkt (Vorwegnahme des künftigen Create-Flows).
 - Absence-/Appointment-Domänen haben keine Writer und werden nicht geseedet.
+- (Geschlossen 2026-09-27: `participant.created` hat jetzt einen
+  Produktiv-Writer in `participantService.createParticipant`. Der Seed
+  emittiert weiter direkt, weil Plain-Node kein `createDataSDK` ausführen
+  kann — Shapes spiegeln `recordParticipantCreation` 1:1.)
 
 ## Idempotenz / Cleanup
 

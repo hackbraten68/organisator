@@ -160,10 +160,9 @@ describe("ParticipantActivity", () => {
     await screen.findByText("Test Coach (Team)");
 
     // Deliberate, not a bug: audit is empty by design (self-reading log
-    // must not append to itself), security has no writer yet
-    // (TODO(login-tracking)). All content-bearing categories stay.
+    // must not append to itself). Security returned with login tracking.
     expect(screen.queryByRole("button", { name: "Audit" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Sicherheit" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sicherheit" })).toBeInTheDocument();
     for (const label of ["Verlauf", "Termine", "Anwesenheit", "Abwesenheit", "Lernen", "Verwaltung"]) {
       expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
     }
