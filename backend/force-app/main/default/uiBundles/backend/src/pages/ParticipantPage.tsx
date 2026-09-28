@@ -380,6 +380,7 @@ export default function ParticipantPage() {
                     <ParticipantAppointmentsTab
                       participantId={participant.id}
                       participantName={participant.name}
+                      canManage={true}
                     />
                   )}
                 </TabsContent>

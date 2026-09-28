@@ -1,7 +1,6 @@
-import { FullConfig, chromium } from '@playwright/test';
-import { unlinkSync } from 'fs';
+import { chromium } from '@playwright/test';
 
-export default async function globalSetup(config: FullConfig) {
+export default async function globalSetup() {
   const { E2E_USERNAME, E2E_PASSWORD } = process.env;
   if (!E2E_USERNAME || !E2E_PASSWORD) {
     throw new Error('E2E_USERNAME/E2E_PASSWORD env vars required for global-setup');
