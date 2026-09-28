@@ -276,6 +276,8 @@ export async function updateAppointment(id: string, patch: AppointmentPatch): Pr
   if (patch.confirmedAt !== undefined) vars.confirmedAt = patch.confirmedAt;
   if (patch.completedAt !== undefined) vars.completedAt = patch.completedAt;
 
+  const existing = await getAppointment(id);
+
   await executeGraphQL<MutationResponse, Record<string, any>>(UPDATE_APPOINTMENT_RAW, vars);
 
   if (patch.status !== undefined) {
@@ -284,7 +286,7 @@ export async function updateAppointment(id: string, patch: AppointmentPatch): Pr
       appointment: {
         id,
         name: "",
-        participantId: "",
+        participantId: existing?.participantId ?? "",
         participantName: "",
         coachId: patch.coachId,
         coachName: "",
@@ -311,6 +313,7 @@ export async function updateAppointment(id: string, patch: AppointmentPatch): Pr
 }
 
 export async function confirmAppointment(id: string): Promise<void> {
+  const existing = await getAppointment(id);
   const confirmedAt = new Date().toISOString();
   await executeGraphQL<MutationResponse, { id: string; confirmedAt: string }>(CONFIRM_APPOINTMENT_RAW, { id, confirmedAt });
   const actor = getAuditActor();
@@ -318,7 +321,7 @@ export async function confirmAppointment(id: string): Promise<void> {
     appointment: {
       id,
       name: "",
-      participantId: "",
+      participantId: existing?.participantId ?? "",
       participantName: "",
       coachId: "",
       coachName: "",
@@ -344,6 +347,7 @@ export async function confirmAppointment(id: string): Promise<void> {
 }
 
 export async function completeAppointment(id: string): Promise<void> {
+  const existing = await getAppointment(id);
   const completedAt = new Date().toISOString();
   await executeGraphQL<MutationResponse, { id: string; completedAt: string }>(COMPLETE_APPOINTMENT_RAW, { id, completedAt });
   const actor = getAuditActor();
@@ -351,7 +355,7 @@ export async function completeAppointment(id: string): Promise<void> {
     appointment: {
       id,
       name: "",
-      participantId: "",
+      participantId: existing?.participantId ?? "",
       participantName: "",
       coachId: "",
       coachName: "",
@@ -382,6 +386,7 @@ export async function rescheduleAppointment(
   endTime: string,
   correlationId?: string
 ): Promise<void> {
+  const existing = await getAppointment(id);
   await executeGraphQL<MutationResponse, { id: string; startTime: string; endTime: string; correlationId?: string }>(
     RESCHEDULE_APPOINTMENT_RAW,
     { id, startTime, endTime, correlationId }
@@ -391,7 +396,7 @@ export async function rescheduleAppointment(
     appointment: {
       id,
       name: "",
-      participantId: "",
+      participantId: existing?.participantId ?? "",
       participantName: "",
       coachId: "",
       coachName: "",
@@ -417,13 +422,14 @@ export async function rescheduleAppointment(
 }
 
 export async function cancelAppointment(id: string, cancellationReason?: string): Promise<void> {
+  const existing = await getAppointment(id);
   await executeGraphQL<MutationResponse, { id: string; cancellationReason?: string }>(CANCEL_APPOINTMENT_RAW, { id, cancellationReason });
   const actor = getAuditActor();
   await recordAppointmentCancelled({
     appointment: {
       id,
       name: "",
-      participantId: "",
+      participantId: existing?.participantId ?? "",
       participantName: "",
       coachId: "",
       coachName: "",
@@ -448,13 +454,14 @@ export async function cancelAppointment(id: string, cancellationReason?: string)
 }
 
 export async function updateAppointmentAttendance(id: string, status: "Completed" | "NoShow"): Promise<void> {
+  const existing = await getAppointment(id);
   await executeGraphQL<MutationResponse, { id: string; status: string }>(UPDATE_APPOINTMENT_ATTENDANCE_RAW, { id, status });
   const actor = getAuditActor();
   await recordAppointmentAttendanceChanged({
     appointment: {
       id,
       name: "",
-      participantId: "",
+      participantId: existing?.participantId ?? "",
       participantName: "",
       coachId: "",
       coachName: "",

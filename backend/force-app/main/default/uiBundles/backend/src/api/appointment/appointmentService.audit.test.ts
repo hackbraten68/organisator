@@ -18,31 +18,43 @@ vi.mock("@/api/graphqlClient", () => ({
 vi.mock("@/api/audit/auditService", () => ({
   auditService: {
     record: vi.fn().mockResolvedValue({ id: "audit-1" }),
-    generateUUID: vi.fn().mockReturnValue("test-correlation-id"),
   },
   generateUUID: vi.fn().mockReturnValue("test-correlation-id"),
 }));
 
 vi.mock("@/api/audit/actorContext", () => ({
-  getAuditActor: vi.fn().mockReturnValue({
-    id: "user-1",
-    type: "staff",
-    displayName: "Test User",
-  }),
+  getAuditActor: vi.fn(),
 }));
 
 import { executeGraphQL } from "@/api/graphqlClient";
 
+/** Routed GraphQL mock: keyed by operation name, not call order. */
+const APPOINTMENT_NODE = { Id: "apt-1", Participant__c: { value: "p-1" } };
+
+function route(overrides: Record<string, unknown> = {}) {
+  vi.mocked(executeGraphQL).mockImplementation(async (document: string) => {
+    const name = Object.keys(overrides).find((op) => document.includes(op));
+    if (name) return overrides[name];
+    if (document.includes("GetAppointment")) {
+      return { uiapi: { query: { Appointment__c: { edges: [{ node: APPOINTMENT_NODE }] } } } };
+    }
+    return {};
+  });
+}
+
 describe("appointmentService audit integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getAuditActor).mockReturnValue({
+      id: "user-1",
+      type: "staff",
+      displayName: "Test User",
+    });
   });
 
   describe("createAppointment", () => {
-    it("records appointment.created when appointment is created", async () => {
-      vi.mocked(executeGraphQL).mockResolvedValueOnce({
-        uiapi: { Appointment__cCreate: { Record: { Id: "apt-1" } } },
-      });
+    it("records appointment.created", async () => {
+      route({ CreateAppointment: { uiapi: { Appointment__cCreate: { Record: { Id: "apt-1" } } } } });
 
       const id = await createAppointment({
         participantId: "p-1",
@@ -64,10 +76,8 @@ describe("appointmentService audit integration", () => {
       );
     });
 
-    it("does not record audit event when creation fails", async () => {
-      vi.mocked(executeGraphQL).mockResolvedValueOnce({
-        uiapi: { Appointment__cCreate: { Record: null } },
-      });
+    it("does not record an audit event when creation fails", async () => {
+      route({ CreateAppointment: { uiapi: { Appointment__cCreate: { Record: null } } } });
 
       const id = await createAppointment({
         participantId: "p-1",
@@ -82,8 +92,8 @@ describe("appointmentService audit integration", () => {
   });
 
   describe("updateAppointment", () => {
-    it("records appointment.status_changed when status is updated", async () => {
-      vi.mocked(executeGraphQL).mockResolvedValueOnce({});
+    it("records appointment.status_changed with the participant resolved from the record", async () => {
+      route();
 
       await updateAppointment("apt-1", { status: "Confirmed" });
 
@@ -93,12 +103,13 @@ describe("appointmentService audit integration", () => {
           domain: "appointment",
           action: "status_changed",
           subjectId: "apt-1",
+          participantId: "p-1",
         }),
       );
     });
 
-    it("does not record audit event when no status change", async () => {
-      vi.mocked(executeGraphQL).mockResolvedValueOnce({});
+    it("does not record an audit event when the status is untouched", async () => {
+      route();
 
       await updateAppointment("apt-1", { location: "OnSite" });
 
@@ -107,42 +118,40 @@ describe("appointmentService audit integration", () => {
   });
 
   describe("confirmAppointment", () => {
-    it("records appointment.status_changed when appointment is confirmed", async () => {
-      vi.mocked(executeGraphQL).mockResolvedValueOnce({});
+    it("records appointment.status_changed", async () => {
+      route();
 
       await confirmAppointment("apt-1");
 
       expect(auditService.record).toHaveBeenCalledWith(
         expect.objectContaining({
           eventType: "appointment.status_changed",
-          domain: "appointment",
-          action: "status_changed",
           subjectId: "apt-1",
+          participantId: "p-1",
         }),
       );
     });
   });
 
   describe("completeAppointment", () => {
-    it("records appointment.status_changed when appointment is completed", async () => {
-      vi.mocked(executeGraphQL).mockResolvedValueOnce({});
+    it("records appointment.status_changed", async () => {
+      route();
 
       await completeAppointment("apt-1");
 
       expect(auditService.record).toHaveBeenCalledWith(
         expect.objectContaining({
           eventType: "appointment.status_changed",
-          domain: "appointment",
-          action: "status_changed",
           subjectId: "apt-1",
+          participantId: "p-1",
         }),
       );
     });
   });
 
   describe("rescheduleAppointment", () => {
-    it("records appointment.rescheduled when appointment is rescheduled", async () => {
-      vi.mocked(executeGraphQL).mockResolvedValueOnce({});
+    it("records appointment.rescheduled with the participant resolved from the record", async () => {
+      route();
 
       await rescheduleAppointment("apt-1", "2026-09-29T10:00:00Z", "2026-09-29T11:00:00Z");
 
@@ -152,14 +161,15 @@ describe("appointmentService audit integration", () => {
           domain: "appointment",
           action: "rescheduled",
           subjectId: "apt-1",
+          participantId: "p-1",
         }),
       );
     });
   });
 
   describe("cancelAppointment", () => {
-    it("records appointment.cancelled when appointment is cancelled", async () => {
-      vi.mocked(executeGraphQL).mockResolvedValueOnce({});
+    it("records appointment.cancelled with the participant resolved from the record", async () => {
+      route();
 
       await cancelAppointment("apt-1", "No longer needed");
 
@@ -169,14 +179,15 @@ describe("appointmentService audit integration", () => {
           domain: "appointment",
           action: "cancelled",
           subjectId: "apt-1",
+          participantId: "p-1",
         }),
       );
     });
   });
 
   describe("updateAppointmentAttendance", () => {
-    it("records appointment.attendance_changed when attendance is updated", async () => {
-      vi.mocked(executeGraphQL).mockResolvedValueOnce({});
+    it("records appointment.attendance_changed with the participant resolved from the record", async () => {
+      route();
 
       await updateAppointmentAttendance("apt-1", "Completed");
 
@@ -186,16 +197,15 @@ describe("appointmentService audit integration", () => {
           domain: "appointment",
           action: "attendance_changed",
           subjectId: "apt-1",
+          participantId: "p-1",
         }),
       );
     });
   });
 
   describe("actor resolution", () => {
-    it("uses getAuditActor for all audit events", async () => {
-      vi.mocked(executeGraphQL).mockResolvedValueOnce({
-        uiapi: { Appointment__cCreate: { Record: { Id: "apt-1" } } },
-      });
+    it("stamps the session actor on the event", async () => {
+      route({ CreateAppointment: { uiapi: { Appointment__cCreate: { Record: { Id: "apt-1" } } } } });
 
       await createAppointment({
         participantId: "p-1",

@@ -176,14 +176,18 @@ describe("createAppointment – keine Staff-Variable", () => {
 
 describe("updateAppointment – keine Staff-Variable", () => {
   it("ignoriert eine uebergebene staffId und sendet sie nicht", async () => {
-    mockedExecute.mockResolvedValue({ uiapi: { Appointment__cUpdate: { Record: { Id: "a0C9b0000Kx5LFtEQM" } } } });
+    mockedExecute
+      .mockResolvedValueOnce({
+        uiapi: { query: { Appointment__c: { edges: [{ node: { Id: "a0C9b0000Kx5LFtEQM", Participant__c: { value: "p-1" } } }] } } },
+      })
+      .mockResolvedValueOnce({ uiapi: { Appointment__cUpdate: { Record: { Id: "a0C9b0000Kx5LFtEQM" } } } });
 
     await updateAppointment("a0C9b0000Kx5LFtEQM", {
       staffId: "0059b00000gUfkFAAS",
       status: "Confirmed",
     } as never);
 
-    const [document, variables] = mockedExecute.mock.calls[0] as [string, Record<string, unknown>];
+    const [document, variables] = mockedExecute.mock.calls[1] as [string, Record<string, unknown>];
 
     expect(variables).not.toHaveProperty("staffId");
     expect(document).not.toContain("Staff__c");
