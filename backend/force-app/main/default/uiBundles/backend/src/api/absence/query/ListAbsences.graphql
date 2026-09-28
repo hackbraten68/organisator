@@ -1,7 +1,7 @@
 query ListAbsences(
   $participantId: ID
-  $status: String
-  $type: String
+  $status: Picklist
+  $type: Picklist
   $startDateFrom: Date
   $startDateTo: Date
   $first: Int

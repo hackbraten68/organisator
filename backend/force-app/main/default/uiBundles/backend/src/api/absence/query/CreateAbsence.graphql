@@ -4,7 +4,6 @@ mutation CreateAbsence(
   $status: Picklist
   $startDate: Date!
   $endDate: Date!
-  $reason: String
 ) {
   uiapi {
     Absence__cCreate(input: {
