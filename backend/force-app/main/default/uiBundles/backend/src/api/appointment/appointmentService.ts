@@ -255,7 +255,10 @@ export async function createAppointment(input: AppointmentInput): Promise<string
         updatedAt: "",
       },
       actor,
-      correlationId: generateUUID(),
+      // Die fachliche Correlation-Id des Datensatzes weiterverwenden: sonst
+      // trennt ein spaeteres Reschedule (liest CorrelationId__c vom Record)
+      // das Event vom Anlegen, obwohl beide dieselbe fachliche Aktion sind.
+      correlationId: input.correlationId ?? generateUUID(),
     });
   }
   return id;
@@ -307,7 +310,8 @@ export async function updateAppointment(id: string, patch: AppointmentPatch): Pr
       oldStatus: "",
       newStatus: patch.status,
       actor,
-      correlationId: generateUUID(),
+      // Wie beim Anlegen: Record und Event teilen sich die Correlation-Id.
+      correlationId: patch.correlationId ?? generateUUID(),
     });
   }
 }

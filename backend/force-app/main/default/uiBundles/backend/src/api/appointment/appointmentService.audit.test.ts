@@ -203,6 +203,70 @@ describe("appointmentService audit integration", () => {
     });
   });
 
+  describe("correlationId", () => {
+    it("uebernimmt die fachliche Correlation-Id in das create-Event", async () => {
+      route({ CreateAppointment: { uiapi: { Appointment__cCreate: { Record: { Id: "apt-1" } } } } });
+
+      await createAppointment({
+        participantId: "p-1",
+        type: "Coaching",
+        startTime: "2026-09-28T10:00:00Z",
+        endTime: "2026-09-28T11:00:00Z",
+        correlationId: "biz-42",
+      });
+
+      expect(auditService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ correlationId: "biz-42" }),
+      );
+    });
+
+    it("erzeugt eine Correlation-Id, wenn keine fachliche vorliegt", async () => {
+      route({ CreateAppointment: { uiapi: { Appointment__cCreate: { Record: { Id: "apt-1" } } } } });
+
+      await createAppointment({
+        participantId: "p-1",
+        type: "Coaching",
+        startTime: "2026-09-28T10:00:00Z",
+        endTime: "2026-09-28T11:00:00Z",
+      });
+
+      expect(auditService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ correlationId: "test-correlation-id" }),
+      );
+    });
+
+    it("laesst Anlegen und Reschedule eines Termins in einer Gruppe landen", async () => {
+      // Der Datensatz traegt CorrelationId__c = "biz-42"; das Resschedule
+      // liest sie zurueck. Beide Events muessen dieselbe Id nutzen, sonst
+      // zeigt die Timeline zwei getrennte Karten statt einer.
+      route({ CreateAppointment: { uiapi: { Appointment__cCreate: { Record: { Id: "apt-1" } } } } });
+
+      await createAppointment({
+        participantId: "p-1",
+        type: "Coaching",
+        startTime: "2026-09-28T10:00:00Z",
+        endTime: "2026-09-28T11:00:00Z",
+        correlationId: "biz-42",
+      });
+      await rescheduleAppointment("apt-1", "2026-09-29T10:00:00Z", "2026-09-29T11:00:00Z", "biz-42");
+
+      const correlations = vi
+        .mocked(auditService.record)
+        .mock.calls.map(([input]) => input.correlationId);
+      expect(correlations).toEqual(["biz-42", "biz-42"]);
+    });
+
+    it("uebernimmt die Correlation-Id auch beim Status-Update", async () => {
+      route();
+
+      await updateAppointment("apt-1", { status: "Confirmed", correlationId: "biz-7" });
+
+      expect(auditService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ correlationId: "biz-7" }),
+      );
+    });
+  });
+
   describe("actor resolution", () => {
     it("stamps the session actor on the event", async () => {
       route({ CreateAppointment: { uiapi: { Appointment__cCreate: { Record: { Id: "apt-1" } } } } });
