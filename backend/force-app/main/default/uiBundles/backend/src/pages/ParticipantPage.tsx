@@ -17,6 +17,7 @@ import OnboardingChecklist from "@/components/participants/OnboardingChecklist";
 import { ParticipantAbsencesTab } from "@/components/absences";
 import { ParticipantAppointmentsTab } from "@/components/appointments";
 import {
+  getCompletion,
   getOnboardingCounts,
 } from "@/utils/participantOnboarding";
 import {
@@ -321,7 +322,9 @@ export default function ParticipantPage() {
                       onProgramChange={handleProgramChange}
                       onCoachChange={handleCoachChange}
                     />
-                    <OnboardingChecklist participant={participant} />
+                    {getCompletion(participant).state !== "ready" && (
+                      <OnboardingChecklist participant={participant} />
+                    )}
                   </TabsContent>
 
                   <TabsContent value="verlauf">

@@ -61,6 +61,10 @@ export default function OnboardingChecklist({
   const completion = getCompletion(participant);
   const missing = getMissingFields(participant);
 
+  if (completion.state === "ready") {
+    return null;
+  }
+
   return (
     <Card>
       <CardHeader>
