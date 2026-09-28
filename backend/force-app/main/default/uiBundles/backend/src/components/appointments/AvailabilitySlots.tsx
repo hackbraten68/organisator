@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/layout";
 import type { AvailabilitySlot, AvailabilitySlotFilters, AvailabilitySlotType } from "@/types/availabilitySlot";
 import { getAvailabilitySlots, createAvailabilitySlot, updateAvailabilitySlot, deleteAvailabilitySlot } from "@/api/appointment/appointmentService";
 import { toast } from "sonner";
@@ -144,8 +145,8 @@ export function AvailabilitySlots({ currentUserId }: AvailabilitySlotsProps) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold">Meine Verfügbarkeiten</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-h2 font-semibold">Meine Verfügbarkeiten</h2>
+          <p className="text-small text-muted-foreground">
             Verwalten Sie Ihre wöchentlichen Slots für Terminbuchungen
           </p>
         </div>
@@ -155,7 +156,6 @@ export function AvailabilitySlots({ currentUserId }: AvailabilitySlotsProps) {
         </Button>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <Select value={filterDay} onValueChange={(v) => setFilterDay(v as FilterDay)}>
           <SelectTrigger className="w-[140px]">
@@ -195,27 +195,24 @@ export function AvailabilitySlots({ currentUserId }: AvailabilitySlotsProps) {
         </Select>
       </div>
 
-      {/* Slots Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {slots.map((slot) => (
-          <Card key={slot.id} className={slot.isActive ? "" : "opacity-50"}>
+          <Card key={slot.id} className={`${slot.isActive ? "" : "opacity-50"} hover:shadow-card-hover transition-shadow`}>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="capitalize">{slot.dayOfWeek}</span>
-                  <Badge variant={slot.isActive ? "default" : "secondary"}>
-                    {slot.isActive ? "Aktiv" : "Inaktiv"}
-                  </Badge>
-                </div>
-                <Badge variant="outline">{slot.type}</Badge>
+                <span className="capitalize text-h4">{slot.dayOfWeek}</span>
+                <Badge variant={slot.isActive ? "default" : "secondary"}>
+                  {slot.isActive ? "Aktiv" : "Inaktiv"}
+                </Badge>
               </div>
             </CardHeader>
-            <CardContent className="pt-0 space-y-2">
+            <CardContent className="pt-0 space-y-3">
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Von</span>
-                <span className="font-mono">{slot.startTime.slice(0, 5)}</span>
+                <span className="font-mono font-medium">{slot.startTime.slice(0, 5)}</span>
                 <span className="text-muted-foreground">–</span>
-                <span className="font-mono">{slot.endTime.slice(0, 5)}</span>
+                <span className="font-mono font-medium">{slot.endTime.slice(0, 5)}</span>
+                <Badge variant="outline" className="ml-auto">{slot.type}</Badge>
               </div>
               {slot.validFrom && (
                 <div className="text-xs text-muted-foreground">
@@ -223,24 +220,20 @@ export function AvailabilitySlots({ currentUserId }: AvailabilitySlotsProps) {
                 </div>
               )}
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(slot)}>
-                  Bearbeiten
-                </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDelete(slot)}>
-                  Löschen
-                </Button>
+                <Button variant="outline" size="sm" onClick={() => handleEdit(slot)}>Bearbeiten</Button>
+                <Button variant="destructive" size="sm" onClick={() => handleDelete(slot)}>Löschen</Button>
               </div>
             </CardContent>
           </Card>
         ))}
         {slots.length === 0 && (
-          <div className="col-span-full text-center py-12 text-muted-foreground">
-            <p className="text-lg font-medium mb-2">Keine Verfügbarkeiten angelegt</p>
-            <p className="text-sm mb-4">Erstellen Sie Ihre ersten wöchentlichen Slots</p>
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="size-4 mr-2" />
-              Ersten Slot anlegen
-            </Button>
+          <div className="col-span-full">
+            <EmptyState
+              icon={<Calendar className="size-12" />}
+              title="Keine Verfügbarkeiten angelegt"
+              description="Erstellen Sie Ihre ersten wöchentlichen Slots"
+              action={<Button onClick={() => setShowForm(true)}><Plus className="size-4 mr-2" /> Ersten Slot anlegen</Button>}
+            />
           </div>
         )}
       </div>
