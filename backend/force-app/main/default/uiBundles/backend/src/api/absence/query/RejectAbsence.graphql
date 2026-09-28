@@ -1,4 +1,4 @@
-mutation RejectAbsence($id: ID!, $rejectedAt: DateTime!, $coachComment: String!) {
+mutation RejectAbsence($id: IdOrRef!, $rejectedAt: DateTime!, $coachComment: String!) {
   uiapi {
     Absence__cUpdate(input: {
       Id: $id

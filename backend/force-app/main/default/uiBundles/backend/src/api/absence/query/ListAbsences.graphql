@@ -1,12 +1,28 @@
 query ListAbsences(
-  $where: Absence__cFilter
+  $participantId: ID
+  $status: String
+  $type: String
+  $startDateFrom: Date
+  $startDateTo: Date
   $first: Int
   $after: String
-  $orderBy: [Absence__cOrderBy]
 ) {
   uiapi {
     query {
-      Absence__c(where: $where, first: $first, after: $after, orderBy: $orderBy) {
+      Absence__c(
+        where: {
+          and: [
+            { Participant__c: { eq: $participantId } }
+            { Status__c: { eq: $status } }
+            { Type__c: { eq: $type } }
+            { StartDate__c: { gte: $startDateFrom } }
+            { StartDate__c: { lte: $startDateTo } }
+          ]
+        }
+        first: $first
+        after: $after
+        orderBy: { StartDate__c: { order: DESC } }
+      ) {
         edges {
           node {
             Id

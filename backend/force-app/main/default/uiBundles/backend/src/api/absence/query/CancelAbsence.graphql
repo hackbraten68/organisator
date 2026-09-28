@@ -1,4 +1,4 @@
-mutation CancelAbsence($id: ID!) {
+mutation CancelAbsence($id: IdOrRef!) {
   uiapi {
     Absence__cUpdate(input: {
       Id: $id

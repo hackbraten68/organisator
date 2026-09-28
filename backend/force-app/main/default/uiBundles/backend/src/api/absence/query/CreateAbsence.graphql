@@ -1,7 +1,7 @@
 mutation CreateAbsence(
-  $participantId: ID!
-  $type: String!
-  $status: String
+  $participantId: IdOrRef!
+  $type: Picklist!
+  $status: Picklist
   $startDate: Date!
   $endDate: Date!
   $reason: String
@@ -14,7 +14,6 @@ mutation CreateAbsence(
         Status__c: $status
         StartDate__c: $startDate
         EndDate__c: $endDate
-        Reason__c: $reason
       }
     }) {
       Record {

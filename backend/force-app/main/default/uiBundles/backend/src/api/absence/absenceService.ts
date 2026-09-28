@@ -133,30 +133,6 @@ function mapGqlToAbsence(node: any): Absence {
   };
 }
 
-function buildWhereFilter(filters: AbsenceFilters): any {
-  const conditions: any[] = [];
-
-  if (filters.participantId) {
-    conditions.push({ Participant__c: { eq: filters.participantId } });
-  }
-  if (filters.status) {
-    conditions.push({ Status__c: { eq: filters.status } });
-  }
-  if (filters.type) {
-    conditions.push({ Type__c: { eq: filters.type } });
-  }
-  if (filters.startDateFrom) {
-    conditions.push({ StartDate__c: { gte: filters.startDateFrom } });
-  }
-  if (filters.startDateTo) {
-    conditions.push({ StartDate__c: { lte: filters.startDateTo } });
-  }
-
-  if (conditions.length === 0) return undefined;
-  if (conditions.length === 1) return conditions[0];
-  return { and: conditions };
-}
-
 export async function getAbsence(id: string): Promise<Absence | null> {
   const response = await executeGraphQL<GetAbsenceResponse, { id: string }>(GET_ABSENCE_RAW, { id });
   const node = response?.uiapi?.query?.Absence__c?.edges?.[0]?.node;
@@ -168,8 +144,16 @@ export async function listAbsences(
   first = 50,
   after?: string
 ): Promise<{ absences: Absence[]; hasNextPage: boolean; endCursor?: string }> {
-  const where = buildWhereFilter(filters);
-  const response = await executeGraphQL<ListAbsencesResponse, { where: any; first: number; after?: string; orderBy: any[] }>(LIST_ABSENCES_RAW, { where, first, after, orderBy: [{ field: "StartDate__c", direction: "DESC" }] });
+  const vars = {
+    participantId: filters.participantId,
+    status: filters.status,
+    type: filters.type,
+    startDateFrom: filters.startDateFrom,
+    startDateTo: filters.startDateTo,
+    first,
+    after,
+  };
+  const response = await executeGraphQL<ListAbsencesResponse, typeof vars>(LIST_ABSENCES_RAW, vars);
   const edges = response?.uiapi?.query?.Absence__c?.edges || [];
   const pageInfo = response?.uiapi?.query?.Absence__c?.pageInfo;
 
@@ -187,13 +171,12 @@ export async function getAbsencesByParticipant(participantId: string, first = 50
 }
 
 export async function createAbsence(input: AbsenceInput): Promise<string> {
-  const response = await executeGraphQL<MutationResponse, { participantId: string; type: string; status: string; startDate: string; endDate: string; reason: string }>(CREATE_ABSENCE_RAW, {
+  const response = await executeGraphQL<MutationResponse, { participantId: string; type: string; status: string; startDate: string; endDate: string }>(CREATE_ABSENCE_RAW, {
     participantId: input.participantId,
     type: input.type,
     status: input.status || "Submitted",
     startDate: input.startDate,
     endDate: input.endDate,
-    reason: input.reason || "",
   });
   return response?.uiapi?.Absence__cCreate?.Record?.Id ?? "";
 }

@@ -1,4 +1,4 @@
-mutation ApproveAbsence($id: ID!, $approvedById: ID!, $approvedAt: DateTime!) {
+mutation ApproveAbsence($id: IdOrRef!, $approvedById: IdOrRef!, $approvedAt: DateTime!) {
   uiapi {
     Absence__cUpdate(input: {
       Id: $id

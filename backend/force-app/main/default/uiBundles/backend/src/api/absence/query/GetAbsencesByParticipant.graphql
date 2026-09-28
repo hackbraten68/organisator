@@ -4,7 +4,7 @@ query GetAbsencesByParticipant($participantId: ID!, $first: Int) {
       Absence__c(
         where: { Participant__c: { eq: $participantId } }
         first: $first
-        orderBy: [{ field: StartDate__c, direction: DESC }]
+        orderBy: { StartDate__c: { order: DESC } }
       ) {
         edges {
           node {

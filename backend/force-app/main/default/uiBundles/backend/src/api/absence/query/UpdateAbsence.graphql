@@ -1,11 +1,11 @@
 mutation UpdateAbsence(
-  $id: ID!
-  $type: String
-  $status: String
+  $id: IdOrRef!
+  $type: Picklist
+  $status: Picklist
   $startDate: Date
   $endDate: Date
   $reason: String
-  $approvedById: ID
+  $approvedById: IdOrRef
   $approvedAt: DateTime
   $rejectedAt: DateTime
   $coachComment: String
