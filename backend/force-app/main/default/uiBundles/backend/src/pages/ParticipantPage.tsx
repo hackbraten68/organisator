@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
-import { AlertCircle, Users, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { AlertCircle, Users } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { PageContainer, PageHeader } from "@/components/ui/layout";
 import ParticipantLearningPath from "@/components/participants/ParticipantLearningPath";
@@ -267,15 +265,6 @@ export default function ParticipantPage() {
     }
   }
 
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    const stored = localStorage.getItem("participant-sidebar");
-    return stored !== null ? stored === "true" : true;
-  });
-
-  useEffect(() => {
-    localStorage.setItem("participant-sidebar", String(sidebarOpen));
-  }, [sidebarOpen]);
-
   return (
     <PageContainer>
       {loading && <ParticipantPageSkeleton />}
@@ -308,36 +297,15 @@ export default function ParticipantPage() {
       {!loading && !error && participants.length > 0 && (
         <>
           <PageHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>Teilnehmer</span>
-                <span>/</span>
-                <span className="font-medium text-foreground">{participant?.name}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden"
-                  onClick={() => setSidebarOpen(true)}
-                >
-                  <PanelLeftOpen className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="hidden lg:inline-flex"
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                >
-                  {sidebarOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
-                </Button>
-              </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Teilnehmer</span>
+              <span>/</span>
+              <span className="font-medium text-foreground">{participant?.name}</span>
             </div>
           </PageHeader>
 
           <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
-            {/* Desktop Sidebar */}
-            <aside className={`hidden lg:block ${sidebarOpen ? "w-80" : "w-0"} transition-all duration-300 overflow-hidden`}>
+            <aside className="hidden lg:block">
               <ParticipantListCard
                 participants={visibleParticipants}
                 counts={counts}
@@ -347,25 +315,6 @@ export default function ParticipantPage() {
                 onSelect={handleParticipantChange}
               />
             </aside>
-
-            {/* Mobile Sheet */}
-            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-              <SheetContent side="left" className="w-80 p-0">
-                <SheetHeader className="p-4 border-b">
-                  <SheetTitle>Teilnehmer</SheetTitle>
-                </SheetHeader>
-                <div className="p-4">
-                  <ParticipantListCard
-                    participants={visibleParticipants}
-                    counts={counts}
-                    filter={filter}
-                    effectiveSelectedId={effectiveSelectedId}
-                    onFilterChange={setFilter}
-                    onSelect={handleParticipantChange}
-                  />
-                </div>
-              </SheetContent>
-            </Sheet>
 
             {participant ? (
               <div className="min-w-0">
