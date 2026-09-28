@@ -10,18 +10,14 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { PageContainer, PageHeader } from "@/components/ui/layout";
 import ParticipantLearningPath from "@/components/participants/ParticipantLearningPath";
 import ParticipantActivity from "@/components/participants/ParticipantActivity";
-import ParticipantListCard, {
-  type ParticipantFilter,
-} from "@/components/participants/ParticipantListCard";
+import ParticipantListCard from "@/components/participants/ParticipantListCard";
 import ParticipantStickyHeader from "@/components/participants/ParticipantStickyHeader";
 import ParticipantSummaryCard from "@/components/participants/ParticipantSummaryCard";
 import OnboardingChecklist from "@/components/participants/OnboardingChecklist";
 import { ParticipantAbsencesTab } from "@/components/absences";
 import { ParticipantAppointmentsTab } from "@/components/appointments";
 import {
-  getCompletion,
   getOnboardingCounts,
-  needsAttention,
 } from "@/utils/participantOnboarding";
 import {
   listParticipants,
@@ -56,13 +52,6 @@ function tabFromParams(params: URLSearchParams): ParticipantTab {
   return "uebersicht";
 }
 
-function compareByOnboarding(a: Participant, b: Participant): number {
-  const pa = getCompletion(a).percent;
-  const pb = getCompletion(b).percent;
-  if (pa !== pb) return pa - pb;
-  return a.name.localeCompare(b.name);
-}
-
 export default function ParticipantPage() {
   const navigate = useNavigate();
   const { participantId: routeParticipantId } = useParams();
@@ -71,7 +60,6 @@ export default function ParticipantPage() {
   const [participant, setParticipant] = useState<Participant | null>(null);
   const [prevSelectionKey, setPrevSelectionKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [filter, setFilter] = useState<ParticipantFilter>("needs-attention");
   const [tab, setTab] = useState<ParticipantTab>(() => tabFromParams(searchParams));
   const unknownIdNotified = useRef<string | null>(null);
   // Edit mode lives here (not in the summary card) so a list reload after
@@ -98,21 +86,7 @@ export default function ParticipantPage() {
 
   const counts = getOnboardingCounts(participants);
 
-  const visibleParticipants = [...participants]
-    .filter((p) => {
-      if (filter === "needs-attention") return needsAttention(p);
-      if (filter === "active") return p.status === "Active";
-      return true;
-    })
-    .sort((a, b) => {
-      if (filter === "all") {
-        const na = needsAttention(a);
-        const nb = needsAttention(b);
-        if (na !== nb) return na ? -1 : 1;
-        if (!na) return a.name.localeCompare(b.name);
-      }
-      return compareByOnboarding(a, b);
-    });
+  const visibleParticipants = participants;
 
   // Fall back to the full list so the details stay visible when the
   // current filter view is empty (e.g. inbox cleared, all Ready).
@@ -304,14 +278,12 @@ export default function ParticipantPage() {
             </div>
           </PageHeader>
 
-          <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
+          <div className="grid gap-8 lg:grid-cols-[384px_1fr]">
             <aside className="hidden lg:block">
               <ParticipantListCard
                 participants={visibleParticipants}
                 counts={counts}
-                filter={filter}
                 effectiveSelectedId={effectiveSelectedId}
-                onFilterChange={setFilter}
                 onSelect={handleParticipantChange}
               />
             </aside>
