@@ -96,9 +96,21 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
   }, [fetchAppointments, fetchCoaches]);
 
   const handleCreate = async (data: AppointmentInput) => {
-    await createAppointment(data);
-    toast.success("Termin erstellt");
-    fetchAppointments();
+    try {
+      const id = await createAppointment(data);
+      if (!id) {
+        toast.error("Termin konnte nicht angelegt werden");
+        return;
+      }
+      toast.success("Termin erstellt");
+      await fetchAppointments();
+    } catch (err) {
+      // Ohne diesen Zweig blieb der Dialog beim Aufrufer offen und es
+      // passierte sichtbar nichts: der Fehler landete nur als unbehandelte
+      // Rejection in der Konsole.
+      console.error("Failed to create appointment", err);
+      toast.error("Termin konnte nicht angelegt werden");
+    }
   };
 
   const handleConfirm = async (id: string) => {

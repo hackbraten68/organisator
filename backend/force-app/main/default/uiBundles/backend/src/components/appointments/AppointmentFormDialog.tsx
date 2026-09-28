@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check, Copy } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
+import { toApiDateTime, toDateTimeLocalValue } from "@/lib/datetime";
 import type { AppointmentInput, AppointmentType, AppointmentStatus, AppointmentLocation } from "@/types/appointment";
 
 interface AppointmentFormDialogProps {
@@ -90,30 +91,44 @@ export function AppointmentFormDialog({
     e.preventDefault();
     if (!validate()) return;
 
-    await onSubmit({
-      participantId: resolvedParticipantId,
-      coachId: coachId || undefined,
-      type,
-      status,
-      startTime,
-      endTime,
-      location: location || undefined,
-      meetingLink: meetingLink.trim() || undefined,
-      notes: notes.trim() || undefined,
-    });
+    // datetime-local liefert lokale Wanduhrzeit ohne Offset; die Mutation
+    // deklariert $startTime/$endTime als DateTime und braucht die Zone.
+    let startTimeIso: string;
+    let endTimeIso: string;
+    try {
+      startTimeIso = toApiDateTime(startTime);
+      endTimeIso = toApiDateTime(endTime);
+    } catch {
+      setErrors((prev) => ({ ...prev, startTime: "Ungültiges Datum oder Uhrzeit" }));
+      return;
+    }
+
+    try {
+      await onSubmit({
+        participantId: resolvedParticipantId,
+        coachId: coachId || undefined,
+        type,
+        status,
+        startTime: startTimeIso,
+        endTime: endTimeIso,
+        location: location || undefined,
+        meetingLink: meetingLink.trim() || undefined,
+        notes: notes.trim() || undefined,
+      });
+    } catch (err) {
+      // Der Aufrufer hat den Fehler bereits gemeldet (Toast). Der Dialog
+      // bleibt offen, damit die Eingabe nicht verloren geht, und wirft nicht
+      // weiter — sonst landet das als unbehandelte Rejection in der Konsole.
+      console.error("Failed to save appointment", err);
+      return;
+    }
     onClose();
   };
 
-  // Update datetime-local format when date changes
+  // initialData kommt als ISO-Zeit; das Input kennt keine Zeitzone.
   useEffect(() => {
-    if (initialData?.startTime) {
-      const date = parseISO(initialData.startTime);
-      setStartTime(format(date, "yyyy-MM-dd'T'HH:mm"));
-    }
-    if (initialData?.endTime) {
-      const date = parseISO(initialData.endTime);
-      setEndTime(format(date, "yyyy-MM-dd'T'HH:mm"));
-    }
+    if (initialData?.startTime) setStartTime(toDateTimeLocalValue(initialData.startTime));
+    if (initialData?.endTime) setEndTime(toDateTimeLocalValue(initialData.endTime));
   }, [initialData]);
 
   const appointmentTypes: AppointmentType[] = ["Coaching", "CheckIn", "Berufsschule", "Behörde", "Praktikum", "Sonstiges"];

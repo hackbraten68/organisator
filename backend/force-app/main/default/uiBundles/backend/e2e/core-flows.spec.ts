@@ -27,13 +27,13 @@ test.describe('Core Flows', () => {
     // Termin-Tab
     await expect(page.getByRole('tab', { name: /Termine/i })).toBeVisible();
 
-    // Termin anlegen
+    // Termin anlegen — der Teilnehmer kommt aus der Seiten-URL, nicht aus
+    // einem Eingabefeld; Van/Bis brauchen ein vollständiges datetime-local.
     await page.getByRole('button', { name: /Termin anlegen/i }).click();
-    await page.getByLabel(/Teilnehmer/i).fill('a059b00000gdNKkAAM');
     await page.getByLabel(/Coach/i).click();
     await page.getByRole('option', { name: /Sam Dillenburg/i }).click();
-    await page.getByLabel(/Von/i).fill('09:00');
-    await page.getByLabel(/Bis/i).fill('10:00');
+    await page.getByLabel(/Von/i).fill('2026-10-01T09:00');
+    await page.getByLabel(/Bis/i).fill('2026-10-01T10:00');
     await page.getByRole('button', { name: /Speichern/i }).click();
 
     // Termin sichtbar

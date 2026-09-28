@@ -185,4 +185,44 @@ describe("AppointmentFormDialog – Submit", () => {
     expect(await screen.findByText("Coach ist erforderlich")).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it("schickt Start und Ende mit Zeitzone, weil DateTime keinen Offset verträgt", async () => {
+    renderDialog();
+
+    await fillRequiredFields();
+    await userEvent.click(screen.getByLabelText(/Coach/i));
+    const options = await screen.findAllByRole("option", { name: "Sam Dillenburg" });
+    await userEvent.click(options[options.length - 1]);
+    await userEvent.click(screen.getByRole("button", { name: /Speichern/i }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+
+    const payload = onSubmit.mock.calls[0][0] as AppointmentInput;
+    for (const value of [payload.startTime, payload.endTime]) {
+      expect(value).toMatch(/Z$|[+-]\d{2}:\d{2}$/);
+      expect(new Date(value).toISOString()).toBe(value);
+    }
+    // Die Eingabe war 10:00 Ortszeit — der Wert muss darauf zeigen, nicht auf 10:00Z.
+    const submitted = new Date(payload.startTime);
+    expect(submitted.getHours()).toBe(10);
+  });
+
+  it("laesst den Dialog offen, wenn das Speichern scheitert", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    onSubmit.mockRejectedValueOnce(new Error("network down"));
+    renderDialog();
+
+    await fillRequiredFields();
+    await userEvent.click(screen.getByLabelText(/Coach/i));
+    const options = await screen.findAllByRole("option", { name: "Sam Dillenburg" });
+    await userEvent.click(options[options.length - 1]);
+    await userEvent.click(screen.getByRole("button", { name: /Speichern/i }));
+
+    await waitFor(() => expect(consoleError).toHaveBeenCalled());
+
+    // onClose wird erst nach erfolgreichem Speichern aufgerufen.
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    consoleError.mockRestore();
+  });
 });
