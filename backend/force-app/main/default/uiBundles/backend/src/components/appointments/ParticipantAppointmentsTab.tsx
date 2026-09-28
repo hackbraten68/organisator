@@ -362,6 +362,8 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
             isOpen={showForm}
             onClose={() => { setShowForm(false); setEditingAppointment(null); }}
             onSubmit={handleCreate}
+            participantId={participantId}
+            participantName={participantName}
             initialData={editingAppointment ?? undefined}
             availableCoaches={availableCoaches}
             title={editingAppointment ? "Termin bearbeiten" : "Termin anlegen"}

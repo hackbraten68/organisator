@@ -1,4 +1,4 @@
-import{j as t,F as C,G as S,H as A}from"./vendor-radix-DA-s4Xvv.js";import{e as w,f as B,r as V}from"./vendor-react-DPHgkQsE.js";import{u as D,S as i,C as m,a as y,A as F,b as k,c as P,B as h,h as T}from"./index-Ds41-YtT.js";import{S as c}from"./separator-SLsIVkLU.js";import{O as I}from"./ObjectBreadcrumb-CcyhYzwM.js";import{i as O,F as E,C as L,m as R}from"./vendor-icons-PZ7jvG04.js";const q=`query GetAccountDetail($id: ID!) {
+import{j as t,F as C,G as S,H as A}from"./vendor-radix-DA-s4Xvv.js";import{e as w,f as B,r as V}from"./vendor-react-DPHgkQsE.js";import{u as D,S as i,C as m,a as y,A as F,b as k,c as P,B as h,h as T}from"./index-Cpbe1AoT.js";import{S as c}from"./separator-PCvoCQY0.js";import{O as I}from"./ObjectBreadcrumb-u8I2s0bi.js";import{i as O,F as E,C as L,m as R}from"./vendor-icons-BNonUHhr.js";const q=`query GetAccountDetail($id: ID!) {
 	uiapi {
 		query {
 			Account(where: { Id: { eq: $id } }) {

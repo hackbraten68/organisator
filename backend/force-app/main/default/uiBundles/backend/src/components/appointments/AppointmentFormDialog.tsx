@@ -11,6 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Check, Copy } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import type { AppointmentInput, AppointmentType, AppointmentStatus, AppointmentLocation } from "@/types/appointment";
 
@@ -18,6 +19,12 @@ interface AppointmentFormDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: AppointmentInput) => Promise<void>;
+  /** Participant the appointment belongs to. Taken from the surrounding page
+   *  context, never typed in: the form has no participant picker, so this is
+   *  the single source of truth for Appointment__c.Participant__c. */
+  participantId: string;
+  /** Shown instead of the raw id; falls back to the id when unknown. */
+  participantName?: string;
   initialData?: Partial<AppointmentInput>;
   isLoading?: boolean;
   title?: string;
@@ -28,6 +35,8 @@ export function AppointmentFormDialog({
   isOpen,
   onClose,
   onSubmit,
+  participantId,
+  participantName,
   initialData,
   isLoading = false,
   title = "Termin erstellen",
@@ -42,11 +51,30 @@ export function AppointmentFormDialog({
   const [notes, setNotes] = useState(initialData?.notes || "");
   const [coachId, setCoachId] = useState(initialData?.coachId || "");
   const [errors, setErrors] = useState<Partial<Record<keyof AppointmentInput, string>>>({});
-  const [participantId, setParticipantId] = useState(initialData?.participantId || "");
+  const [idCopied, setIdCopied] = useState(false);
+
+  // Editing keeps the appointment's own participant; creating uses the page
+  // context. The lookup is never reassigned by the form itself.
+  const resolvedParticipantId = initialData?.participantId ?? participantId;
+  // A name only exists for the page context participant. If the edited
+  // appointment belongs to someone else, fall back to showing the id.
+  const belongsToPageParticipant = initialData?.participantId == null
+    || initialData.participantId === participantId;
+  const resolvedParticipantName = belongsToPageParticipant ? participantName : undefined;
+
+  async function copyParticipantId() {
+    try {
+      await navigator.clipboard.writeText(resolvedParticipantId);
+      setIdCopied(true);
+      setTimeout(() => setIdCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy participant id", err);
+    }
+  }
 
   const validate = () => {
     const newErrors: Partial<Record<keyof AppointmentInput, string>> = {};
-    if (!participantId) newErrors.participantId = "Teilnehmer ist erforderlich";
+    if (!resolvedParticipantId) newErrors.participantId = "Kein Teilnehmer ausgewählt";
     if (!type) newErrors.type = "Typ ist erforderlich";
     if (!startTime) newErrors.startTime = "Startzeit ist erforderlich";
     if (!endTime) newErrors.endTime = "Endzeit ist erforderlich";
@@ -63,7 +91,7 @@ export function AppointmentFormDialog({
     if (!validate()) return;
 
     await onSubmit({
-      participantId,
+      participantId: resolvedParticipantId,
       coachId: coachId || undefined,
       type,
       status,
@@ -105,14 +133,27 @@ export function AppointmentFormDialog({
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="participantId">Teilnehmer *</Label>
-                <Input
-                  id="participantId"
-                  value={participantId}
-                  onChange={(e) => setParticipantId(e.target.value)}
-                  className={errors.participantId ? "border-destructive" : ""}
-                  placeholder="Teilnehmer ID"
-                  required
-                />
+                <div className="flex items-center gap-2">
+                  <div
+                    id="participantId"
+                    className="flex h-9 min-w-0 flex-1 items-center justify-between gap-2 rounded-md border bg-muted/50 px-3 py-1 text-small"
+                  >
+                    <span className="truncate font-medium">
+                      {resolvedParticipantName || resolvedParticipantId}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 shrink-0"
+                      onClick={copyParticipantId}
+                      aria-label="Teilnehmer-ID kopieren"
+                      title={`${resolvedParticipantId} kopieren`}
+                    >
+                      {idCopied ? <Check className="size-4 text-success" /> : <Copy className="size-4" />}
+                    </Button>
+                  </div>
+                </div>
                 {errors.participantId && <p className="text-caption text-destructive" role="alert">{errors.participantId}</p>}
               </div>
               <div className="space-y-2">
