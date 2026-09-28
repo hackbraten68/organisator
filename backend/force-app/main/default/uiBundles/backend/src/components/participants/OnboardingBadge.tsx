@@ -13,10 +13,10 @@ const LABELS: Record<OnboardingState, string> = {
  */
 export default function OnboardingBadge({ state }: { state: OnboardingState }) {
   if (state === "ready") {
-    return <Badge variant="default">{LABELS[state]}</Badge>;
+    return <Badge variant="success">{LABELS[state]}</Badge>;
   }
   if (state === "incomplete") {
-    return <Badge variant="secondary">{LABELS[state]}</Badge>;
+    return <Badge variant="warning">{LABELS[state]}</Badge>;
   }
   return <Badge variant="destructive">{LABELS[state]}</Badge>;
 }

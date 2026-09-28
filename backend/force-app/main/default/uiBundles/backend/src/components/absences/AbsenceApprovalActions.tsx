@@ -227,8 +227,8 @@ export function AbsenceApprovalActions({
         )}
 
         {isApproved && (
-          <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-sm text-green-700">
+          <div className="p-3 bg-success/10 border border-success/20 rounded-lg">
+            <p className="text-sm text-success">
               <CheckCircle className="size-4 inline mr-1.5" />
               Genehmigt
             </p>

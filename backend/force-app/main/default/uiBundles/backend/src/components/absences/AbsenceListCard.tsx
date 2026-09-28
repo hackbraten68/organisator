@@ -124,7 +124,7 @@ export function AbsenceListCard({
               {canApprove && (
                 <button
                   onClick={() => onApprove?.(absence.id)}
-                  className="px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="px-3 py-1.5 text-sm font-medium text-success bg-success/10 border border-success/20 rounded hover:bg-success/20 focus:outline-none focus:ring-2 focus:ring-success/50"
                 >
                   Genehmigen
                 </button>
@@ -132,7 +132,7 @@ export function AbsenceListCard({
               {canReject && (
                 <button
                   onClick={() => onReject?.(absence.id)}
-                  className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="px-3 py-1.5 text-sm font-medium text-destructive bg-destructive/10 border border-destructive/20 rounded hover:bg-destructive/20 focus:outline-none focus:ring-2 focus:ring-destructive/50"
                 >
                   Ablehnen
                 </button>
@@ -140,7 +140,7 @@ export function AbsenceListCard({
               {canCancel && (
                 <button
                   onClick={() => onCancel?.(absence.id)}
-                  className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  className="px-3 py-1.5 text-sm font-medium text-muted-foreground bg-muted/50 border border-border rounded hover:bg-muted focus:outline-none focus:ring-2 focus:ring-muted-foreground/50"
                 >
                   Stornieren
                 </button>
@@ -148,7 +148,7 @@ export function AbsenceListCard({
               {onViewDocuments && (
                 <button
                   onClick={() => onViewDocuments?.(absence.id)}
-                  className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-3 py-1.5 text-sm font-medium text-info bg-info/10 border border-info/20 rounded hover:bg-info/20 focus:outline-none focus:ring-2 focus:ring-info/50"
                 >
                   <FileText className="size-3.5 inline-block align-middle mr-1" />
                   Dokumente
