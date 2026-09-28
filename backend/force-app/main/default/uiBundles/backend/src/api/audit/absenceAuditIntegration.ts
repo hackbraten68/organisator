@@ -40,6 +40,26 @@ export interface RecordAbsenceRejectedOptions {
   correlationId?: string;
 }
 
+export interface RecordAbsenceUpdatedOptions {
+  absence: {
+    id: string;
+    participantId: string;
+    type: string;
+    status: string;
+    startDate: string;
+    endDate: string;
+    reason?: string;
+  };
+  changes: Array<{
+    field: string;
+    oldValue?: unknown;
+    newValue?: unknown;
+    redacted: boolean;
+  }>;
+  actor: ActorInfo;
+  correlationId?: string;
+}
+
 export interface RecordAbsenceCancelledOptions {
   absence: {
     id: string;
@@ -162,6 +182,34 @@ export async function recordAbsenceRejected(options: RecordAbsenceRejectedOption
     });
   } catch (err) {
     console.error("[audit] Failed to record absence rejected", err);
+  }
+}
+
+export async function recordAbsenceUpdated(options: RecordAbsenceUpdatedOptions): Promise<string | void> {
+  const { absence, changes, actor, correlationId } = options;
+
+  try {
+    await auditService.record({
+      eventType: EVENT_TYPES.ABSENCE_UPDATED,
+      domain: "absence",
+      action: "updated",
+      actorType: actor.type,
+      actorId: actor.id,
+      actorDisplayNameSnapshot: actor.displayName,
+      subjectType: "Absence__c",
+      subjectId: absence.id,
+      participantId: absence.participantId,
+      source: "web",
+      reason: "Abwesenheit aktualisiert",
+      changes,
+      metadata: {
+        absenceType: absence.type,
+        status: absence.status,
+      },
+      correlationId,
+    });
+  } catch (err) {
+    console.error("[audit] Failed to record absence updated", err);
   }
 }
 
