@@ -1,15 +1,25 @@
+import { lazy, Suspense } from 'react';
 import type { RouteObject } from 'react-router';
 
 import AppLayout from './appLayout';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
-import AccountObjectDetail from './pages/AccountObjectDetailPage';
-import ParticipantPage from './pages/ParticipantPage';
-import ProgramsPage from './pages/programs/ProgramsPage';
-import ProgramDetailPage from './pages/programs/ProgramDetailPage';
 import type { NavigationHandle } from './types/navigation';
 
 import { Search as GlobalSearch, config } from "./features/search";
+
+const AccountObjectDetail = lazy(() => import('./pages/AccountObjectDetailPage'));
+const ParticipantPage = lazy(() => import('./pages/ParticipantPage'));
+const ProgramsPage = lazy(() => import('./pages/programs/ProgramsPage'));
+const ProgramDetailPage = lazy(() => import('./pages/programs/ProgramDetailPage'));
+
+function PageFallback() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="animate-pulse text-muted-foreground">Laden...</div>
+    </div>
+  );
+}
 
 export const routes: RouteObject[] = [
   {
@@ -46,7 +56,7 @@ export const routes: RouteObject[] = [
       },
       {
         path: "participants",
-        element: <ParticipantPage />,
+        element: <Suspense fallback={<PageFallback />}><ParticipantPage /></Suspense>,
         handle: {
           showInNavigation: true,
           label: "Participants",
@@ -54,19 +64,15 @@ export const routes: RouteObject[] = [
         } satisfies NavigationHandle
       },
       {
-        // Canonical participant deep link: /participants/:id selects the
-        // participant (?tab=uebersicht|verlauf|lernpfad, ?event=<AuditEventId>
-        // opens the verlauf tab with the event highlighted + details open).
-        // /participants (no id) keeps the legacy auto-first behavior.
         path: "participants/:participantId",
-        element: <ParticipantPage />,
+        element: <Suspense fallback={<PageFallback />}><ParticipantPage /></Suspense>,
       },
       {
         path: "programs",
         children: [
           {
             index: true,
-            element: <ProgramsPage />,
+            element: <Suspense fallback={<PageFallback />}><ProgramsPage /></Suspense>,
             handle: {
               showInNavigation: true,
               label: "Programs",
@@ -75,13 +81,13 @@ export const routes: RouteObject[] = [
           },
           {
             path: ":programId",
-            element: <ProgramDetailPage />,
+            element: <Suspense fallback={<PageFallback />}><ProgramDetailPage /></Suspense>,
           },
         ],
       },
       {
         path: "accounts/:recordId",
-        element: <AccountObjectDetail />
+        element: <Suspense fallback={<PageFallback />}><AccountObjectDetail /></Suspense>
       },
       {
         path: "*",

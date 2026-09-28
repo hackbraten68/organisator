@@ -132,6 +132,29 @@ export default defineConfig(({ mode }) => {
       outDir: resolve(__dirname, 'dist'),
       assetsDir: 'assets',
       sourcemap: false,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router'],
+            'vendor-radix': [
+              '@radix-ui/react-accordion',
+              '@radix-ui/react-alert-dialog',
+              '@radix-ui/react-dialog',
+              '@radix-ui/react-dropdown-menu',
+              '@radix-ui/react-label',
+              '@radix-ui/react-popover',
+              '@radix-ui/react-select',
+              '@radix-ui/react-separator',
+              '@radix-ui/react-slot',
+              '@radix-ui/react-tabs',
+              '@radix-ui/react-toast',
+              '@radix-ui/react-tooltip',
+            ],
+            'vendor-date': ['date-fns'],
+            'vendor-icons': ['lucide-react'],
+          },
+        },
+      },
     },
 
     // Resolve aliases (shared between build and test)

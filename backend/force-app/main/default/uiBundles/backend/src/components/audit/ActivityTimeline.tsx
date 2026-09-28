@@ -12,13 +12,14 @@
  * - Loading and error states
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { AuditEvent, ActivityGrouping } from '@/types/audit';
 import { ActivityTimelineItem } from './ActivityTimelineItem';
-import { ActivityEventDetailsDrawer } from './ActivityEventDetailsDrawer';
+
+const ActivityEventDetailsDrawer = lazy(() => import('./ActivityEventDetailsDrawer'));
 
 export interface ActivityTimelineProps {
   events: AuditEvent[];
@@ -273,12 +274,14 @@ export function ActivityTimeline({
       )}
 
       {selectedEvent && (
-        <ActivityEventDetailsDrawer
-          event={selectedEvent}
-          isOpen={!!selectedEvent}
-          onClose={() => setSelectedEvent(null)}
-          participantId={participantId}
-        />
+        <Suspense fallback={null}>
+          <ActivityEventDetailsDrawer
+            event={selectedEvent}
+            isOpen={!!selectedEvent}
+            onClose={() => setSelectedEvent(null)}
+            participantId={participantId}
+          />
+        </Suspense>
       )}
     </div>
   );
