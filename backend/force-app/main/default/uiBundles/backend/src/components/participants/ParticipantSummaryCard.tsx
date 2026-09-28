@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import {
   PARTICIPANT_STATUSES,
   type Participant,
@@ -72,27 +71,25 @@ export default function ParticipantSummaryCard({
 
       <CardContent className="space-y-6">
         {!editing ? (
-          <>
+          <div className="grid gap-6 md:grid-cols-2">
             <section className="space-y-4">
               <h3 className="text-h4 font-medium text-muted-foreground">Kontakt</h3>
-              <dl className="grid gap-4 md:grid-cols-2">
+              <dl className="grid gap-4">
                 <Field label="E-Mail" value={participant.email} />
                 <Field label="GitHub" value={participant.github} />
                 <Field label="Discord" value={participant.discord} />
               </dl>
             </section>
 
-            <Separator />
-
             <section className="space-y-4">
               <h3 className="text-h4 font-medium text-muted-foreground">Zuordnung</h3>
-              <dl className="grid gap-4 md:grid-cols-2">
+              <dl className="grid gap-4">
                 <Field label="Status" value={participant.status} />
                 <Field label="Programm" value={participant.programName} />
                 <Field label="Coach" value={participant.coachName} />
               </dl>
             </section>
-          </>
+          </div>
         ) : (
           <>
             <fieldset className="space-y-4">
