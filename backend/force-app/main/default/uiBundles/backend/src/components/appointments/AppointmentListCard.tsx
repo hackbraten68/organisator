@@ -89,7 +89,7 @@ export function AppointmentListCard({
   const hasActions = canConfirm || canReschedule || canComplete || canNoShow || canCancel || onViewDetails;
 
   return (
-    <Card className={highlightCorrelation && appointment.correlationId ? "ring-2 ring-primary" : ""}>
+    <Card>
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 text-2xl" aria-hidden="true">

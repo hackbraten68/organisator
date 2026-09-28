@@ -85,7 +85,7 @@ describe("ParticipantPage status save", () => {
     await user.click(await screen.findByRole("option", { name: "Active" }));
 
     await user.click(
-      await screen.findByRole("button", { name: /save participant/i }),
+      await screen.findByRole("button", { name: /teilnehmer speichern/i }),
     );
 
     await waitFor(() => {

@@ -229,12 +229,9 @@ export function ActivityTimeline({
           </AlertDescription>
         </Alert>
       )}
-      {/* Timeline */}
       <div className="space-y-2 relative">
-        {/* Vertical line */}
         <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-border" />
 
-        {/* Events */}
         {grouped.map((group) => (
           <div
             key={group.correlationId}
@@ -246,10 +243,8 @@ export function ActivityTimeline({
                 : ""
             }`}
           >
-            {/* Event dot */}
             <div className="absolute left-0 top-2 w-4 h-4 rounded-full bg-primary border-4 border-background" />
 
-            {/* Event card */}
             <ActivityTimelineItem
               group={group}
               isExpanded={expandedId === group.correlationId}
@@ -265,7 +260,6 @@ export function ActivityTimeline({
         ))}
       </div>
 
-      {/* Load more button */}
       {hasMore && (
         <div className="flex justify-center pt-4">
           <Button
@@ -278,7 +272,6 @@ export function ActivityTimeline({
         </div>
       )}
 
-      {/* Event details drawer */}
       {selectedEvent && (
         <ActivityEventDetailsDrawer
           event={selectedEvent}

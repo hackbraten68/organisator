@@ -153,18 +153,18 @@ export function ParticipantActivity({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Aktivitäten</CardTitle>
+      <CardHeader className="pb-4">
+        <CardTitle className="text-h2">Aktivitäten</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap items-center gap-2 mb-3">
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-52 flex-1">
-            <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               placeholder="Verlauf durchsuchen…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="pl-8"
+              className="pl-10"
               aria-label="Verlauf durchsuchen"
             />
           </div>
@@ -192,12 +192,12 @@ export function ParticipantActivity({
           )}
         </div>
         {filtersActive && !loading && (
-          <p className="mb-3 text-xs text-muted-foreground" role="status">
+          <p className="text-caption text-muted-foreground" role="status">
             {activeFilterCount} Filter aktiv · {visibleEvents.length} von{" "}
             {events.length} Einträgen
           </p>
         )}
-        <div className="flex flex-wrap gap-2 mb-2">
+        <div className="flex flex-wrap gap-2">
           {VISIBLE_CATEGORIES.map((category) => {
             const active = selectedCategories.includes(category);
             return (
@@ -222,7 +222,7 @@ export function ParticipantActivity({
             Technik
           </Button>
         </div>
-        <p className="mb-4 text-xs text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           Mehrfachauswahl möglich, Kategorien werden mit ODER verknüpft.
         </p>
         <ActivityTimeline

@@ -22,10 +22,6 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-/**
- * Sticky participant header: identity + status + key metadata + primary
- * actions stay visible while the tab content below scrolls.
- */
 export default function ParticipantStickyHeader({
   participant,
   isDirty,
@@ -41,20 +37,20 @@ export default function ParticipantStickyHeader({
   ].filter(Boolean);
 
   return (
-    <div className="sticky top-0 z-10 -mx-1 bg-background/95 px-1 py-2 backdrop-blur">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b pb-3">
+    <div className="sticky top-0 z-10 -mx-1 bg-background/95 px-1 py-3 backdrop-blur">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b pb-4">
         <Avatar className="size-10">
           <AvatarFallback>{initials(participant.name)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="truncate text-lg font-semibold">
+            <h2 className="truncate text-h2 font-semibold">
               {participant.name}
             </h2>
             <Badge variant="secondary">{participant.status}</Badge>
           </div>
           {meta.length > 0 && (
-            <p className="truncate text-sm text-muted-foreground">
+            <p className="truncate text-small text-muted-foreground">
               {meta.join(" · ")}
             </p>
           )}
@@ -66,10 +62,10 @@ export default function ParticipantStickyHeader({
             onClick={onReset}
             disabled={!isDirty || saving}
           >
-            Reset
+            Zurücksetzen
           </Button>
           <Button size="sm" onClick={onSave} disabled={!isDirty || saving}>
-            {saving ? "Saving…" : "Save Participant"}
+            {saving ? "Speichern..." : "Teilnehmer speichern"}
           </Button>
         </div>
       </div>
