@@ -5,9 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { format, startOfWeek, endOfWeek, addWeeks } from "date-fns";
-import { de } from "date-fns/locale";
 import { listAppointments, createAppointment, confirmAppointment, completeAppointment, rescheduleAppointment, cancelAppointment, updateAppointmentAttendance, getAvailabilitySlots } from "@/api/appointment/appointmentService";
 import { listAssignableUsers } from "@/api/user/userService";
 import type { AssignableUser } from "@/types/user";
@@ -177,26 +175,6 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
       .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
   }, [filteredAppointments]);
 
-  const upcomingByDate = useMemo(() => {
-    const groups = new Map<string, Appointment[]>();
-    for (const a of upcomingAppointments) {
-      const key = format(new Date(a.startTime), "yyyy-MM-dd");
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(a);
-    }
-    return Array.from(groups.entries());
-  }, [upcomingAppointments]);
-
-  const pastByMonth = useMemo(() => {
-    const groups = new Map<string, Appointment[]>();
-    for (const a of pastAppointments) {
-      const key = format(new Date(a.startTime), "yyyy-MM");
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(a);
-    }
-    return Array.from(groups.entries()).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [pastAppointments]);
-
   const statusOptions: { value: Appointment["status"] | "all"; label: string }[] = [
     { value: "all", label: "Alle" },
     { value: "Draft", label: "Entwurf" },
@@ -291,81 +269,54 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
         </TabsList>
 
         <TabsContent value="upcoming">
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => <AppointmentListCardSkeleton key={i} />)}
-            </div>
-          ) : upcomingByDate.length === 0 ? (
-            <EmptyState
-              icon={<Calendar className="size-12" />}
-              title="Keine anstehenden Termine"
-              description={canManage ? "Erstellen Sie den ersten Termin" : "Keine Termine geplant"}
-              action={canManage ? <Button onClick={() => setShowForm(true)}><Plus className="size-4 mr-2" /> Ersten Termin anlegen</Button> : undefined}
-            />
-          ) : (
-            <div className="space-y-8">
-              {upcomingByDate.map(([date, apps]) => (
-                <section key={date} className="space-y-3">
-                  <div className="sticky top-16 z-10 bg-background/95 backdrop-blur pb-2 border-b">
-                    <h3 className="text-h3 font-semibold text-muted-foreground">
-                      {format(new Date(date), "EEEE, dd. MMMM yyyy", { locale: de })}
-                    </h3>
-                  </div>
-                  <div className="space-y-3">
-                    {apps.map((appointment) => (
-                      <AppointmentListCard
-                        key={appointment.id}
-                        appointment={appointment}
-                        onReschedule={canManage ? handleReschedule : undefined}
-                        onCancel={canManage ? handleCancel : undefined}
-                        onConfirm={canManage ? handleConfirm : undefined}
-                        onComplete={canManage ? handleComplete : undefined}
-                        onNoShow={canManage ? handleNoShow : undefined}
-                        showActions={canManage}
-                        highlightCorrelation={true}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-          )}
+          <div className="space-y-3">
+            {loading ? (
+              Array.from({ length: 5 }).map((_, i) => <AppointmentListCardSkeleton key={i} />)
+            ) : upcomingAppointments.length === 0 ? (
+              <EmptyState
+                icon={<Calendar className="size-12" />}
+                title="Keine anstehenden Termine"
+                description={canManage ? "Erstellen Sie den ersten Termin" : "Keine Termine geplant"}
+                action={canManage ? <Button onClick={() => setShowForm(true)}><Plus className="size-4 mr-2" /> Ersten Termin anlegen</Button> : undefined}
+              />
+            ) : (
+              upcomingAppointments.map((appointment) => (
+                <AppointmentListCard
+                  key={appointment.id}
+                  appointment={appointment}
+                  onReschedule={canManage ? handleReschedule : undefined}
+                  onCancel={canManage ? handleCancel : undefined}
+                  onConfirm={canManage ? handleConfirm : undefined}
+                  onComplete={canManage ? handleComplete : undefined}
+                  onNoShow={canManage ? handleNoShow : undefined}
+                  showActions={canManage}
+                  highlightCorrelation={true}
+                />
+              ))
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="past">
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => <AppointmentListCardSkeleton key={i} />)}
-            </div>
-          ) : pastByMonth.length === 0 ? (
-            <EmptyState
-              icon={<Calendar className="size-12" />}
-              title="Keine vergangenen Termine"
-            />
-          ) : (
-            <Accordion type="multiple" className="w-full space-y-3">
-              {pastByMonth.map(([month, apps]) => (
-                <AccordionItem value={month} key={month}>
-                  <AccordionTrigger className="text-h4 font-medium px-4 py-3">
-                    {format(new Date(month + "-01"), "MMMM yyyy", { locale: de })}
-                    <Badge variant="secondary" className="ml-2">{apps.length}</Badge>
-                  </AccordionTrigger>
-                  <AccordionContent className="pt-2 pb-4">
-                    <div className="space-y-3">
-                      {apps.map((appointment) => (
-                        <AppointmentListCard
-                          key={appointment.id}
-                          appointment={appointment}
-                          showActions={false}
-                          highlightCorrelation={true}
-                        />
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          )}
+          <div className="space-y-3">
+            {loading ? (
+              Array.from({ length: 5 }).map((_, i) => <AppointmentListCardSkeleton key={i} />)
+            ) : pastAppointments.length === 0 ? (
+              <EmptyState
+                icon={<Calendar className="size-12" />}
+                title="Keine vergangenen Termine"
+              />
+            ) : (
+              pastAppointments.map((appointment) => (
+                <AppointmentListCard
+                  key={appointment.id}
+                  appointment={appointment}
+                  showActions={false}
+                  highlightCorrelation={true}
+                />
+              ))
+            )}
+          </div>
         </TabsContent>
 
         {canManage && (
