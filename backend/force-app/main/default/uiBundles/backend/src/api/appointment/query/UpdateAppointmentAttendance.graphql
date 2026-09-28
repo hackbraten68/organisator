@@ -1,0 +1,15 @@
+mutation UpdateAppointmentAttendance(
+  $id: IdOrRef!
+  $status: Picklist!
+) {
+  uiapi {
+    Appointment__cUpdate(input: {
+      Id: $id
+      Appointment__c: {
+        Status__c: $status
+      }
+    }) {
+      Record { Id }
+    }
+  }
+}

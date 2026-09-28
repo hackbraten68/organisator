@@ -1,0 +1,33 @@
+query GetAppointment($id: ID!) {
+  uiapi {
+    query {
+      Appointment__c(where: { Id: { eq: $id } }, first: 1) {
+        edges {
+          node {
+            Id
+            Name @optional { value }
+            Participant__c @optional { value }
+            Coach__c @optional { value }
+            Staff__c @optional { value }
+            Type__c @optional { value }
+            Status__c @optional { value }
+            StartTime__c @optional { value }
+            EndTime__c @optional { value }
+            Location__c @optional { value }
+            MeetingLink__c @optional { value }
+            Notes__c @optional { value }
+            CancellationReason__c @optional { value }
+            CorrelationId__c @optional { value }
+            ConfirmedAt__c @optional { value }
+            CompletedAt__c @optional { value }
+            CreatedDate @optional { value }
+            LastModifiedDate @optional { value }
+            Participant__r @optional { Name @optional { value } }
+            Coach__r @optional { Name @optional { value } }
+            Staff__r @optional { Name @optional { value } }
+          }
+        }
+      }
+    }
+  }
+}

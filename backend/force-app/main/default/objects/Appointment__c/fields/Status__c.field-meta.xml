@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Status__c</fullName>
+    <deprecated>false</deprecated>
+    <description>Status des Termins</description>
+    <externalId>false</externalId>
+    <label>Status</label>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Draft</fullName>
+                <default>true</default>
+                <label>Draft</label>
+            </value>
+            <value>
+                <fullName>Finding</fullName>
+                <default>false</default>
+                <label>Terminfindung</label>
+            </value>
+            <value>
+                <fullName>Confirmed</fullName>
+                <default>false</default>
+                <label>Bestätigt</label>
+            </value>
+            <value>
+                <fullName>Completed</fullName>
+                <default>false</default>
+                <label>Durchgeführt</label>
+            </value>
+            <value>
+                <fullName>Documented</fullName>
+                <default>false</default>
+                <label>Dokumentiert</label>
+            </value>
+            <value>
+                <fullName>Cancelled</fullName>
+                <default>false</default>
+                <label>Abgesagt</label>
+            </value>
+            <value>
+                <fullName>NoShow</fullName>
+                <default>false</default>
+                <label>Nicht erschienen</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+    <required>true</required>
+    <trackHistory>true</trackHistory>
+    <type>Picklist</type>
+</CustomField>

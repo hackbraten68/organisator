@@ -1,0 +1,39 @@
+mutation UpdateAppointment(
+  $id: IdOrRef!
+  $coachId: IdOrRef
+  $staffId: IdOrRef
+  $type: Picklist
+  $status: Picklist
+  $startTime: DateTime
+  $endTime: DateTime
+  $location: Picklist
+  $meetingLink: String
+  $notes: String
+  $cancellationReason: String
+  $correlationId: String
+  $confirmedAt: DateTime
+  $completedAt: DateTime
+) {
+  uiapi {
+    Appointment__cUpdate(input: {
+      Id: $id
+      Appointment__c: {
+        Coach__c: $coachId
+        Staff__c: $staffId
+        Type__c: $type
+        Status__c: $status
+        StartTime__c: $startTime
+        EndTime__c: $endTime
+        Location__c: $location
+        MeetingLink__c: $meetingLink
+        Notes__c: $notes
+        CancellationReason__c: $cancellationReason
+        CorrelationId__c: $correlationId
+        ConfirmedAt__c: $confirmedAt
+        CompletedAt__c: $completedAt
+      }
+    }) {
+      Record { Id }
+    }
+  }
+}

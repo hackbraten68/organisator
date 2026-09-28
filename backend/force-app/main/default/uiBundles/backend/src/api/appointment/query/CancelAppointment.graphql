@@ -1,0 +1,13 @@
+mutation CancelAppointment($id: IdOrRef!, $cancellationReason: String) {
+  uiapi {
+    Appointment__cUpdate(input: {
+      Id: $id
+      Appointment__c: {
+        Status__c: "Cancelled"
+        CancellationReason__c: $cancellationReason
+      }
+    }) {
+      Record { Id }
+    }
+  }
+}

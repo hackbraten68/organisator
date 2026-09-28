@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Type__c</fullName>
+    <deprecated>false</deprecated>
+    <description>Art des Termins</description>
+    <externalId>false</externalId>
+    <label>Typ</label>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Coaching</fullName>
+                <default>false</default>
+                <label>Coaching</label>
+            </value>
+            <value>
+                <fullName>CheckIn</fullName>
+                <default>false</default>
+                <label>Check-In</label>
+            </value>
+            <value>
+                <fullName>Berufsschule</fullName>
+                <default>false</default>
+                <label>Berufsschule</label>
+            </value>
+            <value>
+                <fullName>Behörde</fullName>
+                <default>false</default>
+                <label>Behörde</label>
+            </value>
+            <value>
+                <fullName>Praktikum</fullName>
+                <default>false</default>
+                <label>Praktikum</label>
+            </value>
+            <value>
+                <fullName>Sonstiges</fullName>
+                <default>false</default>
+                <label>Sonstiges</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+    <required>true</required>
+    <trackHistory>true</trackHistory>
+    <type>Picklist</type>
+</CustomField>

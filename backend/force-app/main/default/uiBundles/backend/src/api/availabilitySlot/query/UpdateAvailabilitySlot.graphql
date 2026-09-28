@@ -1,0 +1,27 @@
+mutation UpdateAvailabilitySlot(
+  $id: IdOrRef!
+  $dayOfWeek: Picklist
+  $startTime: Time
+  $endTime: Time
+  $type: Picklist
+  $isActive: Boolean
+  $validFrom: Date
+  $validTo: Date
+) {
+  uiapi {
+    AvailabilitySlot__cUpdate(input: {
+      Id: $id
+      AvailabilitySlot__c: {
+        DayOfWeek__c: $dayOfWeek
+        StartTime__c: $startTime
+        EndTime__c: $endTime
+        Type__c: $type
+        IsActive__c: $isActive
+        ValidFrom__c: $validFrom
+        ValidTo__c: $validTo
+      }
+    }) {
+      Record { Id }
+    }
+  }
+}

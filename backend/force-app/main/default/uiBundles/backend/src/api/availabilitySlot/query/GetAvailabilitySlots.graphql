@@ -1,0 +1,42 @@
+query GetAvailabilitySlots(
+  $userId: ID
+  $dayOfWeek: Picklist
+  $type: Picklist
+  $isActive: Boolean
+  $first: Int
+) {
+  uiapi {
+    query {
+      AvailabilitySlot__c(
+        where: {
+          and: [
+            { User__c: { eq: $userId } }
+            { DayOfWeek__c: { eq: $dayOfWeek } }
+            { Type__c: { eq: $type } }
+            { IsActive__c: { eq: $isActive } }
+          ]
+        }
+        first: $first
+        orderBy: { DayOfWeek__c: { order: ASC }, StartTime__c: { order: ASC } }
+      ) {
+        edges {
+          node {
+            Id
+            Name @optional { value }
+            User__c @optional { value }
+            DayOfWeek__c @optional { value }
+            StartTime__c @optional { value }
+            EndTime__c @optional { value }
+            Type__c @optional { value }
+            IsActive__c @optional { value }
+            ValidFrom__c @optional { value }
+            ValidTo__c @optional { value }
+            CreatedDate @optional { value }
+            LastModifiedDate @optional { value }
+            User__r @optional { Name @optional { value } }
+          }
+        }
+      }
+    }
+  }
+}

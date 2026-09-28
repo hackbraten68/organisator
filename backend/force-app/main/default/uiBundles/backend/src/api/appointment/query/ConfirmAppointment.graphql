@@ -1,0 +1,13 @@
+mutation ConfirmAppointment($id: IdOrRef!, $confirmedAt: DateTime!) {
+  uiapi {
+    Appointment__cUpdate(input: {
+      Id: $id
+      Appointment__c: {
+        Status__c: "Confirmed"
+        ConfirmedAt__c: $confirmedAt
+      }
+    }) {
+      Record { Id }
+    }
+  }
+}

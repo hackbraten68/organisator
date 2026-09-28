@@ -1,0 +1,20 @@
+mutation RescheduleAppointment(
+  $id: IdOrRef!
+  $startTime: DateTime!
+  $endTime: DateTime!
+  $correlationId: String
+) {
+  uiapi {
+    Appointment__cUpdate(input: {
+      Id: $id
+      Appointment__c: {
+        Status__c: "Finding"
+        StartTime__c: $startTime
+        EndTime__c: $endTime
+        CorrelationId__c: $correlationId
+      }
+    }) {
+      Record { Id }
+    }
+  }
+}

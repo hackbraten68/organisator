@@ -1,0 +1,13 @@
+mutation CompleteAppointment($id: IdOrRef!, $completedAt: DateTime!) {
+  uiapi {
+    Appointment__cUpdate(input: {
+      Id: $id
+      Appointment__c: {
+        Status__c: "Completed"
+        CompletedAt__c: $completedAt
+      }
+    }) {
+      Record { Id }
+    }
+  }
+}
