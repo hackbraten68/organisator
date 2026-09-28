@@ -310,7 +310,7 @@ export default function ParticipantPage() {
                     <TabsTrigger value="termine">Termine</TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="uebersicht" className="space-y-6">
+                  <TabsContent value="uebersicht" className="grid gap-6 lg:grid-cols-2">
                     <ParticipantSummaryCard
                       participant={participant}
                       programs={programs}
