@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
-import { AlertCircle, Users } from "lucide-react";
+import { AlertCircle, Users, Menu } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { PageContainer, PageHeader } from "@/components/ui/layout";
@@ -289,6 +291,30 @@ export default function ParticipantPage() {
               />
             </aside>
 
+            <div className="lg:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" className="w-full mb-4">
+                    <Menu className="size-4 mr-2" />
+                    Teilnehmer: {participant?.name ?? "Auswählen"}
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-80 p-0">
+                  <SheetHeader className="p-4 border-b">
+                    <SheetTitle>Teilnehmer</SheetTitle>
+                  </SheetHeader>
+                  <div className="h-[calc(100vh-80px)] overflow-y-auto">
+                    <ParticipantListCard
+                      participants={visibleParticipants}
+                      counts={counts}
+                      effectiveSelectedId={effectiveSelectedId}
+                      onSelect={handleParticipantChange}
+                    />
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+
             {participant ? (
               <div className="min-w-0">
                 <ParticipantStickyHeader
@@ -303,12 +329,12 @@ export default function ParticipantPage() {
                   value={tab}
                   onValueChange={(value) => handleTabChange(value as ParticipantTab)}
                 >
-                  <TabsList variant="line" className="mb-4">
-                    <TabsTrigger value="uebersicht" aria-label="Übersicht anzeigen">Übersicht</TabsTrigger>
-                    <TabsTrigger value="verlauf" aria-label="Verlauf anzeigen">Verlauf</TabsTrigger>
-                    <TabsTrigger value="lernpfad" aria-label="Lernpfad anzeigen">Lernpfad</TabsTrigger>
-                    <TabsTrigger value="abwesenheiten" aria-label="Abwesenheiten anzeigen">Abwesenheiten</TabsTrigger>
-                    <TabsTrigger value="termine" aria-label="Termine anzeigen">Termine</TabsTrigger>
+                  <TabsList variant="line" className="mb-4 overflow-x-auto flex-nowrap pb-1 -mb-1">
+                    <TabsTrigger value="uebersicht" aria-label="Übersicht anzeigen" className="flex-shrink-0">Übersicht</TabsTrigger>
+                    <TabsTrigger value="verlauf" aria-label="Verlauf anzeigen" className="flex-shrink-0">Verlauf</TabsTrigger>
+                    <TabsTrigger value="lernpfad" aria-label="Lernpfad anzeigen" className="flex-shrink-0">Lernpfad</TabsTrigger>
+                    <TabsTrigger value="abwesenheiten" aria-label="Abwesenheiten anzeigen" className="flex-shrink-0">Abwesenheiten</TabsTrigger>
+                    <TabsTrigger value="termine" aria-label="Termine anzeigen" className="flex-shrink-0">Termine</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="uebersicht" className={`grid gap-6 ${getCompletion(participant).state === "ready" ? "" : "lg:grid-cols-2"}`}>
@@ -391,7 +417,7 @@ export default function ParticipantPage() {
 
 function ParticipantPageSkeleton() {
   return (
-    <div className="grid gap-6 lg:grid-cols-[480px_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[384px_1fr]">
       <Card>
         <CardHeader>
           <Skeleton className="h-6 w-32" />
