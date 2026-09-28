@@ -311,7 +311,7 @@ export default function ParticipantPage() {
                     <TabsTrigger value="termine" aria-label="Termine anzeigen">Termine</TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="uebersicht" className="grid gap-6 lg:grid-cols-2">
+                  <TabsContent value="uebersicht" className={`grid gap-6 ${getCompletion(participant).state === "ready" ? "" : "lg:grid-cols-2"}`}>
                     <ParticipantSummaryCard
                       participant={participant}
                       programs={programs}
