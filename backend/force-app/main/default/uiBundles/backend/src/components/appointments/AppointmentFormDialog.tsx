@@ -94,147 +94,154 @@ export function AppointmentFormDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="pb-4">
+          <DialogTitle className="text-h2">{title}</DialogTitle>
+          <p className="text-small text-muted-foreground">Erstellen Sie einen neuen Termin für den Teilnehmer.</p>
         </DialogHeader>
-        <form id="appointment-form" onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="participantId">Teilnehmer *</Label>
-              <Input
-                id="participantId"
-                value={participantId}
-                onChange={(e) => setParticipantId(e.target.value)}
-                className={errors.participantId ? "border-destructive" : ""}
-                placeholder="Teilnehmer ID"
-                required
-              />
-              {errors.participantId && <p className="text-sm text-destructive" role="alert">{errors.participantId}</p>}
+        <form id="appointment-form" onSubmit={handleSubmit} className="space-y-6">
+          <fieldset className="space-y-4">
+            <legend className="text-h4 font-medium">Grunddaten</legend>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="participantId">Teilnehmer *</Label>
+                <Input
+                  id="participantId"
+                  value={participantId}
+                  onChange={(e) => setParticipantId(e.target.value)}
+                  className={errors.participantId ? "border-destructive" : ""}
+                  placeholder="Teilnehmer ID"
+                  required
+                />
+                {errors.participantId && <p className="text-caption text-destructive" role="alert">{errors.participantId}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="coachId">Coach *</Label>
+                <Select value={coachId} onValueChange={(v) => setCoachId(v)}>
+                  <SelectTrigger id="coachId">
+                    <SelectValue placeholder="Coach wählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableCoaches.length === 0 && (
+                      <SelectItem value="__none" disabled>
+                        Keine Coaches verfügbar
+                      </SelectItem>
+                    )}
+                    {availableCoaches.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.coachId && <p className="text-caption text-destructive" role="alert">{errors.coachId}</p>}
+              </div>
             </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="type">Typ *</Label>
+                <Select value={type} onValueChange={(v: AppointmentType) => setType(v)}>
+                  <SelectTrigger id="type">
+                    <SelectValue placeholder="Typ wählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {appointmentTypes.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select value={status} onValueChange={(v: AppointmentStatus) => setStatus(v)}>
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Status wählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {appointmentStatuses.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s === "Draft" ? "Entwurf" : s === "Finding" ? "Terminfindung" : s === "Confirmed" ? "Bestätigt" : s === "Completed" ? "Durchgeführt" : s === "Documented" ? "Dokumentiert" : s === "Cancelled" ? "Abgesagt" : "Nicht erschienen"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </fieldset>
 
-            <div className="grid gap-2">
-              <Label htmlFor="coachId">Coach *</Label>
-              <Select value={coachId} onValueChange={(v) => setCoachId(v)}>
-                <SelectTrigger id="coachId">
-                  <SelectValue placeholder="Coach wählen" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCoaches.length === 0 && (
-                    <SelectItem value="__none" disabled>
-                      Keine Coaches verfügbar
-                    </SelectItem>
-                  )}
-                  {availableCoaches.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.coachId && <p className="text-sm text-destructive" role="alert">{errors.coachId}</p>}
+          <fieldset className="space-y-4">
+            <legend className="text-h4 font-medium">Zeit & Ort</legend>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="startTime">Von *</Label>
+                <Input
+                  id="startTime"
+                  type="datetime-local"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className={errors.startTime ? "border-destructive" : ""}
+                  aria-invalid={!!errors.startTime}
+                  aria-describedby={errors.startTime ? "startTime-error" : undefined}
+                />
+                {errors.startTime && <p id="startTime-error" className="text-caption text-destructive" role="alert">{errors.startTime}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endTime">Bis *</Label>
+                <Input
+                  id="endTime"
+                  type="datetime-local"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className={errors.endTime ? "border-destructive" : ""}
+                  aria-invalid={!!errors.endTime}
+                  aria-describedby={errors.endTime ? "endTime-error" : undefined}
+                />
+                {errors.endTime && <p id="endTime-error" className="text-caption text-destructive" role="alert">{errors.endTime}</p>}
+              </div>
             </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="location">Ort</Label>
+                <Select value={location} onValueChange={(v: AppointmentLocation) => setLocation(v)}>
+                  <SelectTrigger id="location">
+                    <SelectValue placeholder="Ort wählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {appointmentLocations.map((l) => (
+                      <SelectItem key={l} value={l}>
+                        {l === "OnSite" ? "Vor Ort" : l === "Teams" ? "MS Teams" : l === "Phone" ? "Telefon" : l === "Hybrid" ? "Hybrid" : "Extern"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="meetingLink">Meeting Link</Label>
+                <Input
+                  id="meetingLink"
+                  type="url"
+                  value={meetingLink}
+                  onChange={(e) => setMeetingLink(e.target.value)}
+                  placeholder="https://teams.microsoft.com/..."
+                />
+              </div>
+            </div>
+          </fieldset>
 
-            <div className="grid gap-2">
-              <Label htmlFor="type">Typ *</Label>
-              <Select value={type} onValueChange={(v: AppointmentType) => setType(v)}>
-                <SelectTrigger id="type">
-                  <SelectValue placeholder="Typ wählen" />
-                </SelectTrigger>
-                <SelectContent>
-                  {appointmentTypes.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="status">Status</Label>
-              <Select value={status} onValueChange={(v: AppointmentStatus) => setStatus(v)}>
-                <SelectTrigger id="status">
-                  <SelectValue placeholder="Status wählen" />
-                </SelectTrigger>
-                <SelectContent>
-                  {appointmentStatuses.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s === "Draft" ? "Entwurf" : s === "Finding" ? "Terminfindung" : s === "Confirmed" ? "Bestätigt" : s === "Completed" ? "Durchgeführt" : s === "Documented" ? "Dokumentiert" : s === "Cancelled" ? "Abgesagt" : "Nicht erschienen"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="location">Ort</Label>
-              <Select value={location} onValueChange={(v: AppointmentLocation) => setLocation(v)}>
-                <SelectTrigger id="location">
-                  <SelectValue placeholder="Ort wählen" />
-                </SelectTrigger>
-                <SelectContent>
-                  {appointmentLocations.map((l) => (
-                    <SelectItem key={l} value={l}>
-                      {l === "OnSite" ? "Vor Ort" : l === "Teams" ? "MS Teams" : l === "Phone" ? "Telefon" : l === "Hybrid" ? "Hybrid" : "Extern"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="startTime">Von *</Label>
-              <Input
-                id="startTime"
-                type="datetime-local"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className={errors.startTime ? "border-destructive" : ""}
-                aria-invalid={!!errors.startTime}
-                aria-describedby={errors.startTime ? "startTime-error" : undefined}
-              />
-              {errors.startTime && <p id="startTime-error" className="text-sm text-destructive" role="alert">{errors.startTime}</p>}
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="endTime">Bis *</Label>
-              <Input
-                id="endTime"
-                type="datetime-local"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className={errors.endTime ? "border-destructive" : ""}
-                aria-invalid={!!errors.endTime}
-                aria-describedby={errors.endTime ? "endTime-error" : undefined}
-              />
-              {errors.endTime && <p id="endTime-error" className="text-sm text-destructive" role="alert">{errors.endTime}</p>}
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="meetingLink">Meeting Link (optional)</Label>
-              <Input
-                id="meetingLink"
-                type="url"
-                value={meetingLink}
-                onChange={(e) => setMeetingLink(e.target.value)}
-                placeholder="https://teams.microsoft.com/..."
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="notes">Notizen (optional)</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Notizen zum Termin..."
-                rows={3}
-              />
-            </div>
-          </div>
+          <fieldset>
+            <legend className="text-h4 font-medium">Notizen</legend>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Notizen zum Termin..."
+              rows={4}
+            />
+          </fieldset>
         </form>
-        <DialogFooter>
+        <DialogFooter className="justify-end gap-3 pt-4 border-t">
           <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
             Abbrechen
           </Button>
