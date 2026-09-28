@@ -136,10 +136,11 @@ export const ACTIVITY_PROJECTION_RULES = {
 
   // Verfügbarkeits-Slots: Ressourcen-Daten (User__c), nicht teilnehmergebunden.
   // includeInActivity:false — Slot-Änderungen gehören fachlich nicht in die
-  // Teilnehmer-Historie. Sie werden zentral erfasst und sind über den
-  // Audit-Explorer sichtbar, sobald dieser existiert. Bewusst gesetzt, damit
-  // die Entscheidung dokumentiert ist und nicht versehentlich über
-  // participantId__c in eine Teilnehmer-Timeline rutscht.
+  // Teilnehmer-Historie. Geplanter Betrachter ist ein Coach-Dashboard, das
+  // direkt über Domain__c + ParentId__c abfragt, nicht über eine Timeline.
+  // NICHT auf true setzen, um die Events in Teilnehmer-Timelines zu ziehen:
+  // die Verfügbarkeit eines Coachs ist Betriebsdaten, keine Information über
+  // den Teilnehmer. Details in docs/activity-coverage.md.
   "availability.slot_added": { category: "administration", audiences: STAFF_SUPERVISOR, includeInActivity: false, technical: false },
   "availability.slot_updated": { category: "administration", audiences: STAFF_SUPERVISOR, includeInActivity: false, technical: false },
   "availability.slot_deleted": { category: "administration", audiences: STAFF_SUPERVISOR, includeInActivity: false, technical: false },

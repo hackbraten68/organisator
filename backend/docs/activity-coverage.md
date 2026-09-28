@@ -145,25 +145,50 @@ den organisationsweiten Audit-Explorer, der noch nicht existiert.
 
 ---
 
-## Bekannte Lücken
+## Bekannte Lücken und der geplante Ort dieser Events
 
-1. **Audit-Explorer fehlt.** `getOrganizationAuditEvents()` ist ein Platzhalter und
-   gibt `[]` zurück. Events ohne Teilnehmerbezug — Availability, System, Login —
-   werden zwar erfasst, sind aber derzeit nirgends einsehbar.
-2. **Verfügbarkeits-Events ohne Betrachter.** Nach der Entscheidung, Slot-Events
-   nicht in Teilnehmer-Timelines zu zeigen, sind sie ausschließlich über den
-   Explorer erreichbar. Bis dahin ist die Erfassung eine reine Schreib-Historie.
-3. **Coverage-Lücke unverändert:** Workbook, Classbook, Daily Check-in, Time Entry
-   und System haben Event-Typen, aber keine Produzenten.
+**Geplantes Ziel (Entscheidung 2026-09-29):** Events ohne Teilnehmerbezug werden in
+einer **Coach-Übersicht / einem Coach-Dashboard** angezeigt, später auch im
+Frontend für Teilnehmer. Bis dahin gibt es dafür keine Abfrage.
+
+Damit das kein Archäologie-Aufwand wird, hier der Ausgangspunkt:
+
+| Baustein | Status |
+|----------|--------|
+| `Domain__c` = `availability` | ✅ im Picklist vorhanden |
+| `ParentType__c` / `ParentId__c` (Text, 80) | ✅ vorhanden, in UIAPI filterbar |
+| Zuordnung Coach → Slot-Events | ✅ in `parentType: "User"`, `parentId: <User-Id>` |
+| Query: Domain + Parent filtern | ❌ existiert nicht |
+| `getOrganizationAuditEvents()` | ⚠️ Platzhalter, gibt `[]` zurück |
+| Sichtbarkeit | `visibility: staff`, `sensitivity: normal` |
+
+Eine Coach-Dashboard-Query braucht also nur noch:
+
+```graphql
+AuditEvent__c(
+  where: { and: [
+    { Domain__c: { eq: "availability" } }
+    { ParentId__c: { eq: $coachUserId } }
+  ] }
+  orderBy: { OccurredAt__c: { order: DESC } }
+)
+```
+
+**Zur späteren Teilnehmer-Sicht:** die Verfügbarkeit eines Coachs ist
+Personal- bzw. Betriebsdaten, keine Information über den Teilnehmer. Die
+Projektionsregeln schließen die Events deshalb bewusst aus, und `visibility`
+steht auf `staff`. Eine Teilnehmeransicht müsste das bewusst entscheiden —
+die Regel „Projection erweitert niemals den Zugriff" gilt unverändert, aber ein
+bewusster Beschluss ist etwas anderes als eine stillschweigende Folge.
 
 ---
 
 ## Nächste Schritte
 
-1. **RC2-B:** Absence verdrahten + Tests
-2. **RC2-C:** Appointment verdrahten + Tests
-3. **RC2-D:** Availability integrieren + Tests
-4. **RC2-E:** Correlation-ID überall setzen
+1. **Deploy** nach `backendtest`: erst `Domain__c` (Metadaten), dann das UI-Bundle
+2. **Live-Check:** Termin anlegen, Verlauf prüfen
+3. **E2E-Spec** ausführen (unverifiziert seit dem Formular-Umbau)
+4. **Coach-Dashboard-Query** für `Domain__c` + `ParentId__c`
 5. **RC2-F:** Workbook/Classbook/Daily Check-in/Time Entry
 6. **RC2-G:** Feed-Relevanz feinjustieren
 7. **RC2-H:** Shepherd.js Onboarding
@@ -172,9 +197,10 @@ den organisationsweiten Audit-Explorer, der noch nicht existiert.
 
 ## Definition of Done für RC2
 
-- [ ] `docs/activity-coverage.md` vorhanden
-- [ ] Alle vorhandenen Audit-Integrationen aktiv (Participant, Learning Path, Appointment, Absence, Availability)
-- [ ] Coverage-Tests vorhanden (Business-Action → Activity-Event)
-- [ ] Correlation-ID in allen Mutationen
-- [ ] Keine Business-Mutation ohne Event
+- [x] `docs/activity-coverage.md` vorhanden
+- [x] Alle vorhandenen Audit-Integrationen aktiv (Participant, Learning Path, Appointment, Absence, Availability)
+- [x] Coverage-Tests vorhanden (Business-Action → Activity-Event)
+- [x] Correlation-ID in allen Mutationen
+- [x] Keine Business-Mutation ohne Event (außer den noch nicht gebauten Domänen unten)
 - [ ] Activity Feed zeigt alle relevanten Nutzeraktionen
+- [ ] Events ohne Teilnehmerbezug sind über die Oberfläche erreichbar (Coach-Dashboard)
