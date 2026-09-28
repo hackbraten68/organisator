@@ -1,15 +1,14 @@
 mutation UpdateAppointment(
   $id: IdOrRef!
   $coachId: IdOrRef
-  $staffId: IdOrRef
   $type: Picklist
   $status: Picklist
   $startTime: DateTime
   $endTime: DateTime
   $location: Picklist
-  $meetingLink: String
-  $notes: String
-  $cancellationReason: String
+  $meetingLink: Url
+  $notes: LongTextArea
+  $cancellationReason: LongTextArea
   $correlationId: String
   $confirmedAt: DateTime
   $completedAt: DateTime
@@ -19,7 +18,6 @@ mutation UpdateAppointment(
       Id: $id
       Appointment__c: {
         Coach__c: $coachId
-        Staff__c: $staffId
         Type__c: $type
         Status__c: $status
         StartTime__c: $startTime

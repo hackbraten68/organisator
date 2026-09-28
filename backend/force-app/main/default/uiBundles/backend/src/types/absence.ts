@@ -34,8 +34,10 @@ export interface Absence {
   reason?: string;                 // Optional, sensitiv - Audit redaktioniert
   approvedById?: string;
   approvedByName?: string;
-  approvedAt?: string;             // ISO datetime
-  rejectedAt?: string;             // ISO datetime
+  approvedAt?: string;             // ISO datetime (serverseitig gesetzt)
+  rejectedById?: string;
+  rejectedByName?: string;
+  rejectedAt?: string;             // ISO datetime (serverseitig gesetzt)
   coachComment?: string;           // Begründung bei Ablehnung
   createdAt: string;
   updatedAt: string;
@@ -56,9 +58,6 @@ export interface AbsencePatch {
   startDate?: string;
   endDate?: string;
   reason?: string;
-  approvedById?: string;
-  approvedAt?: string;
-  rejectedAt?: string;
   coachComment?: string;
 }
 

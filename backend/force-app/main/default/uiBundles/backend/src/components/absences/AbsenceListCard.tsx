@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { Calendar, XCircle, CheckCircle, AlertCircle, FileText } from "lucide-react";
+import { Calendar, XCircle, CheckCircle, AlertCircle, FileText, Thermometer, Sun, Building, Briefcase, Landmark, FileText as FileTextIcon, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Absence } from "@/types/absence";
@@ -12,12 +12,12 @@ const STATUS_STYLES: Record<Absence["status"], { variant: "default" | "secondary
 };
 
 const TYPE_ICONS: Record<Absence["type"], React.ReactNode> = {
-  Krank: <span className="text-red-500" aria-label="Krank">🤒</span>,
-  Urlaub: <span className="text-blue-500" aria-label="Urlaub">🏖️</span>,
-  Berufsschule: <span className="text-purple-500" aria-label="Berufsschule">🏫</span>,
-  Praktikum: <span className="text-green-500" aria-label="Praktikum">💼</span>,
-  Behörde: <span className="text-orange-500" aria-label="Behörde">🏛️</span>,
-  Sonstiges: <span className="text-gray-500" aria-label="Sonstiges">📝</span>,
+  Krank: <Thermometer className="size-4 text-red-500" aria-label="Krank" />,
+  Urlaub: <Sun className="size-4 text-blue-500" aria-label="Urlaub" />,
+  Berufsschule: <Building className="size-4 text-purple-500" aria-label="Berufsschule" />,
+  Praktikum: <Briefcase className="size-4 text-green-500" aria-label="Praktikum" />,
+  Behörde: <Landmark className="size-4 text-orange-500" aria-label="Behörde" />,
+  Sonstiges: <FileTextIcon className="size-4 text-gray-500" aria-label="Sonstiges" />,
 };
 
 interface AbsenceListCardProps {
@@ -87,7 +87,10 @@ export function AbsenceListCard({
                 {formatDate(absence.startDate)} – {formatDate(absence.endDate)}
               </span>
               {absence.participantName && (
-                <span className="truncate max-w-xs">👤 {absence.participantName}</span>
+                <span className="truncate max-w-xs flex items-center gap-1">
+                  <User className="size-3.5" />
+                  {absence.participantName}
+                </span>
               )}
             </div>
 
@@ -103,6 +106,12 @@ export function AbsenceListCard({
               </div>
             )}
 
+            {absence.rejectedByName && (
+              <div className="mt-2 text-xs text-muted-foreground">
+                Abgelehnt von {absence.rejectedByName} am {formatDate(absence.rejectedAt || "")}
+              </div>
+            )}
+
             {absence.coachComment && (
               <div className="mt-2 text-sm text-destructive/80 bg-destructive/5 p-2 rounded">
                 Ablehnungsgrund: {absence.coachComment}
@@ -111,7 +120,7 @@ export function AbsenceListCard({
           </div>
 
           {showActions && (
-            <div className="flex flex-col gap-1.5 ml-2">
+            <div className="flex flex-row flex-wrap gap-2 ml-2 mt-2 pt-2 border-t border-border">
               {canApprove && (
                 <button
                   onClick={() => onApprove?.(absence.id)}

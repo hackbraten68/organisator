@@ -1,6 +1,8 @@
 import { useState } from "react";
 import {
   AlertCircle,
+  AlertTriangle,
+  CheckCircle,
   ChevronDown,
   ChevronUp,
   ListOrdered,
@@ -188,9 +190,9 @@ export default function ParticipantLearningPath({
           !error &&
           durationWeeks !== undefined && (
             <div className="pt-1">
-              <Badge variant={overCapacity ? "destructive" : "secondary"}>
+              <Badge variant={overCapacity ? "destructive" : "secondary"} className="gap-1">
                 Curriculum Capacity: {plannedWeeks} / {durationWeeks} weeks
-                {overCapacity ? " ⚠️" : " ✅"}
+                {overCapacity ? <AlertTriangle className="size-3.5" /> : <CheckCircle className="size-3.5" />}
               </Badge>
             </div>
           )}

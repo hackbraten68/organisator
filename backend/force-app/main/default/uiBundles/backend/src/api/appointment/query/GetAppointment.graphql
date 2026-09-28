@@ -8,7 +8,6 @@ query GetAppointment($id: ID!) {
             Name @optional { value }
             Participant__c @optional { value }
             Coach__c @optional { value }
-            Staff__c @optional { value }
             Type__c @optional { value }
             Status__c @optional { value }
             StartTime__c @optional { value }
@@ -24,7 +23,6 @@ query GetAppointment($id: ID!) {
             LastModifiedDate @optional { value }
             Participant__r @optional { Name @optional { value } }
             Coach__r @optional { Name @optional { value } }
-            Staff__r @optional { Name @optional { value } }
           }
         }
       }

@@ -24,7 +24,6 @@ interface AppointmentNode {
   Name?: ScalarValue<string>;
   Participant__c?: ScalarValue<string>;
   Coach__c?: ScalarValue<string>;
-  Staff__c?: ScalarValue<string>;
   Type__c?: ScalarValue<string>;
   Status__c?: ScalarValue<string>;
   StartTime__c?: ScalarValue<string>;
@@ -40,7 +39,6 @@ interface AppointmentNode {
   LastModifiedDate?: ScalarValue<string>;
   Participant__r?: { Name?: ScalarValue<string> } | null;
   Coach__r?: { Name?: ScalarValue<string> } | null;
-  Staff__r?: { Name?: ScalarValue<string> } | null;
 }
 
 interface AvailabilitySlotNode {
@@ -100,8 +98,6 @@ function mapGqlToAppointment(node: any): Appointment {
     participantName: node.Participant__r?.Name?.value,
     coachId: node.Coach__c?.value,
     coachName: node.Coach__r?.Name?.value,
-    staffId: node.Staff__c?.value,
-    staffName: node.Staff__r?.Name?.value,
     type: node.Type__c?.value as Appointment["type"],
     status: node.Status__c?.value as Appointment["status"],
     startTime: node.StartTime__c?.value || "",
@@ -141,11 +137,10 @@ function buildAppointmentWhereFilter(filters: AppointmentFilters): any {
 
   if (filters.participantId) conditions.push({ Participant__c: { eq: filters.participantId } });
   if (filters.coachId) conditions.push({ Coach__c: { eq: filters.coachId } });
-  if (filters.staffId) conditions.push({ Staff__c: { eq: filters.staffId } });
   if (filters.status) conditions.push({ Status__c: { eq: filters.status } });
   if (filters.type) conditions.push({ Type__c: { eq: filters.type } });
-  if (filters.startTimeFrom) conditions.push({ StartTime__c: { gte: filters.startTimeFrom } });
-  if (filters.startTimeTo) conditions.push({ StartTime__c: { lte: filters.startTimeTo } });
+  if (filters.startTimeFrom) conditions.push({ StartTime__c: { gte: { value: filters.startTimeFrom } } });
+  if (filters.startTimeTo) conditions.push({ StartTime__c: { lte: { value: filters.startTimeTo } } });
 
   if (conditions.length === 0) return undefined;
   if (conditions.length === 1) return conditions[0];
@@ -204,7 +199,6 @@ export async function createAppointment(input: AppointmentInput): Promise<string
   const response = await executeGraphQL<MutationResponse, {
     participantId: string;
     coachId?: string;
-    staffId?: string;
     type: string;
     status: string;
     startTime: string;
@@ -216,7 +210,6 @@ export async function createAppointment(input: AppointmentInput): Promise<string
   }>(CREATE_APPOINTMENT_RAW, {
     participantId: input.participantId,
     coachId: input.coachId,
-    staffId: input.staffId,
     type: input.type,
     status: input.status || "Draft",
     startTime: input.startTime,
@@ -232,7 +225,6 @@ export async function createAppointment(input: AppointmentInput): Promise<string
 export async function updateAppointment(id: string, patch: AppointmentPatch): Promise<void> {
   const vars: Record<string, any> = { id };
   if (patch.coachId !== undefined) vars.coachId = patch.coachId;
-  if (patch.staffId !== undefined) vars.staffId = patch.staffId;
   if (patch.type !== undefined) vars.type = patch.type;
   if (patch.status !== undefined) vars.status = patch.status;
   if (patch.startTime !== undefined) vars.startTime = patch.startTime;

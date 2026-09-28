@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Destructive changes, die NACH dem Deploy der stafffreien Anwendungsversion
+  ausgefuehrt werden (Expand-and-Contract).
+
+  Reihenfolge zwingend einhalten:
+    1. sf project deploy start --manifest manifest/package.xml \
+         --post-destructive-changes manifest/destructiveChangesPost.xml
+    2. Smoke-Test (Termin anlegen/bearbeiten/verschieben/absagen)
+    3. Erst dann ist Staff__c geloescht; die App sendet keine Staff-Felder mehr.
+
+  API-Version muss zu sfdx-project.json (sourceApiVersion) passen.
+-->
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>Appointment__c.Staff__c</members>
+        <name>CustomField</name>
+    </types>
+    <version>67.0</version>
+</Package>

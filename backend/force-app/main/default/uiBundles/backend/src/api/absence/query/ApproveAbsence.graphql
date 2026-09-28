@@ -1,11 +1,9 @@
-mutation ApproveAbsence($id: IdOrRef!, $approvedById: IdOrRef!, $approvedAt: DateTime!) {
+mutation ApproveAbsence($id: IdOrRef!) {
   uiapi {
     Absence__cUpdate(input: {
       Id: $id
       Absence__c: {
         Status__c: "Approved"
-        ApprovedBy__c: $approvedById
-        ApprovedAt__c: $approvedAt
       }
     }) {
       Record {

@@ -1,0 +1,4 @@
+Id,Name,Coach__c,Coach__r.Name,Staff__c,Staff__r.Name,Type__c,Status__c,StartTime__c
+a0C9b0000Kx5LFtEQM,TERM-0000,,,,,Coaching,Confirmed,2026-09-30T10:00:00.000+0000
+a0C9b0000Kx6a28EQA,TERM-0001,,,,,CheckIn,Draft,2026-10-02T14:00:00.000+0000
+a0C9b0000Kx9P4eEQE,TERM-0002,0059b00000gUfkFAAS,Sam Dillenburg,,,Coaching,Draft,2026-10-01T09:00:00.000+0000

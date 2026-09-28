@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { AlertCircle, Users } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -16,6 +16,7 @@ import ParticipantStickyHeader from "@/components/participants/ParticipantSticky
 import ParticipantSummaryCard from "@/components/participants/ParticipantSummaryCard";
 import OnboardingChecklist from "@/components/participants/OnboardingChecklist";
 import { ParticipantAbsencesTab } from "@/components/absences";
+import { ParticipantAppointmentsTab } from "@/components/appointments";
 import {
   getCompletion,
   getOnboardingCounts,
@@ -31,9 +32,20 @@ import { type Participant } from "@/types/participant";
 
 const NONE = "__none";
 
-type ParticipantTab = "uebersicht" | "verlauf" | "lernpfad" | "abwesenheiten";
+type ParticipantTab =
+  | "uebersicht"
+  | "verlauf"
+  | "lernpfad"
+  | "abwesenheiten"
+  | "termine";
 
-const PARTICIPANT_TABS: ParticipantTab[] = ["uebersicht", "verlauf", "lernpfad", "abwesenheiten"];
+const PARTICIPANT_TABS: ParticipantTab[] = [
+  "uebersicht",
+  "verlauf",
+  "lernpfad",
+  "abwesenheiten",
+  "termine",
+];
 
 function tabFromParams(params: URLSearchParams): ParticipantTab {
   const tab = params.get("tab");
@@ -110,18 +122,23 @@ export default function ParticipantPage() {
     participants.some((p) => p.id === routeParticipantId)
       ? routeParticipantId
       : null;
-  if (
+  // Side effects (ref write + toast) must not run during render, so the
+  // "unknown id" notice is driven from an effect keyed on the id itself.
+  const unknownRouteId =
     routeParticipantId != null &&
     !loading &&
     participants.length > 0 &&
-    knownRouteId == null &&
-    unknownIdNotified.current !== routeParticipantId
-  ) {
-    unknownIdNotified.current = routeParticipantId;
+    knownRouteId == null
+      ? routeParticipantId
+      : null;
+  useEffect(() => {
+    if (unknownRouteId == null) return;
+    if (unknownIdNotified.current === unknownRouteId) return;
+    unknownIdNotified.current = unknownRouteId;
     toast.error("Teilnehmer nicht gefunden", {
       description: "Es wird der erste Teilnehmer der Liste gezeigt.",
     });
-  }
+  }, [unknownRouteId]);
   const effectiveSelectedId =
     knownRouteId ??
     visibleParticipants[0]?.id ??
@@ -306,6 +323,7 @@ export default function ParticipantPage() {
                 <TabsTrigger value="verlauf">Verlauf</TabsTrigger>
                 <TabsTrigger value="lernpfad">Lernpfad</TabsTrigger>
                 <TabsTrigger value="abwesenheiten">Abwesenheiten</TabsTrigger>
+                <TabsTrigger value="termine">Termine</TabsTrigger>
               </TabsList>
 
                 <TabsContent value="uebersicht" className="space-y-6">
@@ -351,7 +369,17 @@ export default function ParticipantPage() {
                     <ParticipantAbsencesTab
                       participantId={participant.id}
                       participantName={participant.name}
-                      isCoachOrStaff={true}
+                      canManage={true}
+                    />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="termine">
+                  {/* Lazy: appointments load only when the tab is opened. */}
+                  {tab === "termine" && (
+                    <ParticipantAppointmentsTab
+                      participantId={participant.id}
+                      participantName={participant.name}
                     />
                   )}
                 </TabsContent>

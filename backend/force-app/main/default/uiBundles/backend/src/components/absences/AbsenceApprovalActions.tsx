@@ -12,7 +12,6 @@ interface AbsenceApprovalActionsProps {
   absenceId: string;
   status: "Submitted" | "Approved" | "Rejected" | "Cancelled";
   onStatusChange: (newStatus: string) => void;
-  currentUserId: string;
   isLoading?: boolean;
 }
 
@@ -20,7 +19,6 @@ export function AbsenceApprovalActions({
   absenceId,
   status,
   onStatusChange,
-  currentUserId,
   isLoading = false,
 }: AbsenceApprovalActionsProps) {
   const [rejectComment, setRejectComment] = useState("");
@@ -29,7 +27,7 @@ export function AbsenceApprovalActions({
   const handleApprove = async () => {
     setActionLoading("approve");
     try {
-      await approveAbsence(absenceId, currentUserId);
+      await approveAbsence(absenceId);
       toast.success("Abwesenheit genehmigt");
       onStatusChange("Approved");
     } catch (err) {

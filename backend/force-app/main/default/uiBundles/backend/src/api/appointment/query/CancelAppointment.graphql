@@ -1,4 +1,4 @@
-mutation CancelAppointment($id: IdOrRef!, $cancellationReason: String) {
+mutation CancelAppointment($id: IdOrRef!, $cancellationReason: LongTextArea) {
   uiapi {
     Appointment__cUpdate(input: {
       Id: $id

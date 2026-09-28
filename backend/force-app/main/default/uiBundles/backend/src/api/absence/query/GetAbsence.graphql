@@ -14,6 +14,7 @@ query GetAbsence($id: ID!) {
             Reason__c @optional { value }
             ApprovedBy__c @optional { value }
             ApprovedAt__c @optional { value }
+            RejectedBy__c @optional { value }
             RejectedAt__c @optional { value }
             CoachComment__c @optional { value }
             CreatedDate @optional { value }
@@ -22,6 +23,9 @@ query GetAbsence($id: ID!) {
               Name @optional { value }
             }
             ApprovedBy__r @optional {
+              Name @optional { value }
+            }
+            RejectedBy__r @optional {
               Name @optional { value }
             }
           }

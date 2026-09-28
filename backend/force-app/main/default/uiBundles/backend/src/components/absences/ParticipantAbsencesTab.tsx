@@ -26,10 +26,10 @@ const STATUS_STYLES: Record<Absence["status"], { variant: "default" | "secondary
 interface ParticipantAbsencesTabProps {
   participantId: string;
   participantName?: string;
-  isCoachOrStaff?: boolean;
+  canManage?: boolean;
 }
 
-export function ParticipantAbsencesTab({ participantId, participantName, isCoachOrStaff = false }: ParticipantAbsencesTabProps) {
+export function ParticipantAbsencesTab({ participantId, participantName, canManage = false }: ParticipantAbsencesTabProps) {
   const { actor } = useAuditActorInit();
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +68,7 @@ export function ParticipantAbsencesTab({ participantId, participantName, isCoach
   };
 
   const handleApprove = async (id: string) => {
-    await approveAbsence(id, actor?.id || "");
+    await approveAbsence(id);
     toast.success("Genehmigt");
     fetchAbsences();
   };
@@ -152,7 +152,7 @@ const handleStatusChange = (_newStatus: string) => {
             )}
           </div>
 
-          {isCoachOrStaff && (
+          {canManage && (
             <Button onClick={() => setShowForm(true)}>
               <Plus className="size-4 mr-2" />
               Neu melden
@@ -171,9 +171,9 @@ const handleStatusChange = (_newStatus: string) => {
               <Calendar className="size-12 mx-auto text-muted-foreground/50 mb-3" />
               <h3 className="text-lg font-medium mb-1">Keine Abwesenheiten</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                {isCoachOrStaff ? "Erstellen Sie die erste Abwesenheitsmeldung" : "Für diesen Teilnehmer liegen noch keine Abwesenheiten vor"}
+                {canManage ? "Erstellen Sie die erste Abwesenheitsmeldung" : "Für diesen Teilnehmer liegen noch keine Abwesenheiten vor"}
               </p>
-              {isCoachOrStaff && (
+              {canManage && (
                 <Button onClick={() => setShowForm(true)}>
                   <Plus className="size-4 mr-2" />
                   Erste Abwesenheit melden
@@ -186,11 +186,11 @@ const handleStatusChange = (_newStatus: string) => {
             <AbsenceListCard
               key={absence.id}
               absence={absence}
-              onApprove={isCoachOrStaff ? handleApprove : undefined}
-              onReject={isCoachOrStaff ? handleReject : undefined}
-              onCancel={isCoachOrStaff ? handleCancel : undefined}
+              onApprove={canManage ? handleApprove : undefined}
+              onReject={canManage ? handleReject : undefined}
+              onCancel={canManage ? handleCancel : undefined}
               onViewDocuments={() => setViewDocumentsFor(absence.id)}
-              showActions={isCoachOrStaff}
+              showActions={canManage}
             />
           ))
         )}
@@ -222,7 +222,7 @@ const handleStatusChange = (_newStatus: string) => {
       </Dialog>
 
       {/* Detail view with approval actions for coaches */}
-      {isCoachOrStaff && (
+      {canManage && (
         <Dialog open={!!editingAbsence} onOpenChange={(open) => !open && setEditingAbsence(null)}>
           <DialogContent className="max-w-lg max-h-[80vh]">
             <DialogHeader>
@@ -252,7 +252,6 @@ const handleStatusChange = (_newStatus: string) => {
                   absenceId={editingAbsence.id}
                   status={editingAbsence.status}
                   onStatusChange={handleStatusChange}
-                  currentUserId={actor?.id || ""}
                 />
                 <Separator />
                 <Button onClick={() => { setViewDocumentsFor(editingAbsence!.id); setEditingAbsence(null); }}>

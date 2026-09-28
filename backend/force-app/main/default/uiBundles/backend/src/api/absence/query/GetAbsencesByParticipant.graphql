@@ -18,6 +18,7 @@ query GetAbsencesByParticipant($participantId: ID!, $first: Int) {
             Reason__c @optional { value }
             ApprovedBy__c @optional { value }
             ApprovedAt__c @optional { value }
+            RejectedBy__c @optional { value }
             RejectedAt__c @optional { value }
             CoachComment__c @optional { value }
             CreatedDate @optional { value }

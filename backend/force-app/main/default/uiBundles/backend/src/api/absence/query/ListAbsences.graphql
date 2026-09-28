@@ -2,8 +2,8 @@ query ListAbsences(
   $participantId: ID
   $status: Picklist
   $type: Picklist
-  $startDateFrom: Date
-  $startDateTo: Date
+  $startDateFrom: DateInput
+  $startDateTo: DateInput
   $first: Int
   $after: String
 ) {
@@ -35,6 +35,7 @@ query ListAbsences(
             Reason__c @optional { value }
             ApprovedBy__c @optional { value }
             ApprovedAt__c @optional { value }
+            RejectedBy__c @optional { value }
             RejectedAt__c @optional { value }
             CoachComment__c @optional { value }
             CreatedDate @optional { value }
@@ -43,6 +44,9 @@ query ListAbsences(
               Name @optional { value }
             }
             ApprovedBy__r @optional {
+              Name @optional { value }
+            }
+            RejectedBy__r @optional {
               Name @optional { value }
             }
           }

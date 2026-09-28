@@ -105,6 +105,11 @@ const config = [
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
       'react-hooks/set-state-in-effect': 'warn',
+      // The base rule flags TypeScript function overloads (one implementation
+      // plus several declaration signatures) as redeclarations. The
+      // TS-aware rule understands them and is the documented replacement.
+      'no-redeclare': 'off',
+      '@typescript-eslint/no-redeclare': 'error',
     },
     settings: {
       react: {

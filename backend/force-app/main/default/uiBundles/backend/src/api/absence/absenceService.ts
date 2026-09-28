@@ -28,12 +28,14 @@ interface AbsenceNode {
   Reason__c?: ScalarValue<string>;
   ApprovedBy__c?: ScalarValue<string>;
   ApprovedAt__c?: ScalarValue<string>;
+  RejectedBy__c?: ScalarValue<string>;
   RejectedAt__c?: ScalarValue<string>;
   CoachComment__c?: ScalarValue<string>;
   CreatedDate?: ScalarValue<string>;
   LastModifiedDate?: ScalarValue<string>;
   Participant__r?: { Name?: ScalarValue<string> } | null;
   ApprovedBy__r?: { Name?: ScalarValue<string> } | null;
+  RejectedBy__r?: { Name?: ScalarValue<string> } | null;
 }
 
 interface GetAbsenceResponse {
@@ -126,6 +128,8 @@ function mapGqlToAbsence(node: any): Absence {
     approvedById: node.ApprovedBy__c?.value,
     approvedByName: node.ApprovedBy__r?.Name?.value,
     approvedAt: node.ApprovedAt__c?.value,
+    rejectedById: node.RejectedBy__c?.value,
+    rejectedByName: node.RejectedBy__r?.Name?.value,
     rejectedAt: node.RejectedAt__c?.value,
     coachComment: node.CoachComment__c?.value,
     createdAt: node.CreatedDate?.value || "",
@@ -188,22 +192,17 @@ export async function updateAbsence(id: string, patch: AbsencePatch): Promise<vo
   if (patch.startDate !== undefined) vars.startDate = patch.startDate;
   if (patch.endDate !== undefined) vars.endDate = patch.endDate;
   if (patch.reason !== undefined) vars.reason = patch.reason;
-  if (patch.approvedById !== undefined) vars.approvedById = patch.approvedById;
-  if (patch.approvedAt !== undefined) vars.approvedAt = patch.approvedAt;
-  if (patch.rejectedAt !== undefined) vars.rejectedAt = patch.rejectedAt;
   if (patch.coachComment !== undefined) vars.coachComment = patch.coachComment;
 
   await executeGraphQL<MutationResponse, Record<string, any>>(UPDATE_ABSENCE_RAW, vars);
 }
 
-export async function approveAbsence(id: string, approvedById: string): Promise<void> {
-  const approvedAt = new Date().toISOString();
-  await executeGraphQL<MutationResponse, { id: string; approvedById: string; approvedAt: string }>(APPROVE_ABSENCE_RAW, { id, approvedById, approvedAt });
+export async function approveAbsence(id: string): Promise<void> {
+  await executeGraphQL<MutationResponse, { id: string }>(APPROVE_ABSENCE_RAW, { id });
 }
 
 export async function rejectAbsence(id: string, coachComment: string): Promise<void> {
-  const rejectedAt = new Date().toISOString();
-  await executeGraphQL<MutationResponse, { id: string; rejectedAt: string; coachComment: string }>(REJECT_ABSENCE_RAW, { id, rejectedAt, coachComment });
+  await executeGraphQL<MutationResponse, { id: string; coachComment: string }>(REJECT_ABSENCE_RAW, { id, coachComment });
 }
 
 export async function cancelAbsence(id: string): Promise<void> {

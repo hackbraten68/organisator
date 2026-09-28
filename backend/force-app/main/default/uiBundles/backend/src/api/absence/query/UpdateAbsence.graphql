@@ -5,9 +5,6 @@ mutation UpdateAbsence(
   $startDate: Date
   $endDate: Date
   $reason: String
-  $approvedById: IdOrRef
-  $approvedAt: DateTime
-  $rejectedAt: DateTime
   $coachComment: String
 ) {
   uiapi {
@@ -19,9 +16,6 @@ mutation UpdateAbsence(
         StartDate__c: $startDate
         EndDate__c: $endDate
         Reason__c: $reason
-        ApprovedBy__c: $approvedById
-        ApprovedAt__c: $approvedAt
-        RejectedAt__c: $rejectedAt
         CoachComment__c: $coachComment
       }
     }) {

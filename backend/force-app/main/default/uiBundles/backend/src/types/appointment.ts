@@ -26,8 +26,6 @@ export interface Appointment {
   participantName?: string;
   coachId?: string;
   coachName?: string;
-  staffId?: string;
-  staffName?: string;
   type: AppointmentType;
   status: AppointmentStatus;
   startTime: string;               // ISO datetime
@@ -46,7 +44,6 @@ export interface Appointment {
 export interface AppointmentInput {
   participantId: string;
   coachId?: string;
-  staffId?: string;
   type: AppointmentType;
   status?: AppointmentStatus;      // Default: Draft
   startTime: string;
@@ -59,7 +56,6 @@ export interface AppointmentInput {
 
 export interface AppointmentPatch {
   coachId?: string;
-  staffId?: string;
   type?: AppointmentType;
   status?: AppointmentStatus;
   startTime?: string;
@@ -76,7 +72,6 @@ export interface AppointmentPatch {
 export interface AppointmentFilters {
   participantId?: string;
   coachId?: string;
-  staffId?: string;
   status?: AppointmentStatus;
   type?: AppointmentType;
   startTimeFrom?: string;

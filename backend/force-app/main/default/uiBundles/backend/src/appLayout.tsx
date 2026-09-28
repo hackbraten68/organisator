@@ -50,6 +50,9 @@ export default function AppLayout() {
 	const [mobileOpen, setMobileOpen] = useState(false);
 	const items = getNavigationRoutes();
 	const closeMobileMenu = () => setMobileOpen(false);
+	// Unset in local dev: the embed needs a real Agentforce agent id, and a
+	// placeholder only produces a frontdoor fetch plus CSP noise per load.
+	const agentforceAgentId = import.meta.env.VITE_AGENTFORCE_AGENT_ID;
 	const actorInit = useAuditActorInit();
 	// Login audit waits for actor resolution so the event carries the real
 	// actor (or a picked name) instead of a premature SYSTEM.
@@ -154,7 +157,9 @@ export default function AppLayout() {
 				</main>
 			</div>
 
-			<AgentforceConversationClient agentId="<USER_AGENT_ID_18_CHAR_0Xx...>" />
+			{agentforceAgentId && (
+				<AgentforceConversationClient agentId={agentforceAgentId} />
+			)}
 			<Toaster />
 		</div>
 	);

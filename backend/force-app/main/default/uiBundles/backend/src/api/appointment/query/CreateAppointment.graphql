@@ -1,14 +1,13 @@
 mutation CreateAppointment(
   $participantId: IdOrRef!
   $coachId: IdOrRef
-  $staffId: IdOrRef
   $type: Picklist!
   $status: Picklist
   $startTime: DateTime!
   $endTime: DateTime!
   $location: Picklist
-  $meetingLink: String
-  $notes: String
+  $meetingLink: Url
+  $notes: LongTextArea
   $correlationId: String
 ) {
   uiapi {
@@ -16,7 +15,6 @@ mutation CreateAppointment(
       Appointment__c: {
         Participant__c: $participantId
         Coach__c: $coachId
-        Staff__c: $staffId
         Type__c: $type
         Status__c: $status
         StartTime__c: $startTime
