@@ -124,14 +124,14 @@ export function PaginationControls({
 			<Pagination className="w-full mx-0 sm:justify-end">
 				<PaginationContent>
 					<PaginationItem>
-						<PaginationPrevious
-							role="button"
-							tabIndex={prevDisabled ? -1 : 0}
-							onClick={prevDisabled ? undefined : onPreviousPage}
-							onKeyDown={prevDisabled ? undefined : handleActivationKey(onPreviousPage)}
-							aria-disabled={prevDisabled}
-							className={prevDisabled ? "pointer-events-none opacity-50" : "cursor-pointer"}
-						/>
+					<PaginationPrevious
+						role="button"
+						tabIndex={prevDisabled ? -1 : 0}
+						onClick={prevDisabled ? undefined : onPreviousPage}
+						onKeyDown={prevDisabled ? undefined : handleActivationKey(onPreviousPage)}
+						aria-disabled={prevDisabled}
+						className={prevDisabled ? "pointer-events-none opacity-50" : "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"}
+					/>
 					</PaginationItem>
 
 					{showNumberedPages ? (
@@ -142,17 +142,17 @@ export function PaginationControls({
 								</PaginationItem>
 							) : (
 								<PaginationItem key={token}>
-									<PaginationLink
-										role="button"
-										tabIndex={disabled ? -1 : 0}
-										isActive={token === pageIndex}
-										aria-label={`Go to page ${token + 1}`}
-										aria-current={token === pageIndex ? "page" : undefined}
-										onClick={disabled ? undefined : () => onGoToPage(token)}
-										onKeyDown={disabled ? undefined : handleActivationKey(() => onGoToPage(token))}
-										aria-disabled={disabled}
-										className={disabled ? "pointer-events-none opacity-50" : "cursor-pointer"}
-									>
+								<PaginationLink
+									role="button"
+									tabIndex={disabled ? -1 : 0}
+									isActive={token === pageIndex}
+									aria-label={`Go to page ${token + 1}`}
+									aria-current={token === pageIndex ? "page" : undefined}
+									onClick={disabled ? undefined : () => onGoToPage(token)}
+									onKeyDown={disabled ? undefined : handleActivationKey(() => onGoToPage(token))}
+									aria-disabled={disabled}
+									className={disabled ? "pointer-events-none opacity-50" : "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"}
+								>
 										{token + 1}
 									</PaginationLink>
 								</PaginationItem>
@@ -169,14 +169,14 @@ export function PaginationControls({
 					)}
 
 					<PaginationItem>
-						<PaginationNext
-							role="button"
-							tabIndex={nextDisabled ? -1 : 0}
-							onClick={nextDisabled ? undefined : onNextPage}
-							onKeyDown={nextDisabled ? undefined : handleActivationKey(onNextPage)}
-							aria-disabled={nextDisabled}
-							className={nextDisabled ? "pointer-events-none opacity-50" : "cursor-pointer"}
-						/>
+					<PaginationNext
+						role="button"
+						tabIndex={nextDisabled ? -1 : 0}
+						onClick={nextDisabled ? undefined : onNextPage}
+						onKeyDown={nextDisabled ? undefined : handleActivationKey(onNextPage)}
+						aria-disabled={nextDisabled}
+						className={nextDisabled ? "pointer-events-none opacity-50" : "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"}
+					/>
 					</PaginationItem>
 				</PaginationContent>
 			</Pagination>

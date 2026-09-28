@@ -2,13 +2,15 @@ import { AgentforceConversationClient } from "./components/AgentforceConversatio
 import ThemeToggle from "./components/ThemeToggle";
 import { Link, NavLink, Outlet } from "react-router";
 import { Toaster } from "./components/ui/sonner";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Keyboard } from "lucide-react";
 import { getNavigationRoutes, type NavigationItem } from "./router-utils";
 import { useSessionLoginAudit } from "./hooks/useSessionLoginAudit";
 import { useAuditActorInit } from "./hooks/useAuditActor";
 import { ActorPicker } from "./components/audit/ActorPicker";
 import { SidebarUser } from "./components/audit/SidebarUser";
 import { processOutboxOnce } from "./api/audit/auditOutbox";
+import { KeyboardShortcutsDialog } from "./components/KeyboardShortcutsDialog";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useEffect, useState } from "react";
 
 function navigationLinkClass(isActive: boolean) {
@@ -48,8 +50,18 @@ function NavigationLinks({
 
 export default function AppLayout() {
 	const [mobileOpen, setMobileOpen] = useState(false);
+	const [shortcutsOpen, setShortcutsOpen] = useState(false);
 	const items = getNavigationRoutes();
 	const closeMobileMenu = () => setMobileOpen(false);
+
+	useKeyboardShortcuts([
+		{
+			key: "?",
+			description: "Toggle shortcuts dialog",
+			action: () => setShortcutsOpen((v) => !v),
+			global: true,
+		},
+	]);
 	// Unset in local dev: the embed needs a real Agentforce agent id, and a
 	// placeholder only produces a frontdoor fetch plus CSP noise per load.
 	const agentforceAgentId = import.meta.env.VITE_AGENTFORCE_AGENT_ID;
@@ -68,6 +80,12 @@ export default function AppLayout() {
 
 	return (
 		<div className="min-h-screen bg-background">
+			<a
+				href="#main-content"
+				className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:outline-none"
+			>
+				Zum Hauptinhalt springen
+			</a>
 			<ActorPicker
 				isOpen={actorInit.needsPicker}
 				onChoose={actorInit.chooseUser}
@@ -86,9 +104,17 @@ export default function AppLayout() {
 						<Link to="/" className="text-xl font-semibold text-foreground">
 							Organisator
 						</Link>
-						<div className="ml-auto">
-							<ThemeToggle />
-						</div>
+					<div className="ml-auto flex items-center gap-2">
+						<button
+							onClick={() => setShortcutsOpen(true)}
+							className="p-2 rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+							aria-label="Tastenkürzel anzeigen"
+							title="Tastenkürzel (?)"
+						>
+							<Keyboard className="size-5" aria-hidden="true" />
+						</button>
+						<ThemeToggle />
+					</div>
 					</div>
 				</div>
 			</header>
@@ -152,15 +178,16 @@ export default function AppLayout() {
 					</>
 				)}
 
-				<main className="flex-1 min-w-0">
-					<Outlet />
-				</main>
+			<main id="main-content" className="flex-1 min-w-0">
+				<Outlet />
+			</main>
 			</div>
 
-			{agentforceAgentId && (
-				<AgentforceConversationClient agentId={agentforceAgentId} />
-			)}
-			<Toaster />
-		</div>
+		{agentforceAgentId && (
+			<AgentforceConversationClient agentId={agentforceAgentId} />
+		)}
+		<KeyboardShortcutsDialog isOpen={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+		<Toaster />
+	</div>
 	);
 }

@@ -169,7 +169,7 @@ function ProgramCard({
 }) {
   return (
     <Card
-      className="cursor-pointer transition-colors hover:border-primary/50"
+      className="cursor-pointer transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       onClick={onOpen}
       role="button"
       tabIndex={0}
