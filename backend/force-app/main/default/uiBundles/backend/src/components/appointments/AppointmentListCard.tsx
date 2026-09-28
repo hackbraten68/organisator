@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { Calendar, MapPin, Video, Phone, Hash, MessageSquare, CheckCheck, Building, Landmark, Briefcase, FileText, GitMerge, MoreHorizontal, User } from "lucide-react";
+import { Calendar, MapPin, Video, Phone, Hash, MessageSquare, CheckCheck, Building, Landmark, Briefcase, FileText, GitMerge, MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -17,12 +17,12 @@ const STATUS_STYLES: Record<Appointment["status"], { variant: "default" | "secon
 };
 
 const TYPE_ICONS: Record<Appointment["type"], React.ReactNode> = {
-  Coaching: <MessageSquare className="size-5 text-blue-500" aria-label="Coaching" />,
-  CheckIn: <CheckCheck className="size-5 text-green-500" aria-label="Check-In" />,
-  Berufsschule: <Building className="size-5 text-purple-500" aria-label="Berufsschule" />,
-  Behörde: <Landmark className="size-5 text-orange-500" aria-label="Behörde" />,
-  Praktikum: <Briefcase className="size-5 text-teal-500" aria-label="Praktikum" />,
-  Sonstiges: <FileText className="size-5 text-gray-500" aria-label="Sonstiges" />,
+  Coaching: <MessageSquare className="size-4 text-blue-500" aria-label="Coaching" />,
+  CheckIn: <CheckCheck className="size-4 text-green-500" aria-label="Check-In" />,
+  Berufsschule: <Building className="size-4 text-purple-500" aria-label="Berufsschule" />,
+  Behörde: <Landmark className="size-4 text-orange-500" aria-label="Behörde" />,
+  Praktikum: <Briefcase className="size-4 text-teal-500" aria-label="Praktikum" />,
+  Sonstiges: <FileText className="size-4 text-gray-500" aria-label="Sonstiges" />,
 };
 
 const LOCATION_ICONS: Record<Exclude<Appointment["location"], undefined>, React.ReactNode> = {
@@ -89,30 +89,74 @@ export function AppointmentListCard({
   const hasActions = canConfirm || canReschedule || canComplete || canNoShow || canCancel || onViewDetails;
 
   return (
-    <Card className={`group transition-shadow hover:shadow-card-hover ${highlightCorrelation && appointment.correlationId ? "ring-2 ring-primary" : ""}`}>
-      <CardContent className="p-5 space-y-4">
-        <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+    <Card className={highlightCorrelation && appointment.correlationId ? "ring-2 ring-primary" : ""}>
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 text-2xl" aria-hidden="true">
             {typeIcon}
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-h4 font-medium">{appointment.type}</span>
-              <Badge variant={statusConfig.variant} className="gap-1.5">
-                {statusConfig.icon}
-                {statusConfig.label}
-              </Badge>
-              {appointment.correlationId && highlightCorrelation && (
-                <Badge variant="outline" className="gap-1 text-xs">
-                  <Hash className="size-3" />
-                  Journey
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-medium truncate">{appointment.type}</span>
+                <Badge variant={statusConfig.variant} className="gap-1">
+                  {statusConfig.icon}
+                  {statusConfig.label}
                 </Badge>
+                {appointment.correlationId && highlightCorrelation && (
+                  <Badge variant="outline" className="gap-1 text-xs">
+                    <Hash className="size-3" />
+                    Journey
+                  </Badge>
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground whitespace-nowrap font-mono">
+                {appointment.name}
+              </span>
+            </div>
+
+            <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+              <span className="flex items-center gap-1">
+                <Calendar className="size-3.5" aria-hidden="true" />
+                {formatDateTime(appointment.startTime)} – {format(appointment.endTime, "HH:mm")}
+              </span>
+              {locationIcon && (
+                <span className="flex items-center gap-1">
+                  {locationIcon}
+                  {appointment.location}
+                </span>
+              )}
+              {appointment.meetingLink && (
+                <a href={appointment.meetingLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 hover:underline">
+                  <Video className="size-3.5" />
+                  Online
+                </a>
+              )}
+              {appointment.coachName && (
+                <span className="truncate max-w-xs">
+                  Coach: {appointment.coachName}
+                </span>
               )}
             </div>
-            <span className="text-xs text-muted-foreground font-mono mt-1 block">
-              {appointment.name}
-            </span>
+
+            {appointment.notes && (
+              <div className="mt-2 text-sm text-muted-foreground line-clamp-2">
+                {appointment.notes}
+              </div>
+            )}
+
+            {appointment.cancellationReason && (
+              <div className="mt-2 text-sm text-destructive/80 bg-destructive/5 p-2 rounded">
+                Absagegrund: {appointment.cancellationReason}
+              </div>
+            )}
+
+            {appointment.correlationId && !highlightCorrelation && (
+              <div className="mt-2 text-xs text-muted-foreground font-mono">
+                Correlation: {appointment.correlationId}
+              </div>
+            )}
           </div>
 
           {showActions && hasActions && (
@@ -160,49 +204,6 @@ export function AppointmentListCard({
             </DropdownMenu>
           )}
         </div>
-
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5 font-mono">
-            <Calendar className="size-3.5" aria-hidden="true" />
-            {formatDateTime(appointment.startTime)} – {format(appointment.endTime, "HH:mm")}
-          </span>
-          {locationIcon && (
-            <span className="flex items-center gap-1">
-              {locationIcon}
-              {appointment.location}
-            </span>
-          )}
-          {appointment.meetingLink && (
-            <a href={appointment.meetingLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline">
-              <Video className="size-3.5" />
-              Online
-            </a>
-          )}
-          {appointment.coachName && (
-            <span className="truncate max-w-xs flex items-center gap-1">
-              <User className="size-3.5" />
-              Coach: {appointment.coachName}
-            </span>
-          )}
-        </div>
-
-        {appointment.notes && (
-          <div className="p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground line-clamp-3">
-            {appointment.notes}
-          </div>
-        )}
-
-        {appointment.cancellationReason && (
-          <div className="p-3 bg-destructive/5 rounded-lg text-sm text-destructive/80">
-            Absagegrund: {appointment.cancellationReason}
-          </div>
-        )}
-
-        {appointment.correlationId && !highlightCorrelation && (
-          <div className="text-xs text-muted-foreground font-mono">
-            Correlation: {appointment.correlationId}
-          </div>
-        )}
       </CardContent>
     </Card>
   );
@@ -211,9 +212,9 @@ export function AppointmentListCard({
 function AppointmentListCardSkeleton() {
   return (
     <Card className="animate-pulse">
-      <CardContent className="p-5 space-y-4">
-        <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-muted" />
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 w-8 h-8 rounded bg-muted" />
           <div className="flex-1 space-y-3">
             <div className="h-5 w-3/4 bg-muted rounded" />
             <div className="h-4 w-1/2 bg-muted rounded" />

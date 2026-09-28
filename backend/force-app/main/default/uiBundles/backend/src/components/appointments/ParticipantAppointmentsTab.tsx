@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { format, startOfWeek, endOfWeek, addWeeks } from "date-fns";
+import { de } from "date-fns/locale";
 import { listAppointments, createAppointment, confirmAppointment, completeAppointment, rescheduleAppointment, cancelAppointment, updateAppointmentAttendance, getAvailabilitySlots } from "@/api/appointment/appointmentService";
 import { listAssignableUsers } from "@/api/user/userService";
 import type { AssignableUser } from "@/types/user";
@@ -175,6 +177,16 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
       .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
   }, [filteredAppointments]);
 
+  const pastByMonth = useMemo(() => {
+    const groups = new Map<string, Appointment[]>();
+    for (const a of pastAppointments) {
+      const key = format(new Date(a.startTime), "yyyy-MM");
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(a);
+    }
+    return Array.from(groups.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [pastAppointments]);
+
   const statusOptions: { value: Appointment["status"] | "all"; label: string }[] = [
     { value: "all", label: "Alle" },
     { value: "Draft", label: "Entwurf" },
@@ -298,25 +310,39 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
         </TabsContent>
 
         <TabsContent value="past">
-          <div className="space-y-3">
-            {loading ? (
-              Array.from({ length: 5 }).map((_, i) => <AppointmentListCardSkeleton key={i} />)
-            ) : pastAppointments.length === 0 ? (
-              <EmptyState
-                icon={<Calendar className="size-12" />}
-                title="Keine vergangenen Termine"
-              />
-            ) : (
-              pastAppointments.map((appointment) => (
-                <AppointmentListCard
-                  key={appointment.id}
-                  appointment={appointment}
-                  showActions={false}
-                  highlightCorrelation={true}
-                />
-              ))
-            )}
-          </div>
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => <AppointmentListCardSkeleton key={i} />)}
+            </div>
+          ) : pastByMonth.length === 0 ? (
+            <EmptyState
+              icon={<Calendar className="size-12" />}
+              title="Keine vergangenen Termine"
+            />
+          ) : (
+            <Accordion type="multiple" className="w-full space-y-3">
+              {pastByMonth.map(([month, apps]) => (
+                <AccordionItem value={month} key={month}>
+                  <AccordionTrigger className="text-h4 font-medium px-4 py-3">
+                    {format(new Date(month + "-01"), "MMMM yyyy", { locale: de })}
+                    <Badge variant="secondary" className="ml-2">{apps.length}</Badge>
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-2 pb-4">
+                    <div className="space-y-3">
+                      {apps.map((appointment) => (
+                        <AppointmentListCard
+                          key={appointment.id}
+                          appointment={appointment}
+                          showActions={false}
+                          highlightCorrelation={true}
+                        />
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          )}
         </TabsContent>
 
         {canManage && (

@@ -78,7 +78,7 @@ describe("ParticipantPage status save", () => {
     await screen.findAllByText("Max Mustermann");
     expect(screen.getAllByText("Onboarding").length).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: "Bearbeiten" }));
 
     const statusSelect = screen.getAllByRole("combobox")[0];
     await user.click(statusSelect);

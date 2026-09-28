@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import {
   PARTICIPANT_STATUSES,
   type Participant,
@@ -37,20 +38,15 @@ interface ParticipantSummaryCardProps {
   onCoachChange: (id: string) => void;
 }
 
-function Row({ label, value }: { label: string; value?: string }) {
+function Field({ label, value }: { label: string; value?: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 py-1.5">
-      <dt className="shrink-0 text-sm text-muted-foreground">{label}</dt>
-      <dd className="truncate text-sm font-medium">{value || "—"}</dd>
+    <div className="space-y-1">
+      <dt className="text-caption text-muted-foreground">{label}</dt>
+      <dd className="text-body font-medium truncate">{value || "—"}</dd>
     </div>
   );
 }
 
-/**
- * Compact participant summary with edit toggle. View mode surfaces the
- * frequently used information without the full form grid; edit mode keeps
- * the previous details form (same fields, same handlers).
- */
 export default function ParticipantSummaryCard({
   participant,
   programs,
@@ -63,133 +59,149 @@ export default function ParticipantSummaryCard({
 }: ParticipantSummaryCardProps) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Participant Details</CardTitle>
-        <CardAction>
-          <Button variant="outline" size="sm" onClick={onToggleEdit}>
-            {editing ? "Done" : "Edit"}
-          </Button>
-        </CardAction>
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-h2">Teilnehmerdetails</CardTitle>
+          <CardAction>
+            <Button variant="outline" size="sm" onClick={onToggleEdit}>
+              {editing ? "Fertig" : "Bearbeiten"}
+            </Button>
+          </CardAction>
+        </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="space-y-6">
         {!editing ? (
-          <dl className="grid gap-x-8 md:grid-cols-2">
-            <div className="divide-y">
-              <Row label="Email" value={participant.email} />
-              <Row label="GitHub" value={participant.github} />
-              <Row label="Discord" value={participant.discord} />
-            </div>
-            <div className="divide-y">
-              <Row label="Status" value={participant.status} />
-              <Row label="Program" value={participant.programName} />
-              <Row label="Coach" value={participant.coachName} />
-            </div>
-          </dl>
+          <>
+            <section className="space-y-4">
+              <h3 className="text-h4 font-medium text-muted-foreground">Kontakt</h3>
+              <dl className="grid gap-4 md:grid-cols-2">
+                <Field label="E-Mail" value={participant.email} />
+                <Field label="GitHub" value={participant.github} />
+                <Field label="Discord" value={participant.discord} />
+              </dl>
+            </section>
+
+            <Separator />
+
+            <section className="space-y-4">
+              <h3 className="text-h4 font-medium text-muted-foreground">Zuordnung</h3>
+              <dl className="grid gap-4 md:grid-cols-2">
+                <Field label="Status" value={participant.status} />
+                <Field label="Programm" value={participant.programName} />
+                <Field label="Coach" value={participant.coachName} />
+              </dl>
+            </section>
+          </>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Name</Label>
+          <>
+            <fieldset className="space-y-4">
+              <legend className="text-h4 font-medium">Grunddaten</legend>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    value={participant.name}
+                    onChange={(e) => onFieldChange("name", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select
+                    value={participant.status}
+                    onValueChange={(value) => onFieldChange("status", value)}
+                  >
+                    <SelectTrigger id="status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PARTICIPANT_STATUSES.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {status}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </fieldset>
 
-              <Input
-                value={participant.name}
-                onChange={(e) => onFieldChange("name", e.target.value)}
-              />
-            </div>
+            <fieldset className="space-y-4">
+              <legend className="text-h4 font-medium">Kontakt</legend>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-Mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={participant.email ?? ""}
+                    onChange={(e) => onFieldChange("email", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="github">GitHub</Label>
+                  <Input
+                    id="github"
+                    value={participant.github ?? ""}
+                    onChange={(e) => onFieldChange("github", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="discord">Discord</Label>
+                  <Input
+                    id="discord"
+                    value={participant.discord ?? ""}
+                    onChange={(e) => onFieldChange("discord", e.target.value)}
+                  />
+                </div>
+              </div>
+            </fieldset>
 
-            <div className="space-y-2">
-              <Label>Status</Label>
-
-              <Select
-                value={participant.status}
-                onValueChange={(value) => onFieldChange("status", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {PARTICIPANT_STATUSES.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Email</Label>
-
-              <Input
-                type="email"
-                value={participant.email ?? ""}
-                onChange={(e) => onFieldChange("email", e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>GitHub</Label>
-
-              <Input
-                value={participant.github ?? ""}
-                onChange={(e) => onFieldChange("github", e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Discord</Label>
-
-              <Input
-                value={participant.discord ?? ""}
-                onChange={(e) => onFieldChange("discord", e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Program</Label>
-
-              <Select
-                value={participant.programId ?? NONE}
-                onValueChange={onProgramChange}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="No program" />
-                </SelectTrigger>
-
-                <SelectContent>
-                  <SelectItem value={NONE}>No program</SelectItem>
-                  {programs.map((program) => (
-                    <SelectItem key={program.id} value={program.id}>
-                      {program.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Coach</Label>
-
-              <Select
-                value={participant.coachId ?? NONE}
-                onValueChange={onCoachChange}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="No coach" />
-                </SelectTrigger>
-
-                <SelectContent>
-                  <SelectItem value={NONE}>No coach</SelectItem>
-                  {coaches.map((coach) => (
-                    <SelectItem key={coach.id} value={coach.id}>
-                      {coach.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+            <fieldset className="space-y-4">
+              <legend className="text-h4 font-medium">Zuordnung</legend>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="program">Programm</Label>
+                  <Select
+                    value={participant.programId ?? NONE}
+                    onValueChange={onProgramChange}
+                  >
+                    <SelectTrigger id="program">
+                      <SelectValue placeholder="Kein Programm" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Kein Programm</SelectItem>
+                      {programs.map((program) => (
+                        <SelectItem key={program.id} value={program.id}>
+                          {program.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="coach">Coach</Label>
+                  <Select
+                    value={participant.coachId ?? NONE}
+                    onValueChange={onCoachChange}
+                  >
+                    <SelectTrigger id="coach">
+                      <SelectValue placeholder="Kein Coach" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Kein Coach</SelectItem>
+                      {coaches.map((coach) => (
+                        <SelectItem key={coach.id} value={coach.id}>
+                          {coach.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </fieldset>
+          </>
         )}
       </CardContent>
     </Card>
