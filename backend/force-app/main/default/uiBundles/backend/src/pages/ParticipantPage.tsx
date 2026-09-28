@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
-import { AlertCircle, Users } from "lucide-react";
+import { AlertCircle, Users, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { PageContainer, PageHeader } from "@/components/ui/layout";
 import ParticipantLearningPath from "@/components/participants/ParticipantLearningPath";
 import ParticipantActivity from "@/components/participants/ParticipantActivity";
 import ParticipantListCard, {
@@ -264,8 +267,17 @@ export default function ParticipantPage() {
     }
   }
 
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const stored = localStorage.getItem("participant-sidebar");
+    return stored !== null ? stored === "true" : true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("participant-sidebar", String(sidebarOpen));
+  }, [sidebarOpen]);
+
   return (
-    <div className="container mx-auto max-w-[1500px] p-6">
+    <PageContainer>
       {loading && <ParticipantPageSkeleton />}
 
       {error && (
@@ -294,114 +306,162 @@ export default function ParticipantPage() {
       )}
 
       {!loading && !error && participants.length > 0 && (
-        <div className="grid gap-6 lg:grid-cols-[480px_1fr]">
-          <ParticipantListCard
-            participants={visibleParticipants}
-            counts={counts}
-            filter={filter}
-            effectiveSelectedId={effectiveSelectedId}
-            onFilterChange={setFilter}
-            onSelect={handleParticipantChange}
-          />
-
-          {participant ? (
-            <div className="min-w-0">
-              <ParticipantStickyHeader
-                participant={participant}
-                isDirty={isDirty}
-                saving={saving}
-                onReset={handleReset}
-                onSave={handleSave}
-              />
-
-              <Tabs
-                value={tab}
-                onValueChange={(value) => handleTabChange(value as ParticipantTab)}
-              >
-<TabsList variant="line" className="mb-4">
-                <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
-                <TabsTrigger value="verlauf">Verlauf</TabsTrigger>
-                <TabsTrigger value="lernpfad">Lernpfad</TabsTrigger>
-                <TabsTrigger value="abwesenheiten">Abwesenheiten</TabsTrigger>
-                <TabsTrigger value="termine">Termine</TabsTrigger>
-              </TabsList>
-
-                <TabsContent value="uebersicht" className="space-y-6">
-                  <ParticipantSummaryCard
-                    participant={participant}
-                    programs={programs}
-                    coaches={coaches}
-                    editing={editing}
-                    onToggleEdit={() => setEditing((value) => !value)}
-                    onFieldChange={updateField}
-                    onProgramChange={handleProgramChange}
-                    onCoachChange={handleCoachChange}
-                  />
-                  <OnboardingChecklist participant={participant} />
-                </TabsContent>
-
-                <TabsContent value="verlauf">
-                  {/* Lazy: timeline fetches only when the tab is opened. */}
-                  {tab === "verlauf" && (
-                    <ParticipantActivity
-                      participantId={participant.id}
-                      refreshKey={reload}
-                      highlightEventId={searchParams.get("event")}
-                    />
-                  )}
-                </TabsContent>
-
-                <TabsContent value="lernpfad">
-                  {/* Lazy: learning path loads only when the tab is opened. */}
-                  {tab === "lernpfad" && (
-                    <ParticipantLearningPath
-                      key={participant.id}
-                      participantId={participant.id}
-                      participantName={participant.name}
-                      programId={participant.programId}
-                    />
-                  )}
-                </TabsContent>
-
-                <TabsContent value="abwesenheiten">
-                  {/* Lazy: absences load only when the tab is opened. */}
-                  {tab === "abwesenheiten" && (
-                    <ParticipantAbsencesTab
-                      participantId={participant.id}
-                      participantName={participant.name}
-                      canManage={true}
-                    />
-                  )}
-                </TabsContent>
-
-                <TabsContent value="termine">
-                  {/* Lazy: appointments load only when the tab is opened. */}
-                  {tab === "termine" && (
-                    <ParticipantAppointmentsTab
-                      participantId={participant.id}
-                      participantName={participant.name}
-                      canManage={true}
-                    />
-                  )}
-                </TabsContent>
-              </Tabs>
+        <>
+          <PageHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Teilnehmer</span>
+                <span>/</span>
+                <span className="font-medium text-foreground">{participant?.name}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden"
+                  onClick={() => setSidebarOpen(true)}
+                >
+                  <PanelLeftOpen className="size-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden lg:inline-flex"
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                >
+                  {sidebarOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
+                </Button>
+              </div>
             </div>
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                <Users className="size-12 text-muted-foreground mb-4" />
-                <h2 className="text-lg font-semibold mb-1">
-                  No participant selected
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Select a participant from the list to view details.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+          </PageHeader>
+
+          <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
+            {/* Desktop Sidebar */}
+            <aside className={`hidden lg:block ${sidebarOpen ? "w-80" : "w-0"} transition-all duration-300 overflow-hidden`}>
+              <ParticipantListCard
+                participants={visibleParticipants}
+                counts={counts}
+                filter={filter}
+                effectiveSelectedId={effectiveSelectedId}
+                onFilterChange={setFilter}
+                onSelect={handleParticipantChange}
+              />
+            </aside>
+
+            {/* Mobile Sheet */}
+            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+              <SheetContent side="left" className="w-80 p-0">
+                <SheetHeader className="p-4 border-b">
+                  <SheetTitle>Teilnehmer</SheetTitle>
+                </SheetHeader>
+                <div className="p-4">
+                  <ParticipantListCard
+                    participants={visibleParticipants}
+                    counts={counts}
+                    filter={filter}
+                    effectiveSelectedId={effectiveSelectedId}
+                    onFilterChange={setFilter}
+                    onSelect={handleParticipantChange}
+                  />
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            {participant ? (
+              <div className="min-w-0">
+                <ParticipantStickyHeader
+                  participant={participant}
+                  isDirty={isDirty}
+                  saving={saving}
+                  onReset={handleReset}
+                  onSave={handleSave}
+                />
+
+                <Tabs
+                  value={tab}
+                  onValueChange={(value) => handleTabChange(value as ParticipantTab)}
+                >
+                  <TabsList variant="line" className="mb-4">
+                    <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
+                    <TabsTrigger value="verlauf">Verlauf</TabsTrigger>
+                    <TabsTrigger value="lernpfad">Lernpfad</TabsTrigger>
+                    <TabsTrigger value="abwesenheiten">Abwesenheiten</TabsTrigger>
+                    <TabsTrigger value="termine">Termine</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="uebersicht" className="space-y-6">
+                    <ParticipantSummaryCard
+                      participant={participant}
+                      programs={programs}
+                      coaches={coaches}
+                      editing={editing}
+                      onToggleEdit={() => setEditing((value) => !value)}
+                      onFieldChange={updateField}
+                      onProgramChange={handleProgramChange}
+                      onCoachChange={handleCoachChange}
+                    />
+                    <OnboardingChecklist participant={participant} />
+                  </TabsContent>
+
+                  <TabsContent value="verlauf">
+                    {tab === "verlauf" && (
+                      <ParticipantActivity
+                        participantId={participant.id}
+                        refreshKey={reload}
+                        highlightEventId={searchParams.get("event")}
+                      />
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="lernpfad">
+                    {tab === "lernpfad" && (
+                      <ParticipantLearningPath
+                        key={participant.id}
+                        participantId={participant.id}
+                        participantName={participant.name}
+                        programId={participant.programId}
+                      />
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="abwesenheiten">
+                    {tab === "abwesenheiten" && (
+                      <ParticipantAbsencesTab
+                        participantId={participant.id}
+                        participantName={participant.name}
+                        canManage={true}
+                      />
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="termine">
+                    {tab === "termine" && (
+                      <ParticipantAppointmentsTab
+                        participantId={participant.id}
+                        participantName={participant.name}
+                        canManage={true}
+                      />
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                  <Users className="size-12 text-muted-foreground mb-4" />
+                  <h2 className="text-lg font-semibold mb-1">
+                    No participant selected
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Select a participant from the list to view details.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </>
       )}
-    </div>
+    </PageContainer>
   );
 }
 
