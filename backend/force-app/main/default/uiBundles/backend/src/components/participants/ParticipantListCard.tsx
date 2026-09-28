@@ -1,9 +1,12 @@
 import { useState, useMemo } from "react";
-import { Search } from "lucide-react";
+import { Search, Users, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/layout";
 import OnboardingBadge from "@/components/participants/OnboardingBadge";
 import CompletionBar from "@/components/participants/CompletionBar";
 import { getCompletion } from "@/utils/participantOnboarding";
@@ -20,6 +23,8 @@ interface ParticipantListCardProps {
   counts: ParticipantListCounts;
   effectiveSelectedId: string | null;
   onSelect: (id: string) => void;
+  loading?: boolean;
+  error?: string | null;
 }
 
 interface GroupConfig {
@@ -35,8 +40,70 @@ export default function ParticipantListCard({
   counts,
   effectiveSelectedId,
   onSelect,
+  loading = false,
+  error = null,
 }: ParticipantListCardProps) {
   const [query, setQuery] = useState("");
+
+  if (error) {
+    return (
+      <Card className="h-full flex flex-col">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-h3">Teilnehmer</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 flex items-center justify-center p-4">
+          <Alert variant="destructive" className="w-full">
+            <AlertCircle className="size-4" />
+            <AlertTitle>Fehler beim Laden</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Card className="h-full flex flex-col">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-h3">Teilnehmer</CardTitle>
+          <div className="relative mt-3">
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </CardHeader>
+        <CardContent className="flex-1 p-0">
+          <div className="space-y-2 p-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="size-10 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (participants.length === 0) {
+    return (
+      <Card className="h-full flex flex-col">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-h3">Teilnehmer</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 flex items-center justify-center p-4">
+          <EmptyState
+            icon={<Users className="size-12" />}
+            title="Keine Teilnehmer vorhanden"
+            description="Es wurden noch keine Teilnehmer angelegt."
+          />
+        </CardContent>
+      </Card>
+    );
+  }
 
   const groups: GroupConfig[] = [
     {
@@ -140,8 +207,12 @@ export default function ParticipantListCard({
                     );
                   })}
                   {group.participants.length === 0 && (
-                    <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                      {query ? "Keine Treffer" : "Keine Teilnehmer"}
+                    <div className="px-4 py-6">
+                      <EmptyState
+                        icon={<Users className="size-8" />}
+                        title={query ? "Keine Treffer" : "Keine Teilnehmer"}
+                        description={query ? `Keine Teilnehmer gefunden für "${query}"` : "In dieser Gruppe sind keine Teilnehmer vorhanden."}
+                      />
                     </div>
                   )}
                 </div>

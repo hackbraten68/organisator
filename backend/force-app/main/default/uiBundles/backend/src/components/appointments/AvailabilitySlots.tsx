@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { Plus, Calendar } from "lucide-react";
+import { Plus, Calendar, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/layout";
 import type { AvailabilitySlot, AvailabilitySlotFilters, AvailabilitySlotType } from "@/types/availabilitySlot";
 import { getAvailabilitySlots, createAvailabilitySlot, updateAvailabilitySlot, deleteAvailabilitySlot } from "@/api/appointment/appointmentService";
@@ -29,6 +31,8 @@ type FilterActive = AvailabilitySlotFilters["isActive"] | "all";
 
 export function AvailabilitySlots({ currentUserId }: AvailabilitySlotsProps) {
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingSlot, setEditingSlot] = useState<AvailabilitySlot | null>(null);
   const [filterDay, setFilterDay] = useState<FilterDay>("all");
@@ -36,6 +40,8 @@ export function AvailabilitySlots({ currentUserId }: AvailabilitySlotsProps) {
   const [filterActive, setFilterActive] = useState<FilterActive>("all");
 
   const fetchSlots = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const filters: AvailabilitySlotFilters = {
         userId: currentUserId,
@@ -47,7 +53,10 @@ export function AvailabilitySlots({ currentUserId }: AvailabilitySlotsProps) {
       setSlots(fetched);
     } catch (err) {
       console.error("Failed to load slots", err);
+      setError("Verfügbarkeiten konnten nicht geladen werden");
       toast.error("Verfügbarkeiten konnten nicht geladen werden");
+    } finally {
+      setLoading(false);
     }
   }, [currentUserId, filterDay, filterType, filterActive]);
 
@@ -195,48 +204,79 @@ export function AvailabilitySlots({ currentUserId }: AvailabilitySlotsProps) {
         </Select>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {slots.map((slot) => (
-          <Card key={slot.id} className={`${slot.isActive ? "" : "opacity-50"} hover:shadow-card-hover transition-shadow`}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <span className="capitalize text-h4">{slot.dayOfWeek}</span>
-                <Badge variant={slot.isActive ? "default" : "secondary"}>
-                  {slot.isActive ? "Aktiv" : "Inaktiv"}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0 space-y-3">
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Von</span>
-                <span className="font-mono font-medium">{slot.startTime.slice(0, 5)}</span>
-                <span className="text-muted-foreground">–</span>
-                <span className="font-mono font-medium">{slot.endTime.slice(0, 5)}</span>
-                <Badge variant="outline" className="ml-auto">{slot.type}</Badge>
-              </div>
-              {slot.validFrom && (
-                <div className="text-xs text-muted-foreground">
-                  Gültig: {slot.validFrom} – {slot.validTo || "unbefristet"}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="size-4" />
+          <AlertTitle>Fehler beim Laden</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {loading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-5 w-16" />
                 </div>
-              )}
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(slot)}>Bearbeiten</Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDelete(slot)}>Löschen</Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        {slots.length === 0 && (
-          <div className="col-span-full">
-            <EmptyState
-              icon={<Calendar className="size-12" />}
-              title="Keine Verfügbarkeiten angelegt"
-              description="Erstellen Sie Ihre ersten wöchentlichen Slots"
-              action={<Button onClick={() => setShowForm(true)}><Plus className="size-4 mr-2" /> Ersten Slot anlegen</Button>}
-            />
-          </div>
-        )}
-      </div>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-3">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-3 w-2/3" />
+                <div className="flex gap-2 pt-2">
+                  <Skeleton className="h-8 w-20" />
+                  <Skeleton className="h-8 w-20" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {slots.map((slot) => (
+            <Card key={slot.id} className={`${slot.isActive ? "" : "opacity-50"} hover:shadow-card-hover transition-shadow`}>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <span className="capitalize text-h4">{slot.dayOfWeek}</span>
+                  <Badge variant={slot.isActive ? "default" : "secondary"}>
+                    {slot.isActive ? "Aktiv" : "Inaktiv"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Von</span>
+                  <span className="font-mono font-medium">{slot.startTime.slice(0, 5)}</span>
+                  <span className="text-muted-foreground">–</span>
+                  <span className="font-mono font-medium">{slot.endTime.slice(0, 5)}</span>
+                  <Badge variant="outline" className="ml-auto">{slot.type}</Badge>
+                </div>
+                {slot.validFrom && (
+                  <div className="text-xs text-muted-foreground">
+                    Gültig: {slot.validFrom} – {slot.validTo || "unbefristet"}
+                  </div>
+                )}
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" size="sm" onClick={() => handleEdit(slot)}>Bearbeiten</Button>
+                  <Button variant="destructive" size="sm" onClick={() => handleDelete(slot)}>Löschen</Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          {slots.length === 0 && !error && (
+            <div className="col-span-full">
+              <EmptyState
+                icon={<Calendar className="size-12" />}
+                title="Keine Verfügbarkeiten angelegt"
+                description="Erstellen Sie Ihre ersten wöchentlichen Slots"
+                action={<Button onClick={() => setShowForm(true)}><Plus className="size-4 mr-2" /> Ersten Slot anlegen</Button>}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Create/Edit Dialog */}
       <Dialog open={showForm} onOpenChange={(open) => { if (!open) { setEditingSlot(null); setShowForm(false); } }}>

@@ -15,6 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertCircle } from "lucide-react";
 import {
   PARTICIPANT_STATUSES,
   type Participant,
@@ -35,6 +38,8 @@ interface ParticipantSummaryCardProps {
   ) => void;
   onProgramChange: (id: string) => void;
   onCoachChange: (id: string) => void;
+  loading?: boolean;
+  error?: string | null;
 }
 
 function Field({ label, value }: { label: string; value?: string }) {
@@ -55,7 +60,59 @@ export default function ParticipantSummaryCard({
   onFieldChange,
   onProgramChange,
   onCoachChange,
+  loading = false,
+  error = null,
 }: ParticipantSummaryCardProps) {
+  if (error) {
+    return (
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-h2">Teilnehmerdetails</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertCircle className="size-4" />
+            <AlertTitle>Fehler beim Laden</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-h2">Teilnehmerdetails</CardTitle>
+            <Skeleton className="h-8 w-20" />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-4">
+              <Skeleton className="h-5 w-20" />
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            </div>
+            <div className="space-y-4">
+              <Skeleton className="h-5 w-20" />
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader className="pb-4">
