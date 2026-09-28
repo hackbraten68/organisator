@@ -237,9 +237,10 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
 
       {/* Appointments List */}
       <Tabs defaultValue="upcoming" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="upcoming">Anstehend ({upcomingCount})</TabsTrigger>
           <TabsTrigger value="past">Vergangene ({pastCount})</TabsTrigger>
+          {canManage && <TabsTrigger value="verfügbarkeit">Verfügbarkeit</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="upcoming">
@@ -306,6 +307,12 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
               )}
           </div>
         </TabsContent>
+
+        {canManage && (
+          <TabsContent value="verfügbarkeit">
+            <AvailabilitySlots currentUserId={actor?.id || ""} canManage={true} />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Create/Edit Dialog */}

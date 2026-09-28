@@ -101,13 +101,15 @@ const CREATE_PARTICIPANT = `mutation SeedCreateParticipant(
     } }) { Record { Id } }
   }
 }`;
-const DELETE_ONE = (type) => `mutation SeedDelete($id: ID!) {
-  uiapi { ${type}Delete(input: { Id: $id }) { Record { Id } } }
+const DELETE_ONE = (type) => `mutation SeedDelete($id: IdOrRef!) {
+  uiapi { ${type}Delete(input: { Id: $id }) { Id } }
 }`;
 const QUERY_PROGRAMS = `query SeedPrograms { uiapi { query {
   Program__c(first: 20) { edges { node { Id Name { value } } } } } } }`;
 const QUERY_COACHES = `query SeedCoaches { uiapi { query {
   Coach_Profile__c(first: 20) { edges { node { Id Name { value } } } } } } }`;
+const QUERY_USERS = `query SeedUsers { uiapi { query {
+  User(where: { IsActive: { eq: true } }, first: 50) { edges { node { Id Name { value } Username { value } } } } } } }`;
 
 // ---------------------------------------------------------------------------
 // Audit writer (mirrors auditService.record variable shapes)
@@ -194,6 +196,9 @@ async function main() {
   );
   const coaches = Object.fromEntries(
     (await gql(QUERY_COACHES)).uiapi.query.Coach_Profile__c.edges.map((e) => [e.node.Name.value, e.node.Id]),
+  );
+  const users = Object.fromEntries(
+    (await gql(QUERY_USERS)).uiapi.query.User.edges.map((e) => [e.node.Name.value, e.node.Id]),
   );
   for (const name of ["IT Pro", "IT Pro Advanced", "Test Course"]) {
     if (!programs[name]) throw new Error(`Program missing: ${name}`);
@@ -372,9 +377,58 @@ async function main() {
     console.log(`seeded ${p.name} (${status})`);
   }
 
+  // 8. AvailabilitySlots für Coaches seeden
+  const samUserId = users["Sam Dillenburg"];
+  if (samUserId) {
+    await seedAvailabilitySlots(samUserId, {
+      Friday: { startTime: "10:00:00.000", endTime: "12:00:00.000" },
+    }, "2026-09-28", "2027-09-28");
+    console.log("seeded availability slots for Sam Dillenburg");
+  }
+
   manifest.auditEvents = auditIds;
   writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
   console.log(`\nDone: ${manifest.participants.length} participants, ${manifest.items.length} items, ${auditIds.length} audit events. Manifest: ${MANIFEST_PATH}`);
+}
+
+// ---------------------------------------------------------------------------
+// AvailabilitySlot seeding
+// ---------------------------------------------------------------------------
+const CREATE_SLOT = doc("api/availabilitySlot/query/CreateAvailabilitySlot.graphql");
+const QUERY_SLOTS = `query SeedSlots($userId: ID!) { uiapi { query {
+  AvailabilitySlot__c(where: { User__c: { eq: $userId } }, first: 100) {
+    edges { node { Id } } } } } }`;
+
+const SLOT_TEMPLATES = {
+  standard: [
+    { dayOfWeek: "Monday",    startTime: "09:00:00.000", endTime: "12:00:00.000", type: "Coaching", isActive: true },
+    { dayOfWeek: "Monday",    startTime: "13:00:00.000", endTime: "16:00:00.000", type: "CheckIn",  isActive: true },
+    { dayOfWeek: "Tuesday",   startTime: "09:00:00.000", endTime: "12:00:00.000", type: "Coaching", isActive: true },
+    { dayOfWeek: "Tuesday",   startTime: "13:00:00.000", endTime: "16:00:00.000", type: "CheckIn",  isActive: true },
+    { dayOfWeek: "Wednesday", startTime: "09:00:00.000", endTime: "12:00:00.000", type: "Coaching", isActive: true },
+    { dayOfWeek: "Wednesday", startTime: "13:00:00.000", endTime: "16:00:00.000", type: "CheckIn",  isActive: true },
+    { dayOfWeek: "Thursday",  startTime: "09:00:00.000", endTime: "12:00:00.000", type: "Coaching", isActive: true },
+    { dayOfWeek: "Thursday",  startTime: "13:00:00.000", endTime: "16:00:00.000", type: "CheckIn",  isActive: true },
+    { dayOfWeek: "Friday",    startTime: "09:00:00.000", endTime: "12:00:00.000", type: "Coaching", isActive: true },
+    { dayOfWeek: "Friday",    startTime: "13:00:00.000", endTime: "14:00:00.000", type: "CheckIn",  isActive: true },
+  ],
+};
+
+async function seedAvailabilitySlots(coachId, overrides = {}, validFrom = null, validTo = null) {
+  const slots = SLOT_TEMPLATES.standard;
+  for (const slot of slots) {
+    const override = overrides[slot.dayOfWeek];
+    await gql(CREATE_SLOT, {
+      userId: coachId,
+      dayOfWeek: slot.dayOfWeek,
+      startTime: override?.start ?? slot.startTime,
+      endTime: override?.end ?? slot.endTime,
+      type: slot.type,
+      isActive: override?.isActive ?? slot.isActive,
+      validFrom: validFrom ?? undefined,
+      validTo: validTo ?? undefined,
+    });
+  }
 }
 
 async function cleanup() {
@@ -400,6 +454,17 @@ async function cleanup() {
   }
   for (const p of old.participants ?? []) {
     try { await gql(DELETE_ONE("Participant__c"), { id: p.id }); } catch { /* already gone */ }
+  }
+  // AvailabilitySlots für Sam Dillenburg löschen
+  const allUsers = Object.fromEntries(
+    (await gql(QUERY_USERS)).uiapi.query.User.edges.map((e) => [e.node.Name.value, e.node.Id]),
+  );
+  const samUserId = allUsers["Sam Dillenburg"];
+  if (samUserId) {
+    const slots = await gql(QUERY_SLOTS, { userId: samUserId });
+    for (const edge of slots.uiapi.query.AvailabilitySlot__c.edges) {
+      try { await gql(DELETE_ONE("AvailabilitySlot__c"), { id: edge.node.Id }); } catch { /* already gone */ }
+    }
   }
   unlinkSync(MANIFEST_PATH);
   console.log(`Cleaned ${eventIds.size} events, ${(old.items ?? []).length} items, ${(old.participants ?? []).length} participants.`);

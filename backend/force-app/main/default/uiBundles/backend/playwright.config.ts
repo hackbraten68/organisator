@@ -1,24 +1,28 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const E2E_PORT = 5175;
+const E2E_PORT = 4173;
 
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/global-setup.ts',
+  globalTeardown: './e2e/global-teardown.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  reporter: process.env.CI ? 'github' : 'html',
   use: {
     baseURL: `http://localhost:${E2E_PORT}`,
     trace: 'on-first-retry',
+    storageState: 'e2e/auth-state.json',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    // Serve built dist/ with static server so e2e works in CI without SF org (vite preview runs plugin and can fail)
-    command: `npx serve dist -l ${E2E_PORT}`,
+    command: 'npm run preview',
     url: `http://localhost:${E2E_PORT}`,
     reuseExistingServer: !process.env.CI,
-    timeout: process.env.CI ? 120_000 : 60_000,
+    timeout: 60_000,
   },
 });

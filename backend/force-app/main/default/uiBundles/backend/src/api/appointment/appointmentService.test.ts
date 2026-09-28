@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { executeGraphQL } from "../graphqlClient";
 import {
   createAppointment,
+  deleteAvailabilitySlot,
   getAppointment,
   listAppointments,
   updateAppointment,
@@ -187,5 +188,18 @@ describe("updateAppointment – keine Staff-Variable", () => {
     expect(variables).not.toHaveProperty("staffId");
     expect(document).not.toContain("Staff__c");
     expect(variables.status).toBe("Confirmed");
+  });
+});
+
+describe("deleteAvailabilitySlot", () => {
+  it("ruft die Delete-Mutation mit der Slot-Id auf", async () => {
+    mockedExecute.mockResolvedValue({ uiapi: { AvailabilitySlot__cDelete: { Id: "a0C9b0000Kx5LFtEQM" } } });
+
+    await deleteAvailabilitySlot("a0C9b0000Kx5LFtEQM");
+
+    const [document, variables] = mockedExecute.mock.calls[0] as [string, Record<string, unknown>];
+
+    expect(document).toContain("AvailabilitySlot__cDelete");
+    expect(variables).toEqual({ id: "a0C9b0000Kx5LFtEQM" });
   });
 });

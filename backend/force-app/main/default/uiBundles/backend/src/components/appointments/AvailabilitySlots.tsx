@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { AvailabilitySlot, AvailabilitySlotFilters, AvailabilitySlotType } from "@/types/availabilitySlot";
-import { getAvailabilitySlots, createAvailabilitySlot, updateAvailabilitySlot } from "@/api/appointment/appointmentService";
+import { getAvailabilitySlots, createAvailabilitySlot, updateAvailabilitySlot, deleteAvailabilitySlot } from "@/api/appointment/appointmentService";
 import { toast } from "sonner";
 
 interface AvailabilitySlotsProps {
@@ -128,10 +128,16 @@ export function AvailabilitySlots({ currentUserId }: AvailabilitySlotsProps) {
     setShowForm(true);
   };
 
-  const handleDelete = async (_slot: AvailabilitySlot) => {
+  const handleDelete = async (slot: AvailabilitySlot) => {
     if (!confirm("Dieser Slot wird gelöscht. Fortfahren?")) return;
-    // Note: delete mutation would need to be added
-    toast.info("Löschen noch nicht implementiert");
+    try {
+      await deleteAvailabilitySlot(slot.id);
+      toast.success("Slot gelöscht");
+      fetchSlots();
+    } catch (err) {
+      console.error("Delete failed", err);
+      toast.error("Löschen fehlgeschlagen");
+    }
   };
 
   return (

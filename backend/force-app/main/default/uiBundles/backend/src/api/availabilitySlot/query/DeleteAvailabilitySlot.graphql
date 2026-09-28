@@ -1,0 +1,7 @@
+mutation DeleteAvailabilitySlot($id: IdOrRef!) {
+  uiapi {
+    AvailabilitySlot__cDelete(input: { Id: $id }) {
+      Id
+    }
+  }
+}

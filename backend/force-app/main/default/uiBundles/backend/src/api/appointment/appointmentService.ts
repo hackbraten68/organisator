@@ -16,6 +16,7 @@ import UPDATE_APPOINTMENT_ATTENDANCE_RAW from "@/api/appointment/query/UpdateApp
 import GET_AVAILABILITY_SLOTS_RAW from "@/api/availabilitySlot/query/GetAvailabilitySlots.graphql?raw";
 import CREATE_AVAILABILITY_SLOT_RAW from "@/api/availabilitySlot/query/CreateAvailabilitySlot.graphql?raw";
 import UPDATE_AVAILABILITY_SLOT_RAW from "@/api/availabilitySlot/query/UpdateAvailabilitySlot.graphql?raw";
+import DELETE_AVAILABILITY_SLOT_RAW from "@/api/availabilitySlot/query/DeleteAvailabilitySlot.graphql?raw";
 
 type ScalarValue<T = string> = { value?: T | null } | null | undefined;
 
@@ -314,4 +315,8 @@ export async function updateAvailabilitySlot(id: string, patch: AvailabilitySlot
   if (patch.validTo !== undefined) vars.validTo = patch.validTo;
 
   await executeGraphQL<MutationResponse, Record<string, any>>(UPDATE_AVAILABILITY_SLOT_RAW, vars);
+}
+
+export async function deleteAvailabilitySlot(id: string): Promise<void> {
+  await executeGraphQL<MutationResponse, { id: string }>(DELETE_AVAILABILITY_SLOT_RAW, { id });
 }
