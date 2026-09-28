@@ -134,7 +134,7 @@ describe("ParticipantPage tabs", () => {
   it("mounts the activity only when the Verlauf tab is opened", async () => {
     const user = await renderLoadedPage();
 
-    await user.click(screen.getByRole("tab", { name: "Verlauf" }));
+    await user.click(screen.getByRole("tab", { name: /verlauf/i }));
 
     expect(await screen.findByTestId("activity-stub")).toBeInTheDocument();
     expect(

@@ -118,6 +118,7 @@ export default function ParticipantListCard({
                       <button
                         key={p.id}
                         onClick={() => onSelect(p.id)}
+                        aria-label={`Teilnehmer ${p.name} auswählen`}
                         className={`w-full text-left px-4 py-3 hover:bg-accent/50 transition-colors ${
                           isSelected ? "bg-accent" : ""
                         }`}

@@ -303,11 +303,11 @@ export default function ParticipantPage() {
                   onValueChange={(value) => handleTabChange(value as ParticipantTab)}
                 >
                   <TabsList variant="line" className="mb-4">
-                    <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
-                    <TabsTrigger value="verlauf">Verlauf</TabsTrigger>
-                    <TabsTrigger value="lernpfad">Lernpfad</TabsTrigger>
-                    <TabsTrigger value="abwesenheiten">Abwesenheiten</TabsTrigger>
-                    <TabsTrigger value="termine">Termine</TabsTrigger>
+                    <TabsTrigger value="uebersicht" aria-label="Übersicht anzeigen">Übersicht</TabsTrigger>
+                    <TabsTrigger value="verlauf" aria-label="Verlauf anzeigen">Verlauf</TabsTrigger>
+                    <TabsTrigger value="lernpfad" aria-label="Lernpfad anzeigen">Lernpfad</TabsTrigger>
+                    <TabsTrigger value="abwesenheiten" aria-label="Abwesenheiten anzeigen">Abwesenheiten</TabsTrigger>
+                    <TabsTrigger value="termine" aria-label="Termine anzeigen">Termine</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="uebersicht" className="grid gap-6 lg:grid-cols-2">
