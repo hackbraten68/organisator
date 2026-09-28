@@ -25,6 +25,7 @@ export const AUDIT_DOMAINS = [
   'authentication',
   'system',
   'learning_path',
+  'availability',
 ] as const;
 
 export type AuditDomain = (typeof AUDIT_DOMAINS)[number];
@@ -293,6 +294,16 @@ export const DEFAULT_FIELD_POLICIES: Record<string, AuditFieldPolicyConfig> = {
     EstimatedWeeks__c: { strategy: 'FULL', displayType: 'numeric' },
     Status: { strategy: 'FULL', displayType: 'status' },
   },
+  availability: {
+    User__c: { strategy: 'REFERENCE', reference: 'User' },
+    DayOfWeek__c: { strategy: 'FULL', displayType: 'status' },
+    StartTime__c: { strategy: 'FULL', displayType: 'time' },
+    EndTime__c: { strategy: 'FULL', displayType: 'time' },
+    Type__c: { strategy: 'FULL', displayType: 'status' },
+    IsActive__c: { strategy: 'FULL', displayType: 'boolean' },
+    ValidFrom__c: { strategy: 'FULL', displayType: 'date' },
+    ValidTo__c: { strategy: 'FULL', displayType: 'date' },
+  },
 };
 
 /**
@@ -309,6 +320,7 @@ export const DEFAULT_DOMAIN_VISIBILITY: Record<AuditDomain, AuditVisibility> = {
   authentication: 'restricted',
   system: 'staff',
   learning_path: 'staff',
+  availability: 'staff',
 };
 
 export const DEFAULT_DOMAIN_SENSITIVITY: Record<AuditDomain, AuditSensitivity> = {
@@ -322,6 +334,7 @@ export const DEFAULT_DOMAIN_SENSITIVITY: Record<AuditDomain, AuditSensitivity> =
   authentication: 'restricted',
   system: 'normal',
   learning_path: 'normal',
+  availability: 'normal',
 };
 
 /**
@@ -387,6 +400,17 @@ export const METADATA_ALLOWLISTS: Record<AuditDomain, Set<string>> = {
     'estimatedWeeks',
     'status',
     'source',
+  ]),
+  // Verfuegbarkeits-Slots sind Ressourcen-Daten (User__c), keine
+  // Teilnehmer-Daten. Der Allowlist nimmt bewusst keine Teilnehmer-Bezuege
+  // auf: Slot-Aenderungen duerfen nicht in eine Teilnehmer-Historie leaken.
+  availability: new Set([
+    'userId',
+    'dayOfWeek',
+    'slotType',
+    'isActive',
+    'validFrom',
+    'validTo',
   ]),
 };
 
@@ -454,6 +478,11 @@ export const EVENT_TYPES = {
   LEARNING_PATH_ITEM_UPDATED: 'learning_path.item_updated' as const,
   LEARNING_PATH_ITEM_DELETED: 'learning_path.item_deleted' as const,
   LEARNING_PATH_ITEM_REORDERED: 'learning_path.item_reordered' as const,
+
+  // Verfügbarkeits-Slots (Coach/Staff-Ressource, nicht teilnehmergebunden)
+  AVAILABILITY_SLOT_ADDED: 'availability.slot_added' as const,
+  AVAILABILITY_SLOT_UPDATED: 'availability.slot_updated' as const,
+  AVAILABILITY_SLOT_DELETED: 'availability.slot_deleted' as const,
 } as const;
 
 /**

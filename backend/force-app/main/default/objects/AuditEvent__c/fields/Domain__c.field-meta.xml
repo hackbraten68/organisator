@@ -59,6 +59,11 @@
                 <default>false</default>
                 <label>learning_path</label>
             </value>
+            <value>
+                <fullName>availability</fullName>
+                <default>false</default>
+                <label>availability</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

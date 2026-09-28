@@ -134,6 +134,16 @@ export const ACTIVITY_PROJECTION_RULES = {
   "time_entry.approved": { category: "administration", audiences: COACH_STAFF, includeInActivity: true, technical: false },
   "time_entry.rejected": { category: "administration", audiences: COACH_STAFF, includeInActivity: true, technical: false },
 
+  // Verfügbarkeits-Slots: Ressourcen-Daten (User__c), nicht teilnehmergebunden.
+  // includeInActivity:false — Slot-Änderungen gehören fachlich nicht in die
+  // Teilnehmer-Historie. Sie werden zentral erfasst und sind über den
+  // Audit-Explorer sichtbar, sobald dieser existiert. Bewusst gesetzt, damit
+  // die Entscheidung dokumentiert ist und nicht versehentlich über
+  // participantId__c in eine Teilnehmer-Timeline rutscht.
+  "availability.slot_added": { category: "administration", audiences: STAFF_SUPERVISOR, includeInActivity: false, technical: false },
+  "availability.slot_updated": { category: "administration", audiences: STAFF_SUPERVISOR, includeInActivity: false, technical: false },
+  "availability.slot_deleted": { category: "administration", audiences: STAFF_SUPERVISOR, includeInActivity: false, technical: false },
+
   // System / Auth: Technik, nur für Staff/Supervisor bzw. Auditor
   "system.created": { category: "administration", audiences: STAFF_SUPERVISOR, includeInActivity: true, technical: true },
   "authentication.created": { category: "security", audiences: AUDITOR_SUPERVISOR, includeInActivity: true, technical: true },

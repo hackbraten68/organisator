@@ -1,0 +1,25 @@
+query GetAvailabilitySlot($id: ID!) {
+  uiapi {
+    query {
+      AvailabilitySlot__c(where: { Id: { eq: $id } }, first: 1) {
+        edges {
+          node {
+            Id
+            Name @optional { value }
+            User__c @optional { value }
+            DayOfWeek__c @optional { value }
+            StartTime__c @optional { value }
+            EndTime__c @optional { value }
+            Type__c @optional { value }
+            IsActive__c @optional { value }
+            ValidFrom__c @optional { value }
+            ValidTo__c @optional { value }
+            CreatedDate @optional { value }
+            LastModifiedDate @optional { value }
+            User__r @optional { Name @optional { value } }
+          }
+        }
+      }
+    }
+  }
+}

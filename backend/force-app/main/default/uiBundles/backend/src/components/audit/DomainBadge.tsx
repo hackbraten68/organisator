@@ -23,6 +23,7 @@ const DOMAIN_LABELS: Record<AuditDomain, string> = {
   authentication: 'Authentifizierung',
   system: 'System',
   learning_path: 'Lernpfad',
+  availability: 'Verfügbarkeit',
 };
 
 const ACTION_LABELS: Record<AuditAction, string> = {

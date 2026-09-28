@@ -9,6 +9,12 @@ import {
   recordAppointmentCancelled,
   recordAppointmentAttendanceChanged,
 } from "@/api/audit/appointmentAuditIntegration";
+import {
+  recordAvailabilitySlotAdded,
+  recordAvailabilitySlotUpdated,
+  recordAvailabilitySlotDeleted,
+  toSlotContext,
+} from "@/api/audit/availabilityAuditIntegration";
 import { generateUUID } from "@/api/audit/auditService";
 
 import GET_APPOINTMENT_RAW from "@/api/appointment/query/GetAppointment.graphql?raw";
@@ -23,6 +29,7 @@ import CANCEL_APPOINTMENT_RAW from "@/api/appointment/query/CancelAppointment.gr
 import UPDATE_APPOINTMENT_ATTENDANCE_RAW from "@/api/appointment/query/UpdateAppointmentAttendance.graphql?raw";
 
 import GET_AVAILABILITY_SLOTS_RAW from "@/api/availabilitySlot/query/GetAvailabilitySlots.graphql?raw";
+import GET_AVAILABILITY_SLOT_RAW from "@/api/availabilitySlot/query/GetAvailabilitySlot.graphql?raw";
 import CREATE_AVAILABILITY_SLOT_RAW from "@/api/availabilitySlot/query/CreateAvailabilitySlot.graphql?raw";
 import UPDATE_AVAILABILITY_SLOT_RAW from "@/api/availabilitySlot/query/UpdateAvailabilitySlot.graphql?raw";
 import DELETE_AVAILABILITY_SLOT_RAW from "@/api/availabilitySlot/query/DeleteAvailabilitySlot.graphql?raw";
@@ -87,6 +94,16 @@ interface GetAppointmentsByParticipantResponse {
 }
 
 interface GetAvailabilitySlotsResponse {
+  uiapi?: {
+    query?: {
+      AvailabilitySlot__c?: {
+        edges?: Array<{ node?: AvailabilitySlotNode | null } | null> | null;
+      } | null;
+    } | null;
+  } | null;
+}
+
+interface GetAvailabilitySlotResponse {
   uiapi?: {
     query?: {
       AvailabilitySlot__c?: {
@@ -500,6 +517,15 @@ export async function getAvailabilitySlots(filters: AvailabilitySlotFilters = {}
   return edges.map((e: any) => mapGqlToAvailabilitySlot(e.node));
 }
 
+export async function getAvailabilitySlot(id: string): Promise<AvailabilitySlot | null> {
+  const response = await executeGraphQL<GetAvailabilitySlotResponse, { id: string }>(
+    GET_AVAILABILITY_SLOT_RAW,
+    { id },
+  );
+  const node = response?.uiapi?.query?.AvailabilitySlot__c?.edges?.[0]?.node;
+  return node ? mapGqlToAvailabilitySlot(node) : null;
+}
+
 export async function createAvailabilitySlot(input: AvailabilitySlotInput): Promise<string> {
   const response = await executeGraphQL<MutationResponse, {
     userId: string;
@@ -520,10 +546,32 @@ export async function createAvailabilitySlot(input: AvailabilitySlotInput): Prom
     validFrom: input.validFrom,
     validTo: input.validTo,
   });
-  return response?.uiapi?.AvailabilitySlot__cCreate?.Record?.Id ?? "";
+  const id = response?.uiapi?.AvailabilitySlot__cCreate?.Record?.Id ?? "";
+  if (id) {
+    await recordAvailabilitySlotAdded({
+      slot: {
+        id,
+        userId: input.userId,
+        dayOfWeek: input.dayOfWeek,
+        startTime: input.startTime,
+        endTime: input.endTime,
+        type: input.type || "General",
+        isActive: input.isActive ?? true,
+        validFrom: input.validFrom,
+        validTo: input.validTo,
+      },
+      actor: getAuditActor(),
+      correlationId: generateUUID(),
+    });
+  }
+  return id;
 }
 
 export async function updateAvailabilitySlot(id: string, patch: AvailabilitySlotPatch): Promise<void> {
+  // Vorher lesen: das Update-Event braucht den Ist-Zustand fuer die
+  // before/after-Aenderung, und das Loeschen den Slot selbst.
+  const existing = await getAvailabilitySlot(id);
+
   const vars: Record<string, any> = { id };
   if (patch.dayOfWeek !== undefined) vars.dayOfWeek = patch.dayOfWeek;
   if (patch.startTime !== undefined) vars.startTime = patch.startTime;
@@ -534,8 +582,51 @@ export async function updateAvailabilitySlot(id: string, patch: AvailabilitySlot
   if (patch.validTo !== undefined) vars.validTo = patch.validTo;
 
   await executeGraphQL<MutationResponse, Record<string, any>>(UPDATE_AVAILABILITY_SLOT_RAW, vars);
+
+  const changes: Array<{ field: string; oldValue?: unknown; newValue?: unknown; redacted: boolean }> = [];
+  const push = (field: string, oldValue: unknown, newValue: unknown) => {
+    if (newValue !== undefined && oldValue !== newValue) {
+      changes.push({ field, oldValue, newValue, redacted: false });
+    }
+  };
+  push("DayOfWeek__c", existing?.dayOfWeek, patch.dayOfWeek);
+  push("StartTime__c", existing?.startTime, patch.startTime);
+  push("EndTime__c", existing?.endTime, patch.endTime);
+  push("Type__c", existing?.type, patch.type);
+  push("IsActive__c", existing?.isActive, patch.isActive);
+  push("ValidFrom__c", existing?.validFrom, patch.validFrom);
+  push("ValidTo__c", existing?.validTo, patch.validTo);
+
+  if (changes.length > 0) {
+    await recordAvailabilitySlotUpdated({
+      slot: {
+        id,
+        userId: existing?.userId ?? "",
+        dayOfWeek: patch.dayOfWeek ?? existing?.dayOfWeek ?? "",
+        startTime: patch.startTime ?? existing?.startTime ?? "",
+        endTime: patch.endTime ?? existing?.endTime ?? "",
+        type: patch.type ?? existing?.type ?? "",
+        isActive: patch.isActive ?? existing?.isActive ?? true,
+        validFrom: patch.validFrom ?? existing?.validFrom,
+        validTo: patch.validTo ?? existing?.validTo,
+      },
+      changes,
+      actor: getAuditActor(),
+      correlationId: generateUUID(),
+    });
+  }
 }
 
 export async function deleteAvailabilitySlot(id: string): Promise<void> {
+  const existing = await getAvailabilitySlot(id);
+
   await executeGraphQL<MutationResponse, { id: string }>(DELETE_AVAILABILITY_SLOT_RAW, { id });
+
+  if (existing) {
+    await recordAvailabilitySlotDeleted({
+      slot: toSlotContext(existing),
+      actor: getAuditActor(),
+      correlationId: generateUUID(),
+    });
+  }
 }

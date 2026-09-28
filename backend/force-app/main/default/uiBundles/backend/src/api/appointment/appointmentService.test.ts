@@ -201,8 +201,14 @@ describe("deleteAvailabilitySlot", () => {
 
     await deleteAvailabilitySlot("a0C9b0000Kx5LFtEQM");
 
-    const [document, variables] = mockedExecute.mock.calls[0] as [string, Record<string, unknown>];
+    // Vor dem Loeschen wird der Slot gelesen (fuer das Audit-Event), also
+    // gezielt die Delete-Mutation suchen statt calls[0] zu nehmen.
+    const deleteCall = mockedExecute.mock.calls.find((call) =>
+      (call[0] as string).includes("AvailabilitySlot__cDelete"),
+    );
+    expect(deleteCall).toBeDefined();
 
+    const [document, variables] = deleteCall as [string, Record<string, unknown>];
     expect(document).toContain("AvailabilitySlot__cDelete");
     expect(variables).toEqual({ id: "a0C9b0000Kx5LFtEQM" });
   });

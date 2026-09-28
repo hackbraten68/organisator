@@ -12,15 +12,15 @@
 | Participant | 5 | 5 | 0 |
 | Learning Path | 4 | 4 | 0 |
 | Session/Auth | 1 | 1 | 0 |
-| Absence | 6 | 0 | 6 |
-| Appointment | 5 | 0 | 5 |
-| Availability | 3 | 0 | 3 |
+| Absence | 6 | 6 | 0 |
+| Appointment | 5 | 5 | 0 |
+| Availability | 3 | 3 | 0 |
 | Workbook | 5 | 0 | 5 |
 | Classbook | 4 | 0 | 4 |
 | Daily Check-in | 4 | 0 | 4 |
 | Time Entry | 7 | 0 | 7 |
 | System | 1 | 0 | 1 |
-| **Gesamt** | **45** | **10** | **35** |
+| **Gesamt** | **48** | **27** | **21** |
 
 ---
 
@@ -51,34 +51,39 @@
 |-----------|--------|----------|-----------|-------------|-----------|
 | `authentication.created` | ✅ | restricted | ✅ | ❌ | ❌ |
 
-### Absence (0/6 ❌)
+### Absence (6/6 ✅)
 
 | Event-Typ | Status | Audience | Technical | Correlation | Deep-Link |
 |-----------|--------|----------|-----------|-------------|-----------|
-| `absence.reported` | ❌ | restricted | ❌ | ✅ | ✅ |
-| `absence.updated` | ❌ | restricted | ❌ | ✅ | ✅ |
-| `absence.approved` | ❌ | restricted | ❌ | ✅ | ✅ |
-| `absence.rejected` | ❌ | restricted | ❌ | ✅ | ✅ |
-| `absence.cancelled` | ❌ | restricted | ❌ | ✅ | ✅ |
-| `absence.document_added` | ❌ | restricted | ❌ | ✅ | ✅ |
+| `absence.reported` | ✅ | restricted | ❌ | ✅ | ✅ |
+| `absence.updated` | ✅ | restricted | ❌ | ✅ | ✅ |
+| `absence.approved` | ✅ | restricted | ❌ | ✅ | ✅ |
+| `absence.rejected` | ✅ | restricted | ❌ | ✅ | ✅ |
+| `absence.cancelled` | ✅ | restricted | ❌ | ✅ | ✅ |
+| `absence.document_added` | ✅ | restricted | ❌ | ✅ | ✅ |
 
-### Appointment (0/5 ❌)
-
-| Event-Typ | Status | Audience | Technical | Correlation | Deep-Link |
-|-----------|--------|----------|-----------|-------------|-----------|
-| `appointment.created` | ❌ | staff | ❌ | ✅ | ✅ |
-| `appointment.rescheduled` | ❌ | staff | ❌ | ✅ | ✅ |
-| `appointment.cancelled` | ❌ | staff | ❌ | ✅ | ✅ |
-| `appointment.attendance_changed` | ❌ | staff | ❌ | ✅ | ✅ |
-| `appointment.updated` | ❌ | staff | ❌ | ✅ | ✅ |
-
-### Availability (0/3 ❌)
+### Appointment (5/5 ✅)
 
 | Event-Typ | Status | Audience | Technical | Correlation | Deep-Link |
 |-----------|--------|----------|-----------|-------------|-----------|
-| `availability.slot_added` | ❌ | staff | ❌ | ✅ | ✅ |
-| `availability.slot_updated` | ❌ | staff | ❌ | ✅ | ✅ |
-| `availability.slot_deleted` | ❌ | staff | ❌ | ✅ | ✅ |
+| `appointment.created` | ✅ | staff | ❌ | ✅ | ✅ |
+| `appointment.rescheduled` | ✅ | staff | ❌ | ✅ | ✅ |
+| `appointment.cancelled` | ✅ | staff | ❌ | ✅ | ✅ |
+| `appointment.attendance_changed` | ✅ | staff | ❌ | ✅ | ✅ |
+| `appointment.status_changed` | ✅ | staff | ❌ | ✅ | ✅ |
+
+### Availability (3/3 ✅)
+
+Slots sind Ressourcen-Daten (`User__c`), nicht teilnehmergebunden. Die Events tragen
+deshalb **kein** `ParticipantId__c` — sie erscheinen in keiner Teilnehmer-Timeline,
+sondern zentral erfasst (`includeInActivity: false`). Sichtbar werden sie erst über
+den organisationsweiten Audit-Explorer, der noch nicht existiert.
+
+| Event-Typ | Status | Audience | Technical | Correlation | Deep-Link |
+|-----------|--------|----------|-----------|-------------|-----------|
+| `availability.slot_added` | ✅ | staff | ❌ | ✅ | ❌ |
+| `availability.slot_updated` | ✅ | staff | ❌ | ✅ | ❌ |
+| `availability.slot_deleted` | ✅ | staff | ❌ | ✅ | ❌ |
 
 ### Workbook (0/5 ❌)
 
@@ -137,6 +142,19 @@
 | **Technical** | ✅ / ❌ | Technisches Event (kein Business-Event) |
 | **Correlation** | ✅ / ❌ | Unterstützt Correlation-ID für Gruppierung |
 | **Deep-Link** | ✅ / ❌ | Kann per Deep-Link hervorgehoben werden |
+
+---
+
+## Bekannte Lücken
+
+1. **Audit-Explorer fehlt.** `getOrganizationAuditEvents()` ist ein Platzhalter und
+   gibt `[]` zurück. Events ohne Teilnehmerbezug — Availability, System, Login —
+   werden zwar erfasst, sind aber derzeit nirgends einsehbar.
+2. **Verfügbarkeits-Events ohne Betrachter.** Nach der Entscheidung, Slot-Events
+   nicht in Teilnehmer-Timelines zu zeigen, sind sie ausschließlich über den
+   Explorer erreichbar. Bis dahin ist die Erfassung eine reine Schreib-Historie.
+3. **Coverage-Lücke unverändert:** Workbook, Classbook, Daily Check-in, Time Entry
+   und System haben Event-Typen, aber keine Produzenten.
 
 ---
 
