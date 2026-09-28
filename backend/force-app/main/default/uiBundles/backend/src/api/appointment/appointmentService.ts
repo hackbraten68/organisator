@@ -1,6 +1,15 @@
 import { executeGraphQL } from "@/api/graphqlClient";
 import type { Appointment, AppointmentInput, AppointmentPatch, AppointmentFilters } from "@/types/appointment";
 import type { AvailabilitySlot, AvailabilitySlotInput, AvailabilitySlotPatch, AvailabilitySlotFilters } from "@/types/availabilitySlot";
+import { getAuditActor } from "@/api/audit/actorContext";
+import {
+  recordAppointmentCreated,
+  recordAppointmentRescheduled,
+  recordAppointmentStatusChanged,
+  recordAppointmentCancelled,
+  recordAppointmentAttendanceChanged,
+} from "@/api/audit/appointmentAuditIntegration";
+import { generateUUID } from "@/api/audit/auditService";
 
 import GET_APPOINTMENT_RAW from "@/api/appointment/query/GetAppointment.graphql?raw";
 import LIST_APPOINTMENTS_RAW from "@/api/appointment/query/ListAppointments.graphql?raw";
@@ -220,7 +229,36 @@ export async function createAppointment(input: AppointmentInput): Promise<string
     notes: input.notes,
     correlationId: input.correlationId,
   });
-  return response?.uiapi?.Appointment__cCreate?.Record?.Id ?? "";
+  const id = response?.uiapi?.Appointment__cCreate?.Record?.Id ?? "";
+  if (id) {
+    const actor = getAuditActor();
+    await recordAppointmentCreated({
+      appointment: {
+        id,
+        name: "",
+        participantId: input.participantId,
+        participantName: "",
+        coachId: input.coachId,
+        coachName: "",
+        type: input.type,
+        status: input.status || "Draft",
+        startTime: input.startTime,
+        endTime: input.endTime,
+        location: input.location,
+        meetingLink: input.meetingLink,
+        notes: input.notes,
+        cancellationReason: "",
+        correlationId: input.correlationId,
+        confirmedAt: "",
+        completedAt: "",
+        createdAt: "",
+        updatedAt: "",
+      },
+      actor,
+      correlationId: generateUUID(),
+    });
+  }
+  return id;
 }
 
 export async function updateAppointment(id: string, patch: AppointmentPatch): Promise<void> {
@@ -239,16 +277,103 @@ export async function updateAppointment(id: string, patch: AppointmentPatch): Pr
   if (patch.completedAt !== undefined) vars.completedAt = patch.completedAt;
 
   await executeGraphQL<MutationResponse, Record<string, any>>(UPDATE_APPOINTMENT_RAW, vars);
+
+  if (patch.status !== undefined) {
+    const actor = getAuditActor();
+    await recordAppointmentStatusChanged({
+      appointment: {
+        id,
+        name: "",
+        participantId: "",
+        participantName: "",
+        coachId: patch.coachId,
+        coachName: "",
+        type: patch.type ?? "Sonstiges",
+        status: patch.status,
+        startTime: patch.startTime ?? "",
+        endTime: patch.endTime ?? "",
+        location: patch.location,
+        meetingLink: patch.meetingLink,
+        notes: patch.notes,
+        cancellationReason: patch.cancellationReason,
+        correlationId: patch.correlationId,
+        confirmedAt: patch.confirmedAt ?? "",
+        completedAt: patch.completedAt ?? "",
+        createdAt: "",
+        updatedAt: "",
+      },
+      oldStatus: "",
+      newStatus: patch.status,
+      actor,
+      correlationId: generateUUID(),
+    });
+  }
 }
 
 export async function confirmAppointment(id: string): Promise<void> {
   const confirmedAt = new Date().toISOString();
   await executeGraphQL<MutationResponse, { id: string; confirmedAt: string }>(CONFIRM_APPOINTMENT_RAW, { id, confirmedAt });
+  const actor = getAuditActor();
+  await recordAppointmentStatusChanged({
+    appointment: {
+      id,
+      name: "",
+      participantId: "",
+      participantName: "",
+      coachId: "",
+      coachName: "",
+      type: "Sonstiges",
+      status: "Confirmed",
+      startTime: "",
+      endTime: "",
+      location: undefined,
+      meetingLink: undefined,
+      notes: undefined,
+      cancellationReason: "",
+      correlationId: undefined,
+      confirmedAt,
+      completedAt: "",
+      createdAt: "",
+      updatedAt: "",
+    },
+    oldStatus: "Draft",
+    newStatus: "Confirmed",
+    actor,
+    correlationId: generateUUID(),
+  });
 }
 
 export async function completeAppointment(id: string): Promise<void> {
   const completedAt = new Date().toISOString();
   await executeGraphQL<MutationResponse, { id: string; completedAt: string }>(COMPLETE_APPOINTMENT_RAW, { id, completedAt });
+  const actor = getAuditActor();
+  await recordAppointmentStatusChanged({
+    appointment: {
+      id,
+      name: "",
+      participantId: "",
+      participantName: "",
+      coachId: "",
+      coachName: "",
+      type: "Sonstiges",
+      status: "Completed",
+      startTime: "",
+      endTime: "",
+      location: undefined,
+      meetingLink: undefined,
+      notes: undefined,
+      cancellationReason: "",
+      correlationId: undefined,
+      confirmedAt: "",
+      completedAt,
+      createdAt: "",
+      updatedAt: "",
+    },
+    oldStatus: "Confirmed",
+    newStatus: "Completed",
+    actor,
+    correlationId: generateUUID(),
+  });
 }
 
 export async function rescheduleAppointment(
@@ -261,14 +386,97 @@ export async function rescheduleAppointment(
     RESCHEDULE_APPOINTMENT_RAW,
     { id, startTime, endTime, correlationId }
   );
+  const actor = getAuditActor();
+  await recordAppointmentRescheduled({
+    appointment: {
+      id,
+      name: "",
+      participantId: "",
+      participantName: "",
+      coachId: "",
+      coachName: "",
+      type: "Sonstiges",
+      status: "Finding",
+      startTime,
+      endTime,
+      location: undefined,
+      meetingLink: undefined,
+      notes: undefined,
+      cancellationReason: "",
+      correlationId,
+      confirmedAt: "",
+      completedAt: "",
+      createdAt: "",
+      updatedAt: "",
+    },
+    oldStartTime: "",
+    oldEndTime: "",
+    actor,
+    correlationId: correlationId ?? generateUUID(),
+  });
 }
 
 export async function cancelAppointment(id: string, cancellationReason?: string): Promise<void> {
   await executeGraphQL<MutationResponse, { id: string; cancellationReason?: string }>(CANCEL_APPOINTMENT_RAW, { id, cancellationReason });
+  const actor = getAuditActor();
+  await recordAppointmentCancelled({
+    appointment: {
+      id,
+      name: "",
+      participantId: "",
+      participantName: "",
+      coachId: "",
+      coachName: "",
+      type: "Sonstiges",
+      status: "Cancelled",
+      startTime: "",
+      endTime: "",
+      location: undefined,
+      meetingLink: undefined,
+      notes: undefined,
+      cancellationReason: cancellationReason ?? "",
+      correlationId: undefined,
+      confirmedAt: "",
+      completedAt: "",
+      createdAt: "",
+      updatedAt: "",
+    },
+    actor,
+    reason: cancellationReason,
+    correlationId: generateUUID(),
+  });
 }
 
 export async function updateAppointmentAttendance(id: string, status: "Completed" | "NoShow"): Promise<void> {
   await executeGraphQL<MutationResponse, { id: string; status: string }>(UPDATE_APPOINTMENT_ATTENDANCE_RAW, { id, status });
+  const actor = getAuditActor();
+  await recordAppointmentAttendanceChanged({
+    appointment: {
+      id,
+      name: "",
+      participantId: "",
+      participantName: "",
+      coachId: "",
+      coachName: "",
+      type: "Sonstiges",
+      status,
+      startTime: "",
+      endTime: "",
+      location: undefined,
+      meetingLink: undefined,
+      notes: undefined,
+      cancellationReason: "",
+      correlationId: undefined,
+      confirmedAt: "",
+      completedAt: "",
+      createdAt: "",
+      updatedAt: "",
+    },
+    oldStatus: "",
+    newStatus: status,
+    actor,
+    correlationId: generateUUID(),
+  });
 }
 
 export async function getAvailabilitySlots(filters: AvailabilitySlotFilters = {}, first = 100): Promise<AvailabilitySlot[]> {
