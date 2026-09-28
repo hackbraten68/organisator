@@ -1446,27 +1446,10 @@ spurious results.`)}}return!1};class t2{constructor(t,n="GraphQL request",r={lin
       Record { Id }
     }
   }
-}`,noe=`query GetAvailabilitySlots(
-  $userId: ID
-  $dayOfWeek: Picklist
-  $type: Picklist
-  $isActive: Boolean
-  $first: Int
-) {
+}`,noe=`query GetAvailabilitySlots($where: AvailabilitySlot__c_Filter, $first: Int) {
   uiapi {
     query {
-      AvailabilitySlot__c(
-        where: {
-          and: [
-            { User__c: { eq: $userId } }
-            { DayOfWeek__c: { eq: $dayOfWeek } }
-            { Type__c: { eq: $type } }
-            { IsActive__c: { eq: $isActive } }
-          ]
-        }
-        first: $first
-        orderBy: { DayOfWeek__c: { order: ASC }, StartTime__c: { order: ASC } }
-      ) {
+      AvailabilitySlot__c(where: $where, first: $first, orderBy: { DayOfWeek__c: { order: ASC }, StartTime__c: { order: ASC } }) {
         edges {
           node {
             Id
@@ -1487,7 +1470,8 @@ spurious results.`)}}return!1};class t2{constructor(t,n="GraphQL request",r={lin
       }
     }
   }
-}`,roe=`mutation CreateAvailabilitySlot(
+}
+`,roe=`mutation CreateAvailabilitySlot(
   $userId: IdOrRef!
   $dayOfWeek: Picklist!
   $startTime: Time!
