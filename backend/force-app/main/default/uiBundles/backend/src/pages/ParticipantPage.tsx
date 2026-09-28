@@ -15,6 +15,7 @@ import ParticipantListCard, {
 import ParticipantStickyHeader from "@/components/participants/ParticipantStickyHeader";
 import ParticipantSummaryCard from "@/components/participants/ParticipantSummaryCard";
 import OnboardingChecklist from "@/components/participants/OnboardingChecklist";
+import { ParticipantAbsencesTab } from "@/components/absences";
 import {
   getCompletion,
   getOnboardingCounts,
@@ -30,9 +31,9 @@ import { type Participant } from "@/types/participant";
 
 const NONE = "__none";
 
-type ParticipantTab = "uebersicht" | "verlauf" | "lernpfad";
+type ParticipantTab = "uebersicht" | "verlauf" | "lernpfad" | "abwesenheiten";
 
-const PARTICIPANT_TABS: ParticipantTab[] = ["uebersicht", "verlauf", "lernpfad"];
+const PARTICIPANT_TABS: ParticipantTab[] = ["uebersicht", "verlauf", "lernpfad", "abwesenheiten"];
 
 function tabFromParams(params: URLSearchParams): ParticipantTab {
   const tab = params.get("tab");
@@ -300,11 +301,12 @@ export default function ParticipantPage() {
                 value={tab}
                 onValueChange={(value) => handleTabChange(value as ParticipantTab)}
               >
-                <TabsList variant="line" className="mb-4">
-                  <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
-                  <TabsTrigger value="verlauf">Verlauf</TabsTrigger>
-                  <TabsTrigger value="lernpfad">Lernpfad</TabsTrigger>
-                </TabsList>
+<TabsList variant="line" className="mb-4">
+                <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
+                <TabsTrigger value="verlauf">Verlauf</TabsTrigger>
+                <TabsTrigger value="lernpfad">Lernpfad</TabsTrigger>
+                <TabsTrigger value="abwesenheiten">Abwesenheiten</TabsTrigger>
+              </TabsList>
 
                 <TabsContent value="uebersicht" className="space-y-6">
                   <ParticipantSummaryCard
@@ -339,6 +341,17 @@ export default function ParticipantPage() {
                       participantId={participant.id}
                       participantName={participant.name}
                       programId={participant.programId}
+                    />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="abwesenheiten">
+                  {/* Lazy: absences load only when the tab is opened. */}
+                  {tab === "abwesenheiten" && (
+                    <ParticipantAbsencesTab
+                      participantId={participant.id}
+                      participantName={participant.name}
+                      isCoachOrStaff={true}
                     />
                   )}
                 </TabsContent>

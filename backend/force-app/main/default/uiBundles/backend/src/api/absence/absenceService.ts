@@ -1,6 +1,8 @@
 import { executeGraphQL } from "@/api/graphqlClient";
 import type { Absence, AbsenceInput, AbsencePatch, AbsenceFilters, AbsenceDocument } from "@/types/absence";
 
+export type { Absence, AbsenceInput, AbsencePatch, AbsenceFilters, AbsenceDocument };
+
 import GET_ABSENCE_RAW from "@/api/absence/query/GetAbsence.graphql?raw";
 import LIST_ABSENCES_RAW from "@/api/absence/query/ListAbsences.graphql?raw";
 import GET_ABSENCES_BY_PARTICIPANT_RAW from "@/api/absence/query/GetAbsencesByParticipant.graphql?raw";

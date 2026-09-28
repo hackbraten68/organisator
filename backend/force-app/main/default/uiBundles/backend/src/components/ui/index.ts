@@ -44,6 +44,20 @@ export {
   DialogTrigger,
 } from './dialog';
 export {
+  AlertDialog,
+  AlertDialogPortal,
+  AlertDialogOverlay,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from './alert-dialog';
+export { Textarea } from './textarea';
+export {
   DropdownMenu,
   DropdownMenuPortal,
   DropdownMenuTrigger,
