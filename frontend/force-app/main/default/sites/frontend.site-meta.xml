@@ -18,14 +18,13 @@
     <fileNotFoundPage>FileNotFound</fileNotFoundPage>
     <genericErrorPage>Exception</genericErrorPage>
     <inMaintenancePage>InMaintenance</inMaintenancePage>
-     <indexPage>CommunitiesLanding</indexPage> 
+    <indexPage>CommunitiesLanding</indexPage>
     <masterLabel>frontend</masterLabel>
     <redirectToCustomDomain>false</redirectToCustomDomain>
     <referrerPolicyOriginWhenCrossOrigin>true</referrerPolicyOriginWhenCrossOrigin>
     <selfRegPage>CommunitiesSelfReg</selfRegPage>
-  <!--  <serverIsDown>SNA_U2rxy_sf_default_cdn_byo1</serverIsDown> -->
-   <!-- <siteAdmin>epic.out.d1d3a2d722c8@orgfarm.salesforce.com</siteAdmin> -->
-   <!--  <siteGuestRecordDefaultOwner>epic.out.d1d3a2d722c8@orgfarm.salesforce.com</siteGuestRecordDefaultOwner> -->
+    <siteAdmin>test-yjm1rdvkb6xu@example.com</siteAdmin>
+    <siteGuestRecordDefaultOwner>test-yjm1rdvkb6xu@example.com</siteGuestRecordDefaultOwner>
     <siteType>ChatterNetwork</siteType>
-    <urlPathPrefix>frontendvforcesite</urlPathPrefix>
+    <urlPathPrefix>organisator</urlPathPrefix>
 </CustomSite>

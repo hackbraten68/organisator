@@ -2,7 +2,7 @@
 <DigitalExperienceConfig xmlns="http://soap.sforce.com/2006/04/metadata">
     <label>frontend</label>
     <site>
-        <urlPathPrefix>frontend</urlPathPrefix>
+        <urlPathPrefix>organisator</urlPathPrefix>
     </site>
     <space>site/frontend1</space>
 </DigitalExperienceConfig>
