@@ -52,7 +52,10 @@ const args = process.argv.slice(2);
 // No hardcoded fallback: the org is either given explicitly or comes from
 // `sf config get target-org`. Seed data written to the wrong org is not
 // recoverable by rerunning. See scripts/target-org.mjs.
-const TARGET_ORG = resolveTargetOrgOrThrow({ argv: args, label: 'seed-sample-data' }).org;
+const TARGET_ORG = resolveTargetOrgOrThrow({
+  argv: args,
+  label: "seed-sample-data"
+}).org;
 const DRY_RUN = args.includes("--dry-run");
 const REBUILD = args.includes("--rebuild");
 
