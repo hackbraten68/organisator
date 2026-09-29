@@ -30,11 +30,11 @@ und [`portal-access-plan.md`](./portal-access-plan.md) (Phase 1.5 / 2.3).
 ### 1. Test-Account
 
 ```bash
-sf data create record --target-org backendtest \
+sf data create record --target-org organiser-dev \
   --sobject Account \
   --values "Name='SPIKE Portal Test Account'"
 
-sf data query --target-org backendtest \
+sf data query --target-org organiser-dev \
   --query "SELECT Id, Name FROM Account WHERE Name='SPIKE Portal Test Account'"
 ```
 
@@ -43,11 +43,11 @@ Ergebnis: `Account-Id` notieren → `ACC_ID`
 ### 2. Test-Contact
 
 ```bash
-sf data create record --target-org backendtest \
+sf data create record --target-org organiser-dev \
   --sobject Contact \
   --values "AccountId=ACC_ID FirstName=Spike LastName=Portal Email=spike.portal@example.invalid"
 
-sf data query --target-org backendtest \
+sf data query --target-org organiser-dev \
   --query "SELECT Id, Email, AccountId FROM Contact WHERE Email='spike.portal@example.invalid'"
 ```
 
@@ -56,7 +56,7 @@ Ergebnis: `Contact-Id` → `CONTACT_ID`
 ### 3. Eigener Participant
 
 ```bash
-sf data create record --target-org backendtest \
+sf data create record --target-org organiser-dev \
   --sobject Participant__c \
   --values "Name='Spike Portal' Contact__c=CONTACT_ID Status__c=Onboarding"
 ```
@@ -66,15 +66,15 @@ sf data create record --target-org backendtest \
 Zweiter Contact **ohne** Portal-User, eigener Account:
 
 ```bash
-sf data create record --target-org backendtest \
+sf data create record --target-org organiser-dev \
   --sobject Account \
   --values "Name='SPIKE Fremder Account'"
 
-sf data create record --target-org backendtest \
+sf data create record --target-org organiser-dev \
   --sobject Contact \
   --values "AccountId=ACC2_ID FirstName=Fremd LastName=Person Email=fremd.portal@example.invalid"
 
-sf data create record --target-org backendtest \
+sf data create record --target-org organiser-dev \
   --sobject Participant__c \
   --values "Name='Spike Fremd' Contact__c=CONTACT2_ID Status__c=Onboarding"
 ```
@@ -84,7 +84,7 @@ sf data create record --target-org backendtest \
 Über den späteren `POST /grant`-Pfad, falls Phase 3 schon steht — sonst manuell:
 
 ```bash
-sf data create record --target-org backendtest \
+sf data create record --target-org organiser-dev \
   --sobject User \
   --values "Username=spike.portal@example.invalid Email=spike.portal@example.invalid \
 LastName=Portal ContactId=CONTACT_ID ProfileId=PORTAL_PROFILE_ID"

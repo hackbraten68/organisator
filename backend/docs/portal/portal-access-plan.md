@@ -18,7 +18,8 @@ Abweichung im Code.
 | `frontend/` | SFDX-Projekt, Experience Cloud Site + React UI Bundle. Praktisch leer: Stock-Auth aus dem Salesforce-Template (`UIBundleLogin/Registration/ForgotPassword/ChangePassword`) + eine Accounte-Suche. **Kein** Participant-/Program-/Termin-Code. |
 | Lead → Opportunity → Participant | Existiert nicht. Nur in `AGENTS.md` als Zielbild dokumentiert. |
 
-Beide SFDX-Projekte deployen in **denselben Org** (`00D9b00000d4GsiEAE`, Alias `backendtest`).
+Beide SFDX-Projekte deployen in **denselben Org** (aktuell `organiser-dev`, siehe
+`../AGENTS.md` → scratch org alias).
 Die Ownership-Aufteilung steht in `../AGENTS.md` → „Projektstruktur & Naming".
 
 ---

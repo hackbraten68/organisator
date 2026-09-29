@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Dev seed: realistic sample data for 10-13 participants (backendtest demo org).
+ * Dev seed: realistic sample data for 10-13 participants (organiser-dev demo org).
  *
  * WHAT IT DOES
  * Creates participants, drives status/coach/program changes and learning-path
@@ -26,7 +26,7 @@
  *   shapes mirror recordParticipantCreation 1:1.)
  *
  * USAGE
- *   node scripts/seed-sample-data.mjs [--target-org backendtest] [--dry-run] [--rebuild]
+ *   node scripts/seed-sample-data.mjs [--target-org organiser-dev] [--dry-run] [--rebuild]
  *   Default run aborts when scripts/.seed-manifest.json exists (no double seed).
  *   --rebuild deletes the previous seed (incl. its audit events) and reseeds.
  *   --dry-run prints the plan without writing anything.
@@ -52,7 +52,7 @@ const opt = (name, fallback) => {
   const i = args.indexOf(name);
   return i !== -1 && args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : fallback;
 };
-const TARGET_ORG = opt("--target-org", "backendtest");
+const TARGET_ORG = opt("--target-org", "organiser-dev");
 const DRY_RUN = args.includes("--dry-run");
 const REBUILD = args.includes("--rebuild");
 

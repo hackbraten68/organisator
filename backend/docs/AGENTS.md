@@ -21,8 +21,9 @@ Won` opportunity has been reviewed — never automatically by the stage change.
 
 ### Metadata ownership
 
-Both projects deploy to org `00D9b00000d4GsiEAE` (alias `backendtest`). Each metadata type
-has exactly one owning project, so the two deploys never fight over the same file.
+Both projects deploy to the **same** org — currently `organiser-dev` (see the scratch org
+alias above). Each metadata type has exactly one owning project, so the two deploys never
+fight over the same file.
 
 | Owned by `backend` | Owned by `frontend` |
 |--------------------|---------------------|
@@ -51,8 +52,27 @@ Project root:
 Target scratch org alias:
 
 ```text
-backendtest
+organiser-dev
 ```
+
+`backendtest` is retired as the development target (created 2026-09-29, expired
+2026-10-01). It is not a long-lived environment: no data, tests or verification
+invested there carries over. Create a fresh org instead of repairing the old one:
+
+```bash
+sf org create scratch \
+  --definition-file config/project-scratch-def.json \
+  --alias organiser-dev \
+  --set-default \
+  --target-dev-hub test
+
+sf project deploy start --target-org organiser-dev
+sf apex run test --target-org organiser-dev --test-level RunLocalTests --wait 10
+```
+
+Anything written below that names `backendtest` is a historical record of a
+verification that happened at the time. Re-verify against `organiser-dev` before
+relying on it.
 
 Salesforce project configuration:
 
@@ -100,16 +120,27 @@ Module__c
 
 ## Current state
 
-The following custom objects exist in `backendtest` and are retrieved into
-`force-app/main/default/objects/`:
+The following custom objects are in `force-app/main/default/objects/`. **Whether they
+are actually present in a given org is a separate question** — run `npm run schema:check`
+(see finding 12):
 
 ```text
-Program__c
-Participant__c
+Absence__c
+Appointment__c
+AuditEvent__c
+AuditOutbox__c
+AvailabilitySlot__c
 Coach_Profile__c
 Learning_Path__c
 Module__c
+Participant__c
+Program__c
 ```
+
+`Student_Test__c` was a leftover of the 2026-09-24 schema troubleshooting and was
+removed from source and from the org on 2026-09-29. `objects/Account/` holds 31
+retrieved *standard* Salesforce fields for reference; they carry no `__c` suffix and
+are not part of the custom schema.
 
 `Program__c` fields:
 
@@ -710,6 +741,29 @@ Progress reporting across participants
 
 Binding workflow rules for any future schema work: finding 9
 (manual creation, then retrieve — never `sf schema generate`).
+
+### 12. Verify the runtime schema, never the deploy report
+
+A successful deploy does not mean the custom fields reached the runtime schema. In
+this org family the deploy report, the Metadata API and the Tooling API all agree a
+field exists, while SOQL, REST describe and Apex report `No such column` and
+`sf project retrieve` returns nothing. Reproduced twice in fresh scratch orgs on
+2026-09-29; see `docs/runtime-schema-healthcheck.md` for the full evidence.
+
+After any metadata deploy:
+
+```bash
+npm run schema:check
+```
+
+Exit 0 means the runtime schema matches `force-app/main/default/objects/`, exit 1
+means drift, exit 2 means the probe itself failed. The 25 fields missing in a fresh
+org are listed in `docs/schema-repair-checklist.md`.
+
+**Rule:** a field is only operational once `sf sobject describe` returns it *and*
+`sf data query` accepts it. Deployment success is not evidence.
+
+---
 
 
 ## Scratch Org Rebuild Result

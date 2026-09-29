@@ -176,11 +176,6 @@
         <field>Program__c.DurationWeeks__c</field>
         <readable>true</readable>
     </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>Student_Test__c.Test_Field__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
     <layoutAssignments>
         <layout>Coach_Profile__c-Coach Profile-Layout</layout>
     </layoutAssignments>
@@ -189,9 +184,6 @@
     </layoutAssignments>
     <layoutAssignments>
         <layout>Program__c-Program-Layout</layout>
-    </layoutAssignments>
-    <layoutAssignments>
-        <layout>Student_Test__c-Student Test-Layout</layout>
     </layoutAssignments>
     <objectPermissions>
         <allowCreate>true</allowCreate>
@@ -248,15 +240,6 @@
         <allowRead>true</allowRead>
         <modifyAllRecords>true</modifyAllRecords>
         <object>Program__c</object>
-        <viewAllRecords>true</viewAllRecords>
-    </objectPermissions>
-    <objectPermissions>
-        <allowCreate>true</allowCreate>
-        <allowDelete>true</allowDelete>
-        <allowEdit>true</allowEdit>
-        <allowRead>true</allowRead>
-        <modifyAllRecords>true</modifyAllRecords>
-        <object>Student_Test__c</object>
         <viewAllRecords>true</viewAllRecords>
     </objectPermissions>
     <userLicense>Salesforce</userLicense>

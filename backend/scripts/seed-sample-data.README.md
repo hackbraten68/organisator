@@ -5,9 +5,9 @@ Erzeugt realistische Demo-Daten für 10–13 Teilnehmer inkl. echter Audit-Histo
 ## Usage
 
 ```bash
-node scripts/seed-sample-data.mjs --target-org backendtest   # seeden (Abbruch bei existierendem Manifest)
-node scripts/seed-sample-data.mjs --target-org backendtest --dry-run
-node scripts/seed-sample-data.mjs --target-org backendtest --rebuild   # Cleanup + Neuaufbau
+node scripts/seed-sample-data.mjs --target-org organiser-dev   # seeden (Abbruch bei existierendem Manifest)
+node scripts/seed-sample-data.mjs --target-org organiser-dev --dry-run
+node scripts/seed-sample-data.mjs --target-org organiser-dev --rebuild   # Cleanup + Neuaufbau
 ```
 
 ## Wie es funktioniert
