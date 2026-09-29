@@ -153,6 +153,7 @@
     <enableSharing>true</enableSharing>
     <enableStreamingApi>true</enableStreamingApi>
     <externalSharingModel>Private</externalSharingModel>
+    <description>Warteschlange fuer die zuverlaessige Zustellung von Audit-Ereignissen. Haelt ein Ereignis fest, wenn der direkte Schreibpfad scheitert, und wiederholt den Versuch mit Backoff. Nur Hintergrundinfrastruktur, nie durch Nutzer:innen pflegbar.</description>
     <label>Audit Outbox</label>
     <nameField>
         <displayFormat>OB-{000000}</displayFormat>
@@ -160,7 +161,7 @@
         <type>AutoNumber</type>
     </nameField>
     <pluralLabel>Audit Outbox Entries</pluralLabel>
-    <searchLayouts></searchLayouts>
+    <searchLayouts />
     <sharingModel>ReadWrite</sharingModel>
     <visibility>Public</visibility>
 </CustomObject>

@@ -8,4 +8,11 @@
 .sf
 .vscode
 
+# Salesforce-Metadaten. Prettier bricht lange <description>-Elemente um
+# ("<description\n  >Text</description>"), was Salesforce nicht parst:
+# "Error parsing file: Unexpected element". Die Feldbeschreibungen stehen
+# deshalb unformatiert in force-app/main/default/objects/.
+force-app/main/default/objects/
+force-app/main/default/retrievestatus/
+
 coverage/

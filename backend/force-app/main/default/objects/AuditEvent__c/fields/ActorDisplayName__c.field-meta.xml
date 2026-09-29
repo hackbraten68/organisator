@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>ActorDisplayName__c</fullName>
     <externalId>false</externalId>
+    <description>Anzeigename des Akteurs zum Zeitpunkt des Ereignisses. Festgeschrieben, damit das Protokoll auch nach einer Namensanderung lesbar bleibt.</description>
     <label>Actor Display Name</label>
     <length>255</length>
     <required>false</required>

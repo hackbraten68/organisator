@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Source__c</fullName>
+    <description>Weg, auf dem die Aktion eingegangen ist. Unterscheidet direkte Bedienung (web, mobile) von Integrationen (api, import, migration) und erlaubt damit die Bewertung der Datenqualitaet.</description>
     <label>Source</label>
     <required>true</required>
     <trackTrending>false</trackTrending>

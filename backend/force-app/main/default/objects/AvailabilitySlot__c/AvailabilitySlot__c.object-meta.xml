@@ -3,7 +3,6 @@
     <allowInChatterGroups>false</allowInChatterGroups>
     <compactLayoutAssignment>SYSTEM</compactLayoutAssignment>
     <deploymentStatus>Deployed</deploymentStatus>
-    <description>Verfügbarkeits-Slot für Coach/Staff (Terminfindung)</description>
     <enableActivities>false</enableActivities>
     <enableBulkApi>true</enableBulkApi>
     <enableFeeds>false</enableFeeds>
@@ -14,6 +13,7 @@
     <enableSharing>true</enableSharing>
     <enableStreamingApi>true</enableStreamingApi>
     <externalSharingModel>Private</externalSharingModel>
+    <description>Verfügbarkeits-Slot für Coach/Staff (Terminfindung)</description>
     <label>Verfügbarkeits-Slot</label>
     <nameField>
         <label>Slot-Nummer</label>
@@ -21,7 +21,7 @@
         <displayFormat>SLOT-{0000}</displayFormat>
     </nameField>
     <pluralLabel>Verfügbarkeits-Slots</pluralLabel>
-    <searchLayouts></searchLayouts>
+    <searchLayouts />
     <sharingModel>ReadWrite</sharingModel>
     <visibility>Public</visibility>
 </CustomObject>

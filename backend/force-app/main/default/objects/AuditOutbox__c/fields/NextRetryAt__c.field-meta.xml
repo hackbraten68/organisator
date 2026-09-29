@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>NextRetryAt__c</fullName>
+    <description>Zeitpunkt des naechsten Versuchs. Leer, solange der Eintrag nicht erneut versucht wird. Wird nach einem Fehlversuch aus dem Backoff berechnet.</description>
     <label>Next Retry At</label>
     <required>false</required>
     <trackTrending>false</trackTrending>

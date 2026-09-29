@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Program__c</fullName>
     <deleteConstraint>SetNull</deleteConstraint>
+    <description>Programm, in dessen Rahmen das Element liegt. Stellt sicher, dass Lernpfad und Programm zusammenpassen; wird gegen Program__c des Teilnehmers abgeglichen.</description>
     <label>Program</label>
     <referenceTo>Program__c</referenceTo>
     <relationshipLabel>Learning Paths</relationshipLabel>

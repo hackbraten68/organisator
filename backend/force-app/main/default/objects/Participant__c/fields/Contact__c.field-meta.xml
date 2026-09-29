@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Contact__c</fullName>
     <deleteConstraint>Restrict</deleteConstraint>
+    <description>Die Person hinter dieser Teilnehmerrolle. Pflichtfeld und eindeutig: genau ein Participant__c je Contact, serverseitig erzwungen. Name und E-Mail stammen immer von hier, nicht aus den Feldern dieses Objekts. Loeschen des Contacts ist blockiert, solange ein Teilnehmer daran haengt.</description>
     <label>Contact</label>
     <referenceTo>Contact</referenceTo>
     <relationshipLabel>Organisator Contact</relationshipLabel>

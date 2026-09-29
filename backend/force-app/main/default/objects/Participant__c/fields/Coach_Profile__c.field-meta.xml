@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Coach_Profile__c</fullName>
     <deleteConstraint>SetNull</deleteConstraint>
+    <description>Betreuender Coach. Null ist zulaessig und bedeutet noch keine Betreuung zugewiesen, nicht unbekannt.</description>
     <label>Coach Profile</label>
     <referenceTo>Coach_Profile__c</referenceTo>
     <relationshipLabel>Participants</relationshipLabel>

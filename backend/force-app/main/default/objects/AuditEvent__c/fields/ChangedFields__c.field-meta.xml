@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>ChangedFields__c</fullName>
+    <description>Komma-getrennte Liste der Feld-API-Namen, die sich geaendert haben. fuer schnelles Filtern, ohne Changes__c parsen zu muessen.</description>
     <label>Changed Fields</label>
     <length>4000</length>
     <trackTrending>false</trackTrending>

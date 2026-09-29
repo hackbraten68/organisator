@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Status__c</fullName>
+    <description>Zustand des Zustellversuchs. pending wartet, delivered ist angekommen, failed ist endgueltig gescheitert. Steuert, ob ein weiterer Versuch erfolgt.</description>
     <label>Status</label>
     <required>true</required>
     <trackTrending>false</trackTrending>

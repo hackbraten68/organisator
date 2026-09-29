@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>ParentType__c</fullName>
     <externalId>false</externalId>
+    <description>Objekt-API-Name des uebergeordneten Datensatzes, z. B. der Kontakt hinter einem Termin. Erlaubt die Gruppierung, wenn die Aektion streng genommen einem anderen Objekt als SubjectType__c gehoert.</description>
     <label>Parent Type</label>
     <length>80</length>
     <required>false</required>

@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Program__c</fullName>
     <deleteConstraint>SetNull</deleteConstraint>
+    <description>Programm, in dem die Person eingeschrieben ist. Null bedeutet: angemeldet, aber noch keinem Programm zugeordnet — der Zustand direkt nach der Anlage.</description>
     <label>Program</label>
     <referenceTo>Program__c</referenceTo>
     <relationshipLabel>Participants</relationshipLabel>

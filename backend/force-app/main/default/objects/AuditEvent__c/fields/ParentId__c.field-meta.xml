@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>ParentId__c</fullName>
     <externalId>false</externalId>
+    <description>Id des uebergeordneten Datensatzes, ohne Objektraegersymbol. Paart mit ParentType__c.</description>
     <label>Parent Id</label>
     <length>80</length>
     <required>false</required>

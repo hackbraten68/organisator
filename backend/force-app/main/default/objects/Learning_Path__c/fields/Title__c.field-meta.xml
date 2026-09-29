@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Title__c</fullName>
     <externalId>false</externalId>
+    <description>Bezeichnung des Elements in der Lernpfad-Ansicht, z. B. AWS SAA. Kann vom Namen des verknuepften Programms abweichen, wenn der Teilnehmer eine kuerzere oder praezisere Bezeichnung sieht.</description>
     <label>Title</label>
     <length>255</length>
     <required>true</required>

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Payload__c</fullName>
+    <description>Vollstaendiges AuditEvent__c als JSON, einschliesslich CorrelationId und Sensitivity. Aus diesem Feld wird der eigentliche Audit-Datensatz erzeugt.</description>
     <label>Payload</label>
     <length>32768</length>
     <trackTrending>false</trackTrending>

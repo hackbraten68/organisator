@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>ParticipantId__c</fullName>
     <deleteConstraint>Restrict</deleteConstraint>
+    <description>Bezug zum Teilnehmer, bei dem die Aktion ausgeloest wurde. Denormalisiert, damit Ereignisse ohne Join und ohne Index auf den Textfeldern auswertbar sind. Leer, wenn die Aktion nicht einem Teilnehmer zuzuordnen ist.</description>
     <label>Participant Id</label>
     <referenceTo>Participant__c</referenceTo>
     <relationshipLabel>Audit Events</relationshipLabel>

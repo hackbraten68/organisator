@@ -3,6 +3,7 @@
     <fullName>CorrelationId__c</fullName>
     <externalId>false</externalId>
     <label>Correlation Id</label>
+    <description>Gemeinsame Kennung aller Ereignisse einer zusammenhaengenden Aktion, identisch zur Semantik in AuditEvent__c.CorrelationId__c. Wird beim Erzeugen des Payloads uebernommen, damit auch nach der Zustellung der Zusammenhang zwischen den Ereignissen rekonstruierbar bleibt.</description>
     <length>36</length>
     <required>false</required>
     <trackTrending>false</trackTrending>

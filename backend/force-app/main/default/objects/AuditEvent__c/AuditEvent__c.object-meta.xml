@@ -153,6 +153,7 @@
     <enableSharing>true</enableSharing>
     <enableStreamingApi>true</enableStreamingApi>
     <externalSharingModel>Private</externalSharingModel>
+    <description>Unveraenderliches Protokoll aller fachlich relevanten Aktionen. Ein Datensatz je Aktion, geschrieben und nie wieder geaendert. Dient als Nachweis fuer den Activity-Stream und fuer das Portal: Sichtbarkeit und Empfindlichkeit steuern, wer ein Ereignis sehen darf.</description>
     <label>Audit Event</label>
     <nameField>
         <displayFormat>AE-{000000}</displayFormat>
@@ -160,7 +161,7 @@
         <type>AutoNumber</type>
     </nameField>
     <pluralLabel>Audit Events</pluralLabel>
-    <searchLayouts></searchLayouts>
+    <searchLayouts />
     <sharingModel>Private</sharingModel>
     <visibility>Public</visibility>
 </CustomObject>

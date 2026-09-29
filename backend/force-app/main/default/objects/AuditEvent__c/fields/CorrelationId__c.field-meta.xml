@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>CorrelationId__c</fullName>
     <externalId>false</externalId>
+    <description>Gemeinsame Kennung aller Ereignisse einer zusammenhaengenden Aktion, z. B. einer Statusaenderung mit Folgeereignissen. Erlaubt die Rekonstruktion eines Ablaufs ueber mehrere Datensaetze.</description>
     <label>Correlation Id</label>
     <length>36</length>
     <required>false</required>

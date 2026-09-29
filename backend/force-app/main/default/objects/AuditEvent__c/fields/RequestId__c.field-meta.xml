@@ -3,6 +3,7 @@
     <fullName>RequestId__c</fullName>
     <caseSensitive>false</caseSensitive>
     <externalId>true</externalId>
+    <description>Kennung des ausloesenden Requests, meist ein GUID aus dem Client. Bindet das Ereignis an einen konkreten HTTP-Aufruf, falls mehrerekoennig ueber AuditOutbox__c zustellbar sind.</description>
     <label>Request Id</label>
     <length>36</length>
     <required>false</required>

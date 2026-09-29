@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>SubjectType__c</fullName>
     <externalId>false</externalId>
+    <description>Objekt-API-Name des geaenderten Datensatzes, z. B. Participant__c. Freitext, damit auch Standardobjekte wie Opportunity protokolliert werden koennen ohne feste Auswahlliste.</description>
     <label>Subject Type</label>
     <length>80</length>
     <required>true</required>

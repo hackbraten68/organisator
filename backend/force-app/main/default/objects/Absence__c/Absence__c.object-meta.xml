@@ -3,7 +3,6 @@
     <allowInChatterGroups>false</allowInChatterGroups>
     <compactLayoutAssignment>SYSTEM</compactLayoutAssignment>
     <deploymentStatus>Deployed</deploymentStatus>
-    <description>Abwesenheitsmeldung eines Teilnehmers (Krank, Urlaub, etc.)</description>
     <enableActivities>false</enableActivities>
     <enableBulkApi>true</enableBulkApi>
     <enableFeeds>false</enableFeeds>
@@ -14,6 +13,7 @@
     <enableSharing>true</enableSharing>
     <enableStreamingApi>true</enableStreamingApi>
     <externalSharingModel>Private</externalSharingModel>
+    <description>Abwesenheitsmeldung eines Teilnehmers (Krank, Urlaub, etc.)</description>
     <label>Abwesenheit</label>
     <nameField>
         <label>Abwesenheit-Nummer</label>
@@ -21,7 +21,7 @@
         <displayFormat>ABS-{0000}</displayFormat>
     </nameField>
     <pluralLabel>Abwesenheiten</pluralLabel>
-    <searchLayouts></searchLayouts>
+    <searchLayouts />
     <sharingModel>ReadWrite</sharingModel>
     <visibility>Public</visibility>
 </CustomObject>

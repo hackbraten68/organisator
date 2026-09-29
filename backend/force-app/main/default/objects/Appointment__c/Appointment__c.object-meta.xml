@@ -3,7 +3,6 @@
     <allowInChatterGroups>false</allowInChatterGroups>
     <compactLayoutAssignment>SYSTEM</compactLayoutAssignment>
     <deploymentStatus>Deployed</deploymentStatus>
-    <description>Termin zwischen Coach/Staff und Teilnehmer</description>
     <enableActivities>false</enableActivities>
     <enableBulkApi>true</enableBulkApi>
     <enableFeeds>false</enableFeeds>
@@ -14,6 +13,7 @@
     <enableSharing>true</enableSharing>
     <enableStreamingApi>true</enableStreamingApi>
     <externalSharingModel>Private</externalSharingModel>
+    <description>Termin zwischen Coach/Staff und Teilnehmer</description>
     <label>Termin</label>
     <nameField>
         <label>Termin-Nummer</label>
@@ -21,7 +21,7 @@
         <displayFormat>TERM-{0000}</displayFormat>
     </nameField>
     <pluralLabel>Termine</pluralLabel>
-    <searchLayouts></searchLayouts>
+    <searchLayouts />
     <sharingModel>ReadWrite</sharingModel>
     <visibility>Public</visibility>
 </CustomObject>

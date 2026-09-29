@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Error__c</fullName>
+    <description>Letzte Fehlermeldung des Zustellversuchs. Dient der Diagnose; wird bei Erfolg nicht beachtet und nicht geleert, damit der Verlauf nachvollziehbar bleibt.</description>
     <label>Error</label>
     <length>32768</length>
     <trackTrending>false</trackTrending>

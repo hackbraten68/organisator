@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Order__c</fullName>
     <externalId>false</externalId>
+    <description>Position in der Reihenfolge des Lernpfads. Fortlaufend ab 1; bestimmt die Anzeigereihenfolge und ist der Grund fuer das reorder-Ereignis.</description>
     <label>Order</label>
     <precision>3</precision>
     <required>false</required>

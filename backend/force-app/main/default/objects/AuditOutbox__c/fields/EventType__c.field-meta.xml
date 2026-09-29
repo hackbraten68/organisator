@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>EventType__c</fullName>
     <externalId>false</externalId>
+    <description>Ereignistyp des eingereihten Ereignisses, identisch zur Semantik in AuditEvent__c.EventType__c. Hier zur Nachverfolgung des Zustellversuchs.</description>
     <label>Event Type</label>
     <length>255</length>
     <required>true</required>

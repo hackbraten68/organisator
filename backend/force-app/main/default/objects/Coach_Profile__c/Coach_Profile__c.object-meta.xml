@@ -153,13 +153,14 @@
     <enableSharing>true</enableSharing>
     <enableStreamingApi>true</enableStreamingApi>
     <externalSharingModel>Private</externalSharingModel>
+    <description>Die Person eines Coachs mit den fuer die Betreuung relevanten Stammdaten. Unterscheidet sich vom Contact: der Contact ist die Privatperson, das Coach-Profil die berufliche Rolle in der Academy.</description>
     <label>Coach Profile</label>
     <nameField>
         <label>Coach Profile-Name</label>
         <type>Text</type>
     </nameField>
     <pluralLabel>Coach Profiles</pluralLabel>
-    <searchLayouts></searchLayouts>
+    <searchLayouts />
     <sharingModel>ReadWrite</sharingModel>
     <visibility>Public</visibility>
 </CustomObject>

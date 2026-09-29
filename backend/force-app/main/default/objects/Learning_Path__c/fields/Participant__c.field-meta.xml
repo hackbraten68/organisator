@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Participant__c</fullName>
     <deleteConstraint>SetNull</deleteConstraint>
+    <description>Teilnehmer, fuer den dieses Lernpfad-Element gilt. Pflichtfeld: ein Element ohne Teilnehmer gehoert zu niemandem und waere ein Datenhaufen.</description>
     <label>Participant</label>
     <referenceTo>Participant__c</referenceTo>
     <relationshipLabel>Learning Paths</relationshipLabel>
