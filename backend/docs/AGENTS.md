@@ -785,6 +785,22 @@ from the runtime schema. Creating the schema in Setup once and retrieving it is
 unavoidable. Everything _around_ the schema — programs, coaches, contacts, participants,
 audit history — is bootstrapped by `scripts/seed-sample-data.mjs` with no manual step.
 
+**The rule is not scratch-specific — it applies to sandboxes too (control test E4,
+2026-09-30):** E1–E3 were all run in scratch orgs, so it was open whether a sandbox behaves
+differently. It does not. Deploying `Program__c` (3 fields, no lookups) to `hubSandbox` gave:
+
+```text
+sf project deploy start     Succeeded, 4 components "Created"
+sf data query               ERROR: No such column 'Description__c' on entity 'Program__c'
+Tooling API FieldDefinition Description__c, DurationWeeks__c, Status__c  (all present)
+sf sobject describe         9 fields, 0 of them with __c
+```
+
+Identical to the scratch-org failure mode: three APIs report the fields, SOQL and
+`sobject describe` do not know them. There is no way around manual Setup creation. The full
+worklist for the 90 fields is in `docs/portal/setup-arbeitsliste.md`, including the
+topological order the lookups force.
+
 **Full deploys need a clean source tracking after an `--ignore-conflicts` deploy (2026-09-29):**
 once a deploy has bypassed conflict detection, the project-local `.sf/` cache reports
 `ExpectedSourceFilesError: ... backend.uibundle-meta.xml` and the full deploy stops before
