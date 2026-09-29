@@ -768,10 +768,16 @@ field created through `sf project deploy start` appears in `FieldDefinition` but
 the runtime schema. The same field created by hand in Setup is in the runtime schema
 immediately, and retrieving it yields a byte-identical XML file. So:
 
-> **Never deploy custom fields. Create them in Setup, then retrieve.**
+> **Never create a custom field through a deploy. Create it in Setup, then retrieve.**
 
 This is the one rule that overrides every other workflow here. It applies to new fields
 on existing objects and to new objects alike.
+
+**But it applies only to creating fields (control test E2, 2026-09-29):** _changing_ a
+field that is already healthy in the runtime schema deploys normally and takes effect
+immediately — verified by flipping `Participant__c.Contact__c` to `required` + `Restrict`
+and confirming the runtime enforced both. So the ordinary deploy workflow is available
+again; only new custom fields need the Setup detour.
 
 ---
 

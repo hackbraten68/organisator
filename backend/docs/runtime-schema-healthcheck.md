@@ -82,9 +82,28 @@ Der Retrieve des manuell angelegten Feldes war byte-identisch (988 Bytes) mit de
 Repo-Fassung von vorher. Die Reparatur erzeugt also null Diff.
 
 **Konsequenz für künftige Deploys:** die im Repo gehaltenen Objekt-Metadaten sind nicht
-zuverlässig deployfähig. Wer ein neues Custom-Feld braucht, legt es in Setup an und
+zuverlässig deployfähig. Wer ein **neues** Custom-Feld braucht, legt es in Setup an und
 retrievt es — `sf project deploy start` für Custom-Felder nicht verwenden. Jeder Deploy in
 eine frische Org erzeugt die Lücke erneut.
+
+### Belegt: Änderungen an bestehenden Feldern deployen normal
+
+Kontrollversuch E2 am 2026-09-29 (`Participant__c.Contact__c` →
+`required=false`→`true`, `deleteConstraint` `SetNull`→`Restrict`):
+
+| Prüfung                              | Ergebnis                   |
+| ------------------------------------ | -------------------------- |
+| Insert `Participant__c` ohne Contact | `REQUIRED_FIELD_MISSING`   |
+| Contact mit Teilnehmer löschen       | `DELETE_FAILED`, bleibt da |
+| `sf project retrieve`                | liefert `required=true`    |
+| `npm run schema:check`               | Exit 0                     |
+
+**Die Regel aus E1 gilt damit nur für das Anlegen neuer Felder.** Eine Änderung an einem
+Feld, das sauber im Runtime-Schema liegt, wird ganz normal deployed und ist sofort wirksam.
+
+Praktische Folge: Nach der Reparatur ist die normale Deployment-Workload wieder verfügbar.
+Nur für **neue** Custom-Felder braucht es den Umweg über Setup. Phase 1 besteht deshalb aus
+Änderungen an bestehenden Feldern plus neuen Apex-Klassen — beides normal deploybar.
 
 > Einschränkung: der Vergleich ist symmetrisch. Fehlt ein Feld aus **beiden** Seiten
 > (Repo und Org), meldet der Healthcheck `ok` — er kann nicht unterscheiden, ob ein Feld
