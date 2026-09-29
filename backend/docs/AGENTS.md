@@ -779,6 +779,18 @@ immediately — verified by flipping `Participant__c.Contact__c` to `required` +
 and confirming the runtime enforced both. So the ordinary deploy workflow is available
 again; only new custom fields need the Setup detour.
 
+**A new scratch org cannot be bootstrapped by a deploy (control test E3, 2026-09-29):**
+after a full successful deploy of 11 custom objects, 59 of 90 custom fields were missing
+from the runtime schema. Creating the schema in Setup once and retrieving it is
+unavoidable. Everything _around_ the schema — programs, coaches, contacts, participants,
+audit history — is bootstrapped by `scripts/seed-sample-data.mjs` with no manual step.
+
+**Never deploy profiles (E3):** a Profile deploy cannot provision a required field and
+fails with \"Sie können kein Pflichtfeld bereitstellen\". With the default
+`rollbackOnError` that rolls back the **entire** deploy, including every custom object — a
+failed deploy is a null deploy, not a partial one. Permission sets have no such
+restriction, and `backend_Access` is the only one this project assigns.
+
 ---
 
 ## Scratch Org Rebuild Result

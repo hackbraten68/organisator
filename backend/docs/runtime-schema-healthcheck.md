@@ -165,8 +165,58 @@ node scripts/seed-sample-data.mjs --target-org organiser-dev
 npm run schema:check
 ```
 
-Damit ist ein Org startklar. Kein manuelles Anlegen in Setup, sofern keine neuen
-Custom-Felder dazukommen — für die gilt weiterhin Regel 2 unten.
+Damit ist ein Org **startklar für die Daten**. Für das **Schema** gilt das nicht — siehe
+unten. Zwei Voraussetzungen, bevor der Ablauf trägt:
+
+- Das Schema muss einmalig in Setup angelegt und abgerufen worden sein (Regel 2).
+- Der Deploy darf **keine Profile** enthalten. Siehe unten.
+
+## Grenze: ein frischer Org bekommt sein Schema nicht deployed
+
+Kontrollversuch E3 am 2026-09-29. Neuer Scratch-Org, vollständiger
+`sf project deploy start`, danach gemessen:
+
+```text
+Objjekt               Repo  Org  Status
+Absence__c             11    5  FEHLT IM ORG
+Appointment__c         13    5  FEHLT IM ORG
+AuditEvent__c          22   11  FEHLT IM ORG
+AuditOutbox__c          9    3  FEHLT IM ORG
+AvailabilitySlot__c     8    8  ok
+Coach_Profile__c        6    4  FEHLT IM ORG
+Learning_Path__c        6    2  FEHLT IM ORG
+Module__c               3    1  FEHLT IM ORG
+Participant__c          9    9  ok
+Program__c              3    3  ok
+
+DRIFT: 59 von 90 Custom-Feldern fehlen im Runtime-Schema
+```
+
+**Ein Deploy kann dieses Schema nicht erzeugen.** Die Objekte existieren danach, aber 59
+ihrer Felder sind Geistfelder. Das ist dieselbe Lücke wie in E1, nur über alle Objekte
+statt über einzelne Felder.
+
+Für Phase 2 heißt das: ein neuer Org braucht **einen** manuellen Schritt — das Schema
+einmalig in Setup anlegen und abrufen. Alles andere ist automatisierbar.
+
+### Nebenbefund E3: Profile brechen den ganzen Deploy
+
+Der erste Deploy in den frischen Org schlug fehl und hat wegen `rollbackOnError`
+**alle 480 Komponenten zurückgerollt**, saemtliche CustomObjects inklusive:
+
+```text
+FAIL Admin                              Sie können kein Pflichtfeld bereitstellen: Participant__c.Contact__c
+FAIL B2B Reordering Portal Buyer Profile Sie können kein Pflichtfeld bereitstellen: Participant__c.Contact__c
+```
+
+Ein Profile-Deploy darf kein Pflichtfeld provisionieren. Beide Profile waren Template-Reste
+und wurden nirgends zugewiesen — zugewiesen wird nur das Permset `backend_Access`. Sie
+sind seit dem 2026-09-29 aus Source entfernt; danach laeuft der vollstaendige Deploy
+durch.
+
+Die Lehre ist allgemeiner als dieses Projekt: **ein fehlgeschlagener Komponenten-Deploy
+ist bei `rollbackOnError` ein Null-Deploy.** Wer nur auf die Fehlerliste schaut und nicht
+auf den Gesamtstatus, glaubt, es sei fast alles drin.
 
 ## Regeln für Schema-Arbeit
 
