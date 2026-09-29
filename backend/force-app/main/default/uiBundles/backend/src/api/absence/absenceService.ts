@@ -1,6 +1,12 @@
-import { executeGraphQL } from "@/api/graphqlClient";
-import type { Absence, AbsenceInput, AbsencePatch, AbsenceFilters, AbsenceDocument } from "@/types/absence";
-import { getAuditActor } from "@/api/audit/actorContext";
+import { executeGraphQL } from '@/api/graphqlClient';
+import type {
+  Absence,
+  AbsenceInput,
+  AbsencePatch,
+  AbsenceFilters,
+  AbsenceDocument,
+} from '@/types/absence';
+import { getAuditActor } from '@/api/audit/actorContext';
 import {
   recordAbsenceReported,
   recordAbsenceUpdated,
@@ -8,22 +14,28 @@ import {
   recordAbsenceRejected,
   recordAbsenceCancelled,
   recordAbsenceDocumentAdded,
-} from "@/api/audit/absenceAuditIntegration";
-import { generateUUID } from "@/api/audit/auditService";
+} from '@/api/audit/absenceAuditIntegration';
+import { generateUUID } from '@/api/audit/auditService';
 
-export type { Absence, AbsenceInput, AbsencePatch, AbsenceFilters, AbsenceDocument };
+export type {
+  Absence,
+  AbsenceInput,
+  AbsencePatch,
+  AbsenceFilters,
+  AbsenceDocument,
+};
 
-import GET_ABSENCE_RAW from "@/api/absence/query/GetAbsence.graphql?raw";
-import LIST_ABSENCES_RAW from "@/api/absence/query/ListAbsences.graphql?raw";
-import GET_ABSENCES_BY_PARTICIPANT_RAW from "@/api/absence/query/GetAbsencesByParticipant.graphql?raw";
-import CREATE_ABSENCE_RAW from "@/api/absence/query/CreateAbsence.graphql?raw";
-import UPDATE_ABSENCE_RAW from "@/api/absence/query/UpdateAbsence.graphql?raw";
-import APPROVE_ABSENCE_RAW from "@/api/absence/query/ApproveAbsence.graphql?raw";
-import REJECT_ABSENCE_RAW from "@/api/absence/query/RejectAbsence.graphql?raw";
-import CANCEL_ABSENCE_RAW from "@/api/absence/query/CancelAbsence.graphql?raw";
-import GET_ABSENCE_DOCUMENTS_RAW from "@/api/absence/query/GetAbsenceDocuments.graphql?raw";
-import CREATE_CONTENT_VERSION_RAW from "@/api/absence/query/CreateContentVersion.graphql?raw";
-import GET_DOC_LINK_RAW from "@/api/absence/query/GetDocLink.graphql?raw";
+import GET_ABSENCE_RAW from '@/api/absence/query/GetAbsence.graphql?raw';
+import LIST_ABSENCES_RAW from '@/api/absence/query/ListAbsences.graphql?raw';
+import GET_ABSENCES_BY_PARTICIPANT_RAW from '@/api/absence/query/GetAbsencesByParticipant.graphql?raw';
+import CREATE_ABSENCE_RAW from '@/api/absence/query/CreateAbsence.graphql?raw';
+import UPDATE_ABSENCE_RAW from '@/api/absence/query/UpdateAbsence.graphql?raw';
+import APPROVE_ABSENCE_RAW from '@/api/absence/query/ApproveAbsence.graphql?raw';
+import REJECT_ABSENCE_RAW from '@/api/absence/query/RejectAbsence.graphql?raw';
+import CANCEL_ABSENCE_RAW from '@/api/absence/query/CancelAbsence.graphql?raw';
+import GET_ABSENCE_DOCUMENTS_RAW from '@/api/absence/query/GetAbsenceDocuments.graphql?raw';
+import CREATE_CONTENT_VERSION_RAW from '@/api/absence/query/CreateContentVersion.graphql?raw';
+import GET_DOC_LINK_RAW from '@/api/absence/query/GetDocLink.graphql?raw';
 
 type ScalarValue<T = string> = { value?: T | null } | null | undefined;
 
@@ -83,21 +95,36 @@ interface MutationResponse {
   uiapi?: Record<string, { Record?: { Id?: string } | null } | null>;
 }
 
+/**
+ * The UI API wraps every optional field in an `*Value` type, so these arrive
+ * as `{ value }` rather than as bare scalars. `Id` is the exception: it is a
+ * plain ID and needs no wrapper.
+ */
+type Wrapped<T> = { value?: T | null } | null | undefined;
+
 interface ContentDocumentLinkNode {
   Id: string;
-  ContentDocumentId: string;
-  LinkedEntityId: string;
-  ShareType: string;
-  Visibility: string;
-  ContentDocument: {
+  ContentDocumentId?: Wrapped<string>;
+  LinkedEntityId?: Wrapped<string>;
+  ShareType?: Wrapped<string>;
+  Visibility?: Wrapped<string>;
+  ContentDocument?: {
     Id: string;
-    Title: string;
-    FileType: string;
-    LatestPublishedVersionId: string;
+    Title?: Wrapped<string>;
+    FileType?: Wrapped<string>;
+    LatestPublishedVersionId?: Wrapped<string>;
     ContentVersions: {
-      edges: Array<{ node: { Id: string; Title: string; ContentSize: number; FileExtension: string; VersionData: any } }>;
+      edges: Array<{
+        node: {
+          Id: string;
+          Title?: Wrapped<string>;
+          ContentSize?: Wrapped<number>;
+          FileExtension?: Wrapped<string>;
+          VersionData?: Wrapped<string>;
+        };
+      }>;
     };
-  };
+  } | null;
 }
 
 interface GetAbsenceDocumentsResponse {
@@ -111,7 +138,7 @@ interface GetAbsenceDocumentsResponse {
 }
 
 interface ContentVersionNode {
-  ContentDocumentId: string;
+  ContentDocumentId?: Wrapped<string>;
 }
 
 interface GetDocLinkResponse {
@@ -127,13 +154,13 @@ interface GetDocLinkResponse {
 function mapGqlToAbsence(node: any): Absence {
   return {
     id: node.Id,
-    name: node.Name?.value || "",
-    participantId: node.Participant__c?.value || "",
+    name: node.Name?.value || '',
+    participantId: node.Participant__c?.value || '',
     participantName: node.Participant__r?.Name?.value,
-    type: node.Type__c?.value as Absence["type"],
-    status: node.Status__c?.value as Absence["status"],
-    startDate: node.StartDate__c?.value || "",
-    endDate: node.EndDate__c?.value || "",
+    type: node.Type__c?.value as Absence['type'],
+    status: node.Status__c?.value as Absence['status'],
+    startDate: node.StartDate__c?.value || '',
+    endDate: node.EndDate__c?.value || '',
     reason: node.Reason__c?.value,
     approvedById: node.ApprovedBy__c?.value,
     approvedByName: node.ApprovedBy__r?.Name?.value,
@@ -142,13 +169,16 @@ function mapGqlToAbsence(node: any): Absence {
     rejectedByName: node.RejectedBy__r?.Name?.value,
     rejectedAt: node.RejectedAt__c?.value,
     coachComment: node.CoachComment__c?.value,
-    createdAt: node.CreatedDate?.value || "",
-    updatedAt: node.LastModifiedDate?.value || "",
+    createdAt: node.CreatedDate?.value || '',
+    updatedAt: node.LastModifiedDate?.value || '',
   };
 }
 
 export async function getAbsence(id: string): Promise<Absence | null> {
-  const response = await executeGraphQL<GetAbsenceResponse, { id: string }>(GET_ABSENCE_RAW, { id });
+  const response = await executeGraphQL<GetAbsenceResponse, { id: string }>(
+    GET_ABSENCE_RAW,
+    { id }
+  );
   const node = response?.uiapi?.query?.Absence__c?.edges?.[0]?.node;
   return node ? mapGqlToAbsence(node) : null;
 }
@@ -167,7 +197,10 @@ export async function listAbsences(
     first,
     after,
   };
-  const response = await executeGraphQL<ListAbsencesResponse, typeof vars>(LIST_ABSENCES_RAW, vars);
+  const response = await executeGraphQL<ListAbsencesResponse, typeof vars>(
+    LIST_ABSENCES_RAW,
+    vars
+  );
   const edges = response?.uiapi?.query?.Absence__c?.edges || [];
   const pageInfo = response?.uiapi?.query?.Absence__c?.pageInfo;
 
@@ -178,21 +211,36 @@ export async function listAbsences(
   };
 }
 
-export async function getAbsencesByParticipant(participantId: string, first = 50): Promise<Absence[]> {
-  const response = await executeGraphQL<GetAbsencesByParticipantResponse, { participantId: string; first: number }>(GET_ABSENCES_BY_PARTICIPANT_RAW, { participantId, first });
+export async function getAbsencesByParticipant(
+  participantId: string,
+  first = 50
+): Promise<Absence[]> {
+  const response = await executeGraphQL<
+    GetAbsencesByParticipantResponse,
+    { participantId: string; first: number }
+  >(GET_ABSENCES_BY_PARTICIPANT_RAW, { participantId, first });
   const edges = response?.uiapi?.query?.Absence__c?.edges || [];
   return edges.map((e: any) => mapGqlToAbsence(e.node));
 }
 
 export async function createAbsence(input: AbsenceInput): Promise<string> {
-  const response = await executeGraphQL<MutationResponse, { participantId: string; type: string; status: string; startDate: string; endDate: string }>(CREATE_ABSENCE_RAW, {
+  const response = await executeGraphQL<
+    MutationResponse,
+    {
+      participantId: string;
+      type: string;
+      status: string;
+      startDate: string;
+      endDate: string;
+    }
+  >(CREATE_ABSENCE_RAW, {
     participantId: input.participantId,
     type: input.type,
-    status: input.status || "Submitted",
+    status: input.status || 'Submitted',
     startDate: input.startDate,
     endDate: input.endDate,
   });
-  const id = response?.uiapi?.Absence__cCreate?.Record?.Id ?? "";
+  const id = response?.uiapi?.Absence__cCreate?.Record?.Id ?? '';
   if (id) {
     const actor = getAuditActor();
     await recordAbsenceReported({
@@ -211,7 +259,10 @@ export async function createAbsence(input: AbsenceInput): Promise<string> {
   return id;
 }
 
-export async function updateAbsence(id: string, patch: AbsencePatch): Promise<void> {
+export async function updateAbsence(
+  id: string,
+  patch: AbsencePatch
+): Promise<void> {
   const vars: Record<string, any> = { id };
   if (patch.type !== undefined) vars.type = patch.type;
   if (patch.status !== undefined) vars.status = patch.status;
@@ -222,26 +273,60 @@ export async function updateAbsence(id: string, patch: AbsencePatch): Promise<vo
 
   const existing = await getAbsence(id);
 
-  await executeGraphQL<MutationResponse, Record<string, any>>(UPDATE_ABSENCE_RAW, vars);
+  await executeGraphQL<MutationResponse, Record<string, any>>(
+    UPDATE_ABSENCE_RAW,
+    vars
+  );
 
-  const changes: Array<{ field: string; oldValue?: unknown; newValue?: unknown; redacted: boolean }> = [];
-  if (patch.type !== undefined) changes.push({ field: "Type__c", newValue: patch.type, redacted: false });
-  if (patch.status !== undefined) changes.push({ field: "Status__c", newValue: patch.status, redacted: false });
-  if (patch.startDate !== undefined) changes.push({ field: "StartDate__c", newValue: patch.startDate, redacted: false });
-  if (patch.endDate !== undefined) changes.push({ field: "EndDate__c", newValue: patch.endDate, redacted: false });
-  if (patch.reason !== undefined) changes.push({ field: "Reason__c", newValue: patch.reason, redacted: true });
-  if (patch.coachComment !== undefined) changes.push({ field: "CoachComment__c", newValue: patch.coachComment, redacted: false });
+  const changes: Array<{
+    field: string;
+    oldValue?: unknown;
+    newValue?: unknown;
+    redacted: boolean;
+  }> = [];
+  if (patch.type !== undefined)
+    changes.push({ field: 'Type__c', newValue: patch.type, redacted: false });
+  if (patch.status !== undefined)
+    changes.push({
+      field: 'Status__c',
+      newValue: patch.status,
+      redacted: false,
+    });
+  if (patch.startDate !== undefined)
+    changes.push({
+      field: 'StartDate__c',
+      newValue: patch.startDate,
+      redacted: false,
+    });
+  if (patch.endDate !== undefined)
+    changes.push({
+      field: 'EndDate__c',
+      newValue: patch.endDate,
+      redacted: false,
+    });
+  if (patch.reason !== undefined)
+    changes.push({
+      field: 'Reason__c',
+      newValue: patch.reason,
+      redacted: true,
+    });
+  if (patch.coachComment !== undefined)
+    changes.push({
+      field: 'CoachComment__c',
+      newValue: patch.coachComment,
+      redacted: false,
+    });
 
   if (changes.length > 0) {
     const actor = getAuditActor();
     await recordAbsenceUpdated({
       absence: {
         id,
-        participantId: existing?.participantId ?? "",
-        type: patch.type ?? "",
-        status: patch.status ?? "",
-        startDate: patch.startDate ?? "",
-        endDate: patch.endDate ?? "",
+        participantId: existing?.participantId ?? '',
+        type: patch.type ?? '',
+        status: patch.status ?? '',
+        startDate: patch.startDate ?? '',
+        endDate: patch.endDate ?? '',
         reason: patch.reason,
       },
       changes,
@@ -253,21 +338,41 @@ export async function updateAbsence(id: string, patch: AbsencePatch): Promise<vo
 
 export async function approveAbsence(id: string): Promise<void> {
   const existing = await getAbsence(id);
-  await executeGraphQL<MutationResponse, { id: string }>(APPROVE_ABSENCE_RAW, { id });
+  await executeGraphQL<MutationResponse, { id: string }>(APPROVE_ABSENCE_RAW, {
+    id,
+  });
   const actor = getAuditActor();
   await recordAbsenceApproved({
-    absence: { id, participantId: existing?.participantId ?? "", type: "", startDate: "", endDate: "" },
+    absence: {
+      id,
+      participantId: existing?.participantId ?? '',
+      type: '',
+      startDate: '',
+      endDate: '',
+    },
     approver: actor,
     correlationId: generateUUID(),
   });
 }
 
-export async function rejectAbsence(id: string, coachComment: string): Promise<void> {
+export async function rejectAbsence(
+  id: string,
+  coachComment: string
+): Promise<void> {
   const existing = await getAbsence(id);
-  await executeGraphQL<MutationResponse, { id: string; coachComment: string }>(REJECT_ABSENCE_RAW, { id, coachComment });
+  await executeGraphQL<MutationResponse, { id: string; coachComment: string }>(
+    REJECT_ABSENCE_RAW,
+    { id, coachComment }
+  );
   const actor = getAuditActor();
   await recordAbsenceRejected({
-    absence: { id, participantId: existing?.participantId ?? "", type: "", startDate: "", endDate: "" },
+    absence: {
+      id,
+      participantId: existing?.participantId ?? '',
+      type: '',
+      startDate: '',
+      endDate: '',
+    },
     rejector: actor,
     reason: coachComment,
     correlationId: generateUUID(),
@@ -276,43 +381,60 @@ export async function rejectAbsence(id: string, coachComment: string): Promise<v
 
 export async function cancelAbsence(id: string): Promise<void> {
   const existing = await getAbsence(id);
-  await executeGraphQL<MutationResponse, { id: string }>(CANCEL_ABSENCE_RAW, { id });
+  await executeGraphQL<MutationResponse, { id: string }>(CANCEL_ABSENCE_RAW, {
+    id,
+  });
   const actor = getAuditActor();
   await recordAbsenceCancelled({
-    absence: { id, participantId: existing?.participantId ?? "", type: "" },
+    absence: { id, participantId: existing?.participantId ?? '', type: '' },
     actor,
     correlationId: generateUUID(),
   });
 }
 
-export async function getAbsenceDocuments(absenceId: string): Promise<AbsenceDocument[]> {
-  const response = await executeGraphQL<GetAbsenceDocumentsResponse, { absenceId: string }>(GET_ABSENCE_DOCUMENTS_RAW, { absenceId });
+export async function getAbsenceDocuments(
+  absenceId: string
+): Promise<AbsenceDocument[]> {
+  const response = await executeGraphQL<
+    GetAbsenceDocumentsResponse,
+    { absenceId: string }
+  >(GET_ABSENCE_DOCUMENTS_RAW, { absenceId });
 
-  const edges = response?.uiapi?.query?.ContentDocumentLink?.edges || [];
-  return edges.map((e: any) => {
-    const link = e.node;
-    const doc = link.ContentDocument;
-    const version = doc?.ContentVersions?.edges?.[0]?.node;
-    return {
-      id: link.Id,
-      absenceId: link.LinkedEntityId,
-      contentDocumentId: link.ContentDocumentId,
-      fileName: doc?.Title || "",
-      fileSize: version?.ContentSize || 0,
-      fileType: doc?.FileType || "",
-      uploadedById: "",
-      uploadedByName: "",
-      uploadedAt: "",
-    };
-  });
+  const edges = response?.uiapi?.query?.ContentDocumentLink?.edges ?? [];
+  return edges
+    .map(edge => edge?.node)
+    .filter((link): link is ContentDocumentLinkNode => link != null)
+    .map(link => {
+      const doc = link.ContentDocument;
+      const version = doc?.ContentVersions?.edges?.[0]?.node;
+      return {
+        id: link.Id,
+        absenceId: link.LinkedEntityId?.value ?? absenceId,
+        contentDocumentId: link.ContentDocumentId?.value ?? '',
+        fileName: doc?.Title?.value ?? '',
+        fileSize: version?.ContentSize?.value ?? 0,
+        fileType: doc?.FileType?.value ?? '',
+        uploadedById: '',
+        uploadedByName: '',
+        uploadedAt: '',
+      };
+    });
 }
 
 export async function uploadAbsenceDocument(
   absenceId: string,
-  file: { title: string; pathOnClient: string; versionData: Blob },
+  file: { title: string; pathOnClient: string; versionData: string },
   _uploadedById: string
 ): Promise<{ contentDocumentId: string; contentVersionId: string }> {
-  const response = await executeGraphQL<MutationResponse, { title: string; pathOnClient: string; versionData: Blob; firstPublishLocationId: string }>(CREATE_CONTENT_VERSION_RAW, {
+  const response = await executeGraphQL<
+    MutationResponse,
+    {
+      title: string;
+      pathOnClient: string;
+      versionData: string;
+      firstPublishLocationId: string;
+    }
+  >(CREATE_CONTENT_VERSION_RAW, {
     title: file.title,
     pathOnClient: file.pathOnClient,
     versionData: file.versionData,
@@ -321,18 +443,23 @@ export async function uploadAbsenceDocument(
 
   const contentVersionId = response?.uiapi?.ContentVersionCreate?.Record?.Id;
   if (!contentVersionId) {
-    throw new Error("Failed to create ContentVersion");
+    throw new Error('Failed to create ContentVersion');
   }
 
-  const docLinkResponse = await executeGraphQL<GetDocLinkResponse, { cvId: string }>(GET_DOC_LINK_RAW, { cvId: contentVersionId });
+  const docLinkResponse = await executeGraphQL<
+    GetDocLinkResponse,
+    { cvId: string }
+  >(GET_DOC_LINK_RAW, { cvId: contentVersionId });
 
-  const contentDocumentId = docLinkResponse?.uiapi?.query?.ContentVersion?.edges?.[0]?.node?.ContentDocumentId;
+  const contentDocumentId =
+    docLinkResponse?.uiapi?.query?.ContentVersion?.edges?.[0]?.node
+      ?.ContentDocumentId?.value;
 
   if (contentDocumentId) {
     const existing = await getAbsence(absenceId);
     const actor = getAuditActor();
     await recordAbsenceDocumentAdded({
-      absence: { id: absenceId, participantId: existing?.participantId ?? "" },
+      absence: { id: absenceId, participantId: existing?.participantId ?? '' },
       document: {
         id: contentVersionId,
         fileName: file.title,
@@ -344,5 +471,8 @@ export async function uploadAbsenceDocument(
     });
   }
 
-  return { contentDocumentId: contentDocumentId ?? "", contentVersionId: contentVersionId ?? "" };
+  return {
+    contentDocumentId: contentDocumentId ?? '',
+    contentVersionId: contentVersionId ?? '',
+  };
 }

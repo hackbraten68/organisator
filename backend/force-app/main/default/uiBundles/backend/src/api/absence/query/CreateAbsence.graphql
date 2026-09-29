@@ -6,15 +6,17 @@ mutation CreateAbsence(
   $endDate: Date!
 ) {
   uiapi {
-    Absence__cCreate(input: {
-      Absence__c: {
-        Participant__c: $participantId
-        Type__c: $type
-        Status__c: $status
-        StartDate__c: $startDate
-        EndDate__c: $endDate
+    Absence__cCreate(
+      input: {
+        Absence__c: {
+          Participant__c: $participantId
+          Type__c: $type
+          Status__c: $status
+          StartDate__c: $startDate
+          EndDate__c: $endDate
+        }
       }
-    }) {
+    ) {
       Record {
         Id
       }

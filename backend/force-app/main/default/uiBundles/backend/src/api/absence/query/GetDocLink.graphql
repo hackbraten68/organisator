@@ -4,7 +4,9 @@ query GetDocLink($cvId: ID!) {
       ContentVersion(where: { Id: { eq: $cvId } }, first: 1) {
         edges {
           node {
-            ContentDocumentId
+            ContentDocumentId @optional {
+              value
+            }
           }
         }
       }

@@ -1,11 +1,8 @@
 mutation ApproveAbsence($id: IdOrRef!) {
   uiapi {
-    Absence__cUpdate(input: {
-      Id: $id
-      Absence__c: {
-        Status__c: "Approved"
-      }
-    }) {
+    Absence__cUpdate(
+      input: { Id: $id, Absence__c: { Status__c: "Approved" } }
+    ) {
       Record {
         Id
       }

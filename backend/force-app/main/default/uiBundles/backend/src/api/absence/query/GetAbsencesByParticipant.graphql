@@ -9,20 +9,48 @@ query GetAbsencesByParticipant($participantId: ID!, $first: Int) {
         edges {
           node {
             Id
-            Name @optional { value }
-            Participant__c @optional { value }
-            Type__c @optional { value }
-            Status__c @optional { value }
-            StartDate__c @optional { value }
-            EndDate__c @optional { value }
-            Reason__c @optional { value }
-            ApprovedBy__c @optional { value }
-            ApprovedAt__c @optional { value }
-            RejectedBy__c @optional { value }
-            RejectedAt__c @optional { value }
-            CoachComment__c @optional { value }
-            CreatedDate @optional { value }
-            LastModifiedDate @optional { value }
+            Name @optional {
+              value
+            }
+            Participant__c @optional {
+              value
+            }
+            Type__c @optional {
+              value
+            }
+            Status__c @optional {
+              value
+            }
+            StartDate__c @optional {
+              value
+            }
+            EndDate__c @optional {
+              value
+            }
+            Reason__c @optional {
+              value
+            }
+            ApprovedBy__c @optional {
+              value
+            }
+            ApprovedAt__c @optional {
+              value
+            }
+            RejectedBy__c @optional {
+              value
+            }
+            RejectedAt__c @optional {
+              value
+            }
+            CoachComment__c @optional {
+              value
+            }
+            CreatedDate @optional {
+              value
+            }
+            LastModifiedDate @optional {
+              value
+            }
           }
         }
       }

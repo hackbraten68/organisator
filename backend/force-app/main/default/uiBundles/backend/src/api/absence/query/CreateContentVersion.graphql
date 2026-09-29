@@ -1,14 +1,23 @@
-mutation CreateContentVersion($title: String!, $pathOnClient: String!, $versionData: Blob!, $firstPublishLocationId: ID!) {
+mutation CreateContentVersion(
+  $title: String!
+  $pathOnClient: String!
+  $versionData: Base64!
+  $firstPublishLocationId: IdOrRef!
+) {
   uiapi {
-    ContentVersionCreate(input: {
-      ContentVersion: {
-        Title: $title
-        PathOnClient: $pathOnClient
-        VersionData: $versionData
-        FirstPublishLocationId: $firstPublishLocationId
+    ContentVersionCreate(
+      input: {
+        ContentVersion: {
+          Title: $title
+          PathOnClient: $pathOnClient
+          VersionData: $versionData
+          FirstPublishLocationId: $firstPublishLocationId
+        }
       }
-    }) {
-      Record { Id }
+    ) {
+      Record {
+        Id
+      }
     }
   }
 }

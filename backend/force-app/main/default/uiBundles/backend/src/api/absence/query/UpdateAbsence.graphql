@@ -4,21 +4,23 @@ mutation UpdateAbsence(
   $status: Picklist
   $startDate: Date
   $endDate: Date
-  $reason: String
-  $coachComment: String
+  $reason: LongTextArea
+  $coachComment: LongTextArea
 ) {
   uiapi {
-    Absence__cUpdate(input: {
-      Id: $id
-      Absence__c: {
-        Type__c: $type
-        Status__c: $status
-        StartDate__c: $startDate
-        EndDate__c: $endDate
-        Reason__c: $reason
-        CoachComment__c: $coachComment
+    Absence__cUpdate(
+      input: {
+        Id: $id
+        Absence__c: {
+          Type__c: $type
+          Status__c: $status
+          StartDate__c: $startDate
+          EndDate__c: $endDate
+          Reason__c: $reason
+          CoachComment__c: $coachComment
+        }
       }
-    }) {
+    ) {
       Record {
         Id
       }

@@ -1,17 +1,24 @@
-import { useState, useCallback } from "react";
-import { Upload, Download, Trash2, FileText, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { uploadAbsenceDocument, getAbsenceDocuments } from "@/api/absence/absenceService";
-import type { AbsenceDocument } from "@/types/absence";
-import { toast } from "sonner";
+import { useState, useCallback } from 'react';
+import { fileToBase64 } from '@/utils/fileToBase64';
+import { Upload, Download, Trash2, FileText, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  uploadAbsenceDocument,
+  getAbsenceDocuments,
+} from '@/api/absence/absenceService';
+import type { AbsenceDocument } from '@/types/absence';
+import { toast } from 'sonner';
 
 interface AbsenceDocumentsProps {
   absenceId: string;
   currentUserId: string;
 }
 
-export function AbsenceDocuments({ absenceId, currentUserId }: AbsenceDocumentsProps) {
+export function AbsenceDocuments({
+  absenceId,
+  currentUserId,
+}: AbsenceDocumentsProps) {
   const [documents, setDocuments] = useState<AbsenceDocument[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -21,17 +28,17 @@ export function AbsenceDocuments({ absenceId, currentUserId }: AbsenceDocumentsP
       const docs = await getAbsenceDocuments(absenceId);
       setDocuments(docs);
     } catch (err) {
-      console.error("Failed to load documents", err);
-      toast.error("Dokumente konnten nicht geladen werden");
+      console.error('Failed to load documents', err);
+      toast.error('Dokumente konnten nicht geladen werden');
     }
   }, [absenceId]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
+    if (e.type === 'dragenter' || e.type === 'dragover') {
       setDragActive(true);
-    } else if (e.type === "dragleave") {
+    } else if (e.type === 'dragleave') {
       setDragActive(false);
     }
   };
@@ -55,33 +62,46 @@ export function AbsenceDocuments({ absenceId, currentUserId }: AbsenceDocumentsP
   const handleFileUpload = async (file: File) => {
     if (!file) return;
 
-    const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/gif", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+    const allowedTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
     if (!allowedTypes.includes(file.type)) {
-      toast.error("Dateityp nicht erlaubt. Erlaubt: PDF, JPG, PNG, GIF, DOC, DOCX");
+      toast.error(
+        'Dateityp nicht erlaubt. Erlaubt: PDF, JPG, PNG, GIF, DOC, DOCX'
+      );
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      toast.error("Datei zu groß. Maximum 10 MB.");
+      toast.error('Datei zu groß. Maximum 10 MB.');
       return;
     }
 
     setUploading(true);
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const blob = new Blob([arrayBuffer], { type: file.type });
+      // VersionData is a Base64 scalar, not a binary payload.
+      const versionData = await fileToBase64(file);
 
-      await uploadAbsenceDocument(absenceId, {
-        title: file.name,
-        pathOnClient: file.name,
-        versionData: blob,
-      }, currentUserId);
+      await uploadAbsenceDocument(
+        absenceId,
+        {
+          title: file.name,
+          pathOnClient: file.name,
+          versionData,
+        },
+        currentUserId
+      );
 
       toast.success(`${file.name} hochgeladen`);
       fetchDocuments();
     } catch (err) {
-      console.error("Upload failed", err);
-      toast.error("Upload fehlgeschlagen");
+      console.error('Upload failed', err);
+      toast.error('Upload fehlgeschlagen');
     } finally {
       setUploading(false);
     }
@@ -89,13 +109,18 @@ export function AbsenceDocuments({ absenceId, currentUserId }: AbsenceDocumentsP
 
   const handleDownload = async (doc: AbsenceDocument) => {
     try {
-      const response = await fetch(`/services/data/v67.0/sobjects/ContentVersion/${doc.contentDocumentId}/VersionData`, {
-        headers: { Authorization: `Bearer ${(window as any).SFDC_ACCESS_TOKEN || ""}` },
-      });
+      const response = await fetch(
+        `/services/data/v67.0/sobjects/ContentVersion/${doc.contentDocumentId}/VersionData`,
+        {
+          headers: {
+            Authorization: `Bearer ${(window as any).SFDC_ACCESS_TOKEN || ''}`,
+          },
+        }
+      );
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
+        const a = document.createElement('a');
         a.href = url;
         a.download = doc.fileName;
         document.body.appendChild(a);
@@ -103,11 +128,11 @@ export function AbsenceDocuments({ absenceId, currentUserId }: AbsenceDocumentsP
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
-        toast.error("Download fehlgeschlagen");
+        toast.error('Download fehlgeschlagen');
       }
     } catch (err) {
-      console.error("Download failed", err);
-      toast.error("Download fehlgeschlagen");
+      console.error('Download failed', err);
+      toast.error('Download fehlgeschlagen');
     }
   };
 
@@ -115,19 +140,24 @@ export function AbsenceDocuments({ absenceId, currentUserId }: AbsenceDocumentsP
     if (!confirm(`${doc.fileName} wirklich löschen?`)) return;
 
     try {
-      const response = await fetch(`/services/data/v67.0/sobjects/ContentDocument/${doc.contentDocumentId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${(window as any).SFDC_ACCESS_TOKEN || ""}` },
-      });
+      const response = await fetch(
+        `/services/data/v67.0/sobjects/ContentDocument/${doc.contentDocumentId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${(window as any).SFDC_ACCESS_TOKEN || ''}`,
+          },
+        }
+      );
       if (response.ok || response.status === 204) {
-        toast.success("Dokument gelöscht");
+        toast.success('Dokument gelöscht');
         fetchDocuments();
       } else {
-        toast.error("Löschen fehlgeschlagen");
+        toast.error('Löschen fehlgeschlagen');
       }
     } catch (err) {
-      console.error("Delete failed", err);
-      toast.error("Löschen fehlgeschlagen");
+      console.error('Delete failed', err);
+      toast.error('Löschen fehlgeschlagen');
     }
   };
 
@@ -138,9 +168,11 @@ export function AbsenceDocuments({ absenceId, currentUserId }: AbsenceDocumentsP
   };
 
   const getFileIcon = (fileType: string) => {
-    if (fileType === "PDF") return <FileText className="size-4 text-red-500" />;
-    if (fileType.startsWith("image/")) return <span className="text-green-500">🖼️</span>;
-    if (fileType.includes("word") || fileType.includes("document")) return <span className="text-blue-500">📄</span>;
+    if (fileType === 'PDF') return <FileText className="size-4 text-red-500" />;
+    if (fileType.startsWith('image/'))
+      return <span className="text-green-500">🖼️</span>;
+    if (fileType.includes('word') || fileType.includes('document'))
+      return <span className="text-blue-500">📄</span>;
     return <FileText className="size-4 text-gray-500" />;
   };
 
@@ -172,7 +204,7 @@ export function AbsenceDocuments({ absenceId, currentUserId }: AbsenceDocumentsP
           onDragOver={handleDrag}
           onDrop={handleDrop}
           className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
-            dragActive ? "border-primary bg-primary/5" : "border-border"
+            dragActive ? 'border-primary bg-primary/5' : 'border-border'
           }`}
           role="region"
           aria-label="Datei-Upload-Bereich"
@@ -190,13 +222,20 @@ export function AbsenceDocuments({ absenceId, currentUserId }: AbsenceDocumentsP
             <div className="text-center py-8 text-muted-foreground">
               <Upload className="size-12 mx-auto mb-3 opacity-50" />
               <p>Keine Dokumente hochgeladen</p>
-              <p className="text-sm mt-1">Datei hierher ziehen oder klicken zum Auswählen</p>
-              <p className="text-xs mt-2">Erlaubt: PDF, JPG, PNG, GIF, DOC, DOCX (max. 10 MB)</p>
+              <p className="text-sm mt-1">
+                Datei hierher ziehen oder klicken zum Auswählen
+              </p>
+              <p className="text-xs mt-2">
+                Erlaubt: PDF, JPG, PNG, GIF, DOC, DOCX (max. 10 MB)
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
-              {documents.map((doc) => (
-                <div key={doc.id} className="flex items-center gap-3 p-3 bg-card border rounded-lg">
+              {documents.map(doc => (
+                <div
+                  key={doc.id}
+                  className="flex items-center gap-3 p-3 bg-card border rounded-lg"
+                >
                   <div className="flex-shrink-0 text-2xl" aria-hidden="true">
                     {getFileIcon(doc.fileType)}
                   </div>

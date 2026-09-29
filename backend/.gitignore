@@ -52,3 +52,6 @@ scripts/.seed-manifest.json
 
 # Generiertes GraphQL-Schema aus der Ziel-Org (~4 MB)
 schema.graphql
+
+# Aus schema.graphql generierte Typen; der Vite-Plugin erzeugt sie beim Build
+force-app/main/default/uiBundles/backend/src/api/graphql-operations-types.ts

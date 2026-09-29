@@ -1,12 +1,11 @@
-mutation RejectAbsence($id: IdOrRef!, $coachComment: String) {
+mutation RejectAbsence($id: IdOrRef!, $coachComment: LongTextArea) {
   uiapi {
-    Absence__cUpdate(input: {
-      Id: $id
-      Absence__c: {
-        Status__c: "Rejected"
-        CoachComment__c: $coachComment
+    Absence__cUpdate(
+      input: {
+        Id: $id
+        Absence__c: { Status__c: "Rejected", CoachComment__c: $coachComment }
       }
-    }) {
+    ) {
       Record {
         Id
       }

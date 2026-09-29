@@ -785,6 +785,17 @@ from the runtime schema. Creating the schema in Setup once and retrieving it is
 unavoidable. Everything _around_ the schema — programs, coaches, contacts, participants,
 audit history — is bootstrapped by `scripts/seed-sample-data.mjs` with no manual step.
 
+**Full deploys need a clean source tracking after an `--ignore-conflicts` deploy (2026-09-29):**
+once a deploy has bypassed conflict detection, the project-local `.sf/` cache reports
+`ExpectedSourceFilesError: ... backend.uibundle-meta.xml` and the full deploy stops before
+resolving anything. It is not a bundle problem — it is a stale cache. Delete `.sf/` and
+deploy with `--ignore-conflicts` once; after that the normal full deploy works.
+
+```bash
+rm -rf .sf && sf project deploy start --target-org organiser-dev --ignore-conflicts
+sf project deploy start --target-org organiser-dev    # works from here on
+```
+
 **Never deploy profiles (E3):** a Profile deploy cannot provision a required field and
 fails with \"Sie können kein Pflichtfeld bereitstellen\". With the default
 `rollbackOnError` that rolls back the **entire** deploy, including every custom object — a
