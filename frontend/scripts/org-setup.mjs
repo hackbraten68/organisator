@@ -78,9 +78,26 @@ import {
   parseApexInsertResults,
   planApexBatches,
 } from './org-setup-utils.mjs';
+import { preflightDeploy, formatReport } from '../../backend/scripts/preflight-deploy.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
+
+/**
+ * Guards the wholesale `sf project deploy start` over this project's force-app.
+ * Not a step of its own and not skippable — it runs immediately before the deploy
+ * call, so no path in this repository reaches the deploy without passing it.
+ * The implementation is shared with the backend project on purpose: a second
+ * similar implementation would be one more thing to keep in sync.
+ */
+function runPreflightForDeploy() {
+  try {
+    const result = preflightDeploy({ sourceDir: join(ROOT, 'force-app', 'main', 'default'), projectRoot: 'frontend' });
+    console.log(`  Preflight OK — no blocking metadata in the deploy tree.\n${formatReport(result)}`);
+  } catch (error) {
+    throw new StepError(`deploy blocked by preflight\n\n${error.message}`);
+  }
+}
 
 /**
  * Thrown by step runners (run/runAsync) when a subprocess fails. The per-step
@@ -599,6 +616,8 @@ function enableExternalProfiles(targetOrg) {
       '    <enableOotbProfExtUserOpsEnable>true</enableOotbProfExtUserOpsEnable>',
       '</CommunitiesSettings>',
     ].join('\n'));
+
+    runPreflightForDeploy();
 
     const result = spawnSync('sf', [
       'project', 'deploy', 'start',

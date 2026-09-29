@@ -4,6 +4,18 @@
 
 package.xml
 
+# Never deploy a Profile. It cannot provision a required field; the deploy fails
+# and rollbackOnError rolls back EVERY custom object with it (AGENTS.md E3).
+# Real guard: backend/scripts/preflight-deploy.mjs --project <this dir>.
+# Second layer only — these patterns are not a proven filter for
+# `sf project deploy start` (measured with @salesforce/cli 2.149.9).
+**/profiles/**
+**/*.profile-meta.xml
+**/sharingRules/**
+**/*.sharingRules-meta.xml
+**/sharingSets/**
+**/*.sharingSet-meta.xml
+
 # LWC configuration files
 **/jsconfig.json
 **/.eslintrc.json

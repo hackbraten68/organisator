@@ -72,9 +72,27 @@ import {
   parseApexInsertResults,
   planApexBatches,
 } from './org-setup-utils.mjs';
+import { preflightDeploy, formatReport } from './preflight-deploy.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
+
+/**
+ * Guards the wholesale `sf project deploy start` that both org-setup entry points
+ * run. Not a step of its own, not skippable: it is invoked from inside the deploy
+ * step so no path in this repository reaches the deploy without passing it.
+ *
+ * @param {string} [sourceDir] metadata root, defaults to backend's
+ * @param {string} [projectLabel] name used in the error message
+ */
+function runPreflightForDeploy(sourceDir, projectLabel) {
+  try {
+    const result = preflightDeploy({ sourceDir, projectRoot: projectLabel });
+    console.log(`  Preflight OK — no blocking metadata in the deploy tree.\n${formatReport(result)}`);
+  } catch (error) {
+    throw new StepError(`deploy blocked by preflight\n\n${error.message}`);
+  }
+}
 
 /**
  * Thrown by step runners (run/runAsync) when a subprocess fails. The per-step
@@ -1947,6 +1965,10 @@ async function main() {
           throw new StepError(`deploy blocked — ${licenseGate.reason}`);
         }
       }
+      // Preflight is not a toggleable step and cannot be skipped: it runs inside
+      // the deploy step so any path that reaches `sf project deploy start` is
+      // covered. Guards the Profile/SharingRule class of wholesale-deploy failure.
+      runPreflightForDeploy();
       run('Deploy metadata', 'sf', ['project', 'deploy', 'start', '--target-org', targetOrg], {
         timeout: 180000,
       });

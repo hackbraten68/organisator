@@ -4,6 +4,17 @@
 
 package.xml
 
+# Profiles are never deployed. A Profile cannot provision a required field; the
+# deploy fails and rollbackOnError then rolls back EVERY custom object with it
+# (AGENTS.md control test E3). Real guard: scripts/preflight-deploy.mjs, which runs
+# before every repository-owned deploy path. These patterns are a second layer.
+**/profiles/**
+**/*.profile-meta.xml
+**/sharingRules/**
+**/*.sharingRules-meta.xml
+**/sharingSets/**
+**/*.sharingSet-meta.xml
+
 # LWC configuration files
 **/jsconfig.json
 **/.eslintrc.json
