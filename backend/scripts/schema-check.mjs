@@ -168,6 +168,53 @@ function readFileSafe(file) {
 }
 
 // ---------------------------------------------------------------------------
+// Metadata layer: is the field at least created?
+// ---------------------------------------------------------------------------
+/**
+ * A repo field can be missing from the runtime for two very different reasons:
+ * it was never created, or it exists in the metadata layer but never got
+ * compiled into the runtime schema. The Tooling API tells them apart, so the
+ * report can say which one it is instead of only "missing".
+ *
+ * Returns a Set of lower-cased custom field API names known to the Tooling API.
+ */
+function toolingFieldsFor(objectName) {
+  const query =
+    "SELECT QualifiedApiName FROM FieldDefinition " +
+    `WHERE EntityDefinition.QualifiedApiName='${objectName}' AND QualifiedApiName LIKE '%__c'`;
+
+  let raw;
+  try {
+    raw = execFileSync(
+      "sf",
+      [
+        "data",
+        "query",
+        "--target-org",
+        TARGET_ORG,
+        "--use-tooling-api",
+        "--query",
+        query,
+        "--json"
+      ],
+      {
+        encoding: "utf8",
+        maxBuffer: 32 * 1024 * 1024
+      }
+    );
+  } catch {
+    return null; // Tooling API unavailable; degrade to runtime-only comparison.
+  }
+
+  try {
+    const records = JSON.parse(raw).result?.records ?? [];
+    return new Set(records.map((r) => r.QualifiedApiName.toLowerCase()));
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Report
 // ---------------------------------------------------------------------------
 try {
@@ -187,6 +234,7 @@ function report() {
   for (const objectName of objectNames) {
     const runtime = fieldsByObject.get(objectName);
     const { fields: repo, problems } = repoFieldsFor(objectName);
+    const tooling = toolingFieldsFor(objectName);
 
     const missing = [...repo].filter((f) => !runtime.has(f)).sort();
     const extra = [...runtime].filter((f) => !repo.has(f)).sort();
@@ -198,7 +246,8 @@ function report() {
       runtime: runtime.size,
       missing,
       extra,
-      problems
+      problems,
+      tooling
     });
   }
 
@@ -223,8 +272,12 @@ function report() {
     console.log(
       `${row.objectName.padEnd(nameWidth)}  ${String(row.repo).padStart(4)}  ${String(row.runtime).padStart(3)}  ${status}`
     );
-    for (const field of row.missing)
-      console.log(`${" ".repeat(nameWidth)}    - ${field}`);
+    for (const field of row.missing) {
+      // "Geist" = in der Metadatenschicht vorhanden, aber nie ins Runtime-Schema
+      // kompiliert. "Fehlt ueberall" = gar nicht erst angelegt worden.
+      const ghost = row.tooling?.has(field) ? "Geistfeld" : "fehlt ueberall";
+      console.log(`${" ".repeat(nameWidth)}    - ${field}  [${ghost}]`);
+    }
     for (const field of row.extra)
       console.log(`${" ".repeat(nameWidth)}    + ${field} (nur im Org)`);
     for (const problem of row.problems)

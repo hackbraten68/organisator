@@ -56,6 +56,24 @@ Jeder andere Fehler wird als `SKIPPED` gemeldet, weil er meist eine Fachregel is
 > er kann also konstruktionsbedingt nicht an einem Feld scheitern, das er nie gesehen hat.
 > Der interessante Vergleich ist Org gegen Repo, und den macht `schema-check.mjs`.
 
+### Geistfelder
+
+Zusätzlich fragt `schema-check.mjs` die Tooling-API, um fehlende Felder zu klassifizieren:
+
+| Markierung         | Bedeutung                                                       |
+| ------------------ | --------------------------------------------------------------- |
+| `[Geistfeld]`      | In `FieldDefinition` vorhanden, aber nie ins Runtime kompiliert |
+| `[fehlt ueberall]` | Gar nicht erst angelegt                                         |
+
+Aktuell sind **alle 24 verbleibenden Felder Geistfelder**. Sie sind also angelegt; es fehlt
+der Nachweis, dass ein Neuanlegen etwas ändert. Deshalb wird zuerst ein einzelnes Feld
+kontrolliert durchgespielt, bevor 25 gelöscht werden — siehe
+[`schema-repair-checklist.md`](./schema-repair-checklist.md), Versuch E1.
+
+> Einschränkung: der Vergleich ist symmetrisch. Fehlt ein Feld aus **beiden** Seiten
+> (Repo und Org), meldet der Healthcheck `ok` — er kann nicht unterscheiden, ob ein Feld
+> absichtlich entfernt wurde oder kaputt ist.
+
 ### Exit-Codes
 
 | Code | Bedeutung                                                            |

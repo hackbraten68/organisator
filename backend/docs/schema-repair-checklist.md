@@ -18,7 +18,83 @@ Abweichung landet dann still im Schema. Alles, was fachlich geändert werden sol
 (z. B. `deleteConstraint` auf `Restrict`), ist eine **eigene, bewusste Entscheidung** nach
 der Reparatur.
 
-## Reihenfolge
+---
+
+## Versuch E1: Ist manuelles Anlegen die Lösung, oder ein Mythos?
+
+**Bevor 25 Felder angefasst werden, wird ein einziges Feld kontrolliert durchgespielt.**
+
+Begründung: Der manuelle Weg stammt aus dem Workaround vom 2026-09-24 und ist seither nie
+gegen eine frische Org getestet worden. Bevor 25 Felder daran glauben, wird die Annahme an
+einem Feld geprüft. Scheitert der Versuch, spart das 25 Löschungen.
+
+### Status vom 2026-09-29: Schritt 1 erledigt, Schritt 2 offen
+
+`Program__c.Status__c` wurde aus **allen drei** Schichten entfernt
+(`sf project delete source --metadata CustomField:Program__c.Status__c`):
+
+| Schicht                                 | Vorher                 | Nachher             |
+| --------------------------------------- | ---------------------- | ------------------- |
+| Runtime-Schema (Apex `fields.getMap()`) | `STATUS_PRESENT=false` | `false`             |
+| Tooling API `FieldDefinition`           | 1 Treffer              | 0 Treffer           |
+| `sf project retrieve`                   | `Nothing retrieved`    | `Nothing retrieved` |
+
+Damit ist ein sauberer Ausgangspunkt: das Feld existiert nirgends mehr. Die Repo-Datei
+wurde dabei mitgelöscht — sie kommt über den Retrieve in Schritt 4 zurück.
+
+### Schritt 2: manuell in Setup anlegen (manuell, nicht deployen!)
+
+```text
+Setup → Object Manager → Program → Fields & Relationships → New
+
+Feldtyp          Picklist
+API-Name         Status__c
+Label            Status
+Hilfetext        Current Status of Program
+Werteschatz      einschränken: Ja
+Werte            Draft (Standard), Active, Archived
+Erforderlich     Nein
+```
+
+**Nicht** per `sf project deploy start` anlegen — genau das ist der Weg, der nicht
+funktioniert.
+
+### Schritt 3: SOQL-Test
+
+```bash
+cd /home/sam/github/organisator/backend
+sf data query --target-org organiser-dev --query "SELECT Id, Name, Status__c FROM Program__c"
+```
+
+### Schritt 4: Retrieve
+
+```bash
+sf project retrieve start --metadata CustomObject:Program__c --target-org organiser-dev
+git diff --stat force-app/main/default/objects/Program__c
+```
+
+### Schritt 5: Gesamtschau
+
+```bash
+node scripts/schema-check.mjs
+```
+
+`Program__c` muss danach `3 / 3 ok` zeigen.
+
+### Auswertung
+
+| Ergebnis                                       | Bedeutung                             | Konsequenz                                              |
+| ---------------------------------------------- | ------------------------------------- | ------------------------------------------------------- |
+| `Program__c 3/3 ok`, `git diff` leer           | Manuelles Anlegen wirkt, Deploy nicht | Restliche 24 ebenso anlegen                             |
+| `Program__c 2/3`, SOQL weiter `No such column` | Der manuelle Weg hilft auch nicht     | Zurück zur Ursachenanalyse, **nicht** 24 Felder löschen |
+
+Aktueller Stand der übrigen Felder laut Healthcheck: alle 24 sind **Geistfelder** — in
+`FieldDefinition` vorhanden, aber nie ins Runtime-Schema kompiliert. Sie sind also bereits
+angelegt; es fehlt nur der Nachweis, dass Neuanlegen etwas ändert.
+
+---
+
+## Reihenfolge nach E1
 
 1. Alle 25 Felder in Setup anlegen
 2. Retrieve in alle fünf Objekte
