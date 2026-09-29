@@ -49,3 +49,6 @@ $RECYCLE.BIN/
 
 # Dev seed manifest (org-specific record IDs, never commit)
 scripts/.seed-manifest.json
+
+# Generiertes GraphQL-Schema aus der Ziel-Org (~4 MB)
+schema.graphql

@@ -1,6 +1,7 @@
 import type { RouteObject } from 'react-router';
 import {
   BookOpen,
+  Contact,
   GraduationCap,
   Home,
   LayoutGrid,
@@ -65,6 +66,8 @@ export function navigationIcon(icon?: NavigationIcon): LucideIcon {
       return Search;
     case 'users':
       return Users;
+    case 'contact':
+      return Contact;
     case 'book':
       return BookOpen;
     case 'coach':

@@ -445,7 +445,7 @@ eigenen Datensatz begrenzt.
 | 6.3 | `../AGENTS.md` um Naming, Ownership, Portal-Architektur und Login-Fluss ergänzen |
 | 6.4 | `Student_Test__c` löschen (Scratch-Rest) |
 | 6.5 | Schema-Drift auflösen: `../migrations/2026-09-appointment-staff-backup.csv` referenziert `Appointment__c.Staff__c`, das Feld existiert nicht |
-| 6.6 | `dist/` aus `backend/.../uiBundles/backend/` entfernen und in `.forceignore` aufnehmen (Build-Artefakt im deploybaren Baum) |
+| 6.6 | `dist/` des UI-Bundles aus Git entfernen — **nicht** in `.forceignore`, das `dist` ist der deploybare Inhalt |
 
 ---
 

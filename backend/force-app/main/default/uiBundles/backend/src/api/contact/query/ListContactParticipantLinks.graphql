@@ -1,0 +1,22 @@
+query ListContactParticipantLinks {
+  uiapi {
+    query {
+      Participant__c(first: 200) {
+        edges {
+          node {
+            Id
+            Name @optional {
+              value
+            }
+            Status__c @optional {
+              value
+            }
+            Contact__c @optional {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

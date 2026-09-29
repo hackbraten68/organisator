@@ -35,6 +35,7 @@ interface ParticipantNode {
   Id: string;
   Name?: ScalarValue<string>;
   Status__c?: ScalarValue<string>;
+  Contact__c?: ScalarValue<string>;
   Email__c?: ScalarValue<string>;
   GitHub__c?: ScalarValue<string>;
   Discord__c?: ScalarValue<string>;
@@ -87,6 +88,7 @@ function mapParticipant(
     id: node.Id,
     name: node.Name?.value ?? 'Unnamed Participant',
     status: node.Status__c?.value ?? 'Onboarding',
+    contactId: node.Contact__c?.value ?? undefined,
     email: node.Email__c?.value ?? undefined,
     github: node.GitHub__c?.value ?? undefined,
     discord: node.Discord__c?.value ?? undefined,

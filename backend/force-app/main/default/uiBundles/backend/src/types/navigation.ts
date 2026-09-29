@@ -15,13 +15,14 @@
  * the lucide component.
  */
 export type NavigationIcon =
-  | "home"
-  | "search"
-  | "users"
-  | "book"
-  | "coach"
-  | "reports"
-  | "settings";
+  | 'home'
+  | 'search'
+  | 'users'
+  | 'contact'
+  | 'book'
+  | 'coach'
+  | 'reports'
+  | 'settings';
 
 export interface NavigationHandle {
   label?: string;

@@ -6,12 +6,12 @@
  */
 
 export const PARTICIPANT_STATUSES = [
-  "Onboarding",
-  "Active",
-  "Paused",
-  "Graduated",
-  "Placed",
-  "Dropped",
+  'Onboarding',
+  'Active',
+  'Paused',
+  'Graduated',
+  'Placed',
+  'Dropped',
 ] as const;
 
 export type ParticipantStatus = (typeof PARTICIPANT_STATUSES)[number];
@@ -20,6 +20,8 @@ export interface Participant {
   id: string;
   name: string;
   status: string;
+  /** The person this participant role belongs to (ADR-001). Read-only here. */
+  contactId?: string;
   createdAt?: string;
   email?: string;
   github?: string;

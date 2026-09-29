@@ -6,14 +6,16 @@
  * and email from, which is why `createParticipant` resolves the contact here
  * instead of taking a name from the caller.
  *
- * Lookups of *related* records (the participant a contact already owns) are
- * deliberately not done here: `listParticipants` is a separate service and the
- * join happens in the page, same as programs and coaches for participants.
+ * Lookups of *related* records are not resolved per contact: one lightweight
+ * query returns every participant's contact link, and the page joins it. That
+ * is cheaper than `listParticipants`, which also pulls program and coach name
+ * maps that the contacts area does not display.
  */
 import { executeGraphQL } from '../graphqlClient';
 import type { Contact } from '@/types/contact';
 import LIST_CONTACTS from './query/ListContacts.graphql?raw';
 import GET_CONTACT from './query/GetContact.graphql?raw';
+import LIST_CONTACT_PARTICIPANT_LINKS from './query/ListContactParticipantLinks.graphql?raw';
 
 type ScalarValue<T = string> = { value?: T | null } | null | undefined;
 
@@ -86,4 +88,52 @@ export async function getContact(id: string): Promise<Contact | null> {
   );
   const node = data.uiapi?.query?.Contact?.edges?.[0]?.node ?? null;
   return node ? mapContact(node) : null;
+}
+
+/** A contact's participant role, if it has one (ADR-001: at most one). */
+export interface ParticipantLink {
+  id: string;
+  name: string;
+  status?: string;
+}
+
+interface ParticipantLinkNode {
+  Id: string;
+  Name?: ScalarValue<string>;
+  Status__c?: ScalarValue<string>;
+  Contact__c?: ScalarValue<string>;
+}
+
+/**
+ * Contact id -> participant, for every participant that has a contact.
+ *
+ * A contact missing from the map has no participant, which is what drives the
+ * action area: "Als Teilnehmer anlegen" versus "Teilnehmer öffnen".
+ */
+export async function listParticipantLinks(): Promise<
+  Map<string, ParticipantLink>
+> {
+  const data = await executeGraphQL<{
+    uiapi?: {
+      query?: {
+        Participant__c?: {
+          edges?: Array<{ node?: ParticipantLinkNode | null } | null> | null;
+        } | null;
+      } | null;
+    } | null;
+  }>(LIST_CONTACT_PARTICIPANT_LINKS);
+
+  const edges = data.uiapi?.query?.Participant__c?.edges ?? [];
+  const links = new Map<string, ParticipantLink>();
+  for (const edge of edges) {
+    const node = edge?.node;
+    const contactId = node?.Contact__c?.value;
+    if (!node || !contactId) continue;
+    links.set(contactId, {
+      id: node.Id,
+      name: node.Name?.value ?? 'Unnamed Participant',
+      status: node.Status__c?.value ?? undefined,
+    });
+  }
+  return links;
 }

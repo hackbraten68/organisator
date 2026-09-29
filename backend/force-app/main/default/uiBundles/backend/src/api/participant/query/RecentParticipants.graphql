@@ -8,6 +8,9 @@ query RecentParticipants($limit: Int!) {
             Name @optional {
               value
             }
+            Contact__c @optional {
+              value
+            }
             Status__c @optional {
               value
             }

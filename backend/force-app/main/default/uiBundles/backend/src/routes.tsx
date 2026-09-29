@@ -6,12 +6,17 @@ import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import type { NavigationHandle } from './types/navigation';
 
-import { Search as GlobalSearch, config } from "./features/search";
+import { Search as GlobalSearch, config } from './features/search';
 
-const AccountObjectDetail = lazy(() => import('./pages/AccountObjectDetailPage'));
+const AccountObjectDetail = lazy(
+  () => import('./pages/AccountObjectDetailPage')
+);
 const ParticipantPage = lazy(() => import('./pages/ParticipantPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
 const ProgramsPage = lazy(() => import('./pages/programs/ProgramsPage'));
-const ProgramDetailPage = lazy(() => import('./pages/programs/ProgramDetailPage'));
+const ProgramDetailPage = lazy(
+  () => import('./pages/programs/ProgramDetailPage')
+);
 
 function PageFallback() {
   return (
@@ -23,7 +28,7 @@ function PageFallback() {
 
 export const routes: RouteObject[] = [
   {
-    path: "/",
+    path: '/',
     element: <AppLayout />,
     children: [
       {
@@ -31,16 +36,16 @@ export const routes: RouteObject[] = [
         element: <Home />,
         handle: {
           showInNavigation: true,
-          label: "Dashboard",
-          icon: "reports",
+          label: 'Dashboard',
+          icon: 'reports',
         } satisfies NavigationHandle,
       },
       {
-        path: "dashboard",
+        path: 'dashboard',
         element: <Home />,
       },
       {
-        path: "search",
+        path: 'search',
         element: (
           <GlobalSearch
             config={config}
@@ -50,49 +55,90 @@ export const routes: RouteObject[] = [
         ),
         handle: {
           showInNavigation: true,
-          label: "Search",
-          icon: "search",
-        } satisfies NavigationHandle
+          label: 'Search',
+          icon: 'search',
+        } satisfies NavigationHandle,
       },
       {
-        path: "participants",
-        element: <Suspense fallback={<PageFallback />}><ParticipantPage /></Suspense>,
+        path: 'participants',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <ParticipantPage />
+          </Suspense>
+        ),
         handle: {
           showInNavigation: true,
-          label: "Participants",
-          icon: "users",
-        } satisfies NavigationHandle
+          label: 'Participants',
+          icon: 'users',
+        } satisfies NavigationHandle,
       },
       {
-        path: "participants/:participantId",
-        element: <Suspense fallback={<PageFallback />}><ParticipantPage /></Suspense>,
+        path: 'participants/:participantId',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <ParticipantPage />
+          </Suspense>
+        ),
       },
       {
-        path: "programs",
+        path: 'contacts',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <ContactPage />
+          </Suspense>
+        ),
+        handle: {
+          showInNavigation: true,
+          label: 'Contacts',
+          icon: 'contact',
+        } satisfies NavigationHandle,
+      },
+      {
+        path: 'contacts/:contactId',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <ContactPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'programs',
         children: [
           {
             index: true,
-            element: <Suspense fallback={<PageFallback />}><ProgramsPage /></Suspense>,
+            element: (
+              <Suspense fallback={<PageFallback />}>
+                <ProgramsPage />
+              </Suspense>
+            ),
             handle: {
               showInNavigation: true,
-              label: "Programs",
-              icon: "book",
+              label: 'Programs',
+              icon: 'book',
             } satisfies NavigationHandle,
           },
           {
-            path: ":programId",
-            element: <Suspense fallback={<PageFallback />}><ProgramDetailPage /></Suspense>,
+            path: ':programId',
+            element: (
+              <Suspense fallback={<PageFallback />}>
+                <ProgramDetailPage />
+              </Suspense>
+            ),
           },
         ],
       },
       {
-        path: "accounts/:recordId",
-        element: <Suspense fallback={<PageFallback />}><AccountObjectDetail /></Suspense>
+        path: 'accounts/:recordId',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <AccountObjectDetail />
+          </Suspense>
+        ),
       },
       {
-        path: "*",
-        element: <NotFound />
-      }
-    ]
-  }
+        path: '*',
+        element: <NotFound />,
+      },
+    ],
+  },
 ];

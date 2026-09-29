@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { executeGraphQL } from '../graphqlClient';
-import { getContact, listContacts, searchContacts } from './contactService';
+import {
+  getContact,
+  listContacts,
+  listParticipantLinks,
+  searchContacts,
+} from './contactService';
 
 vi.mock('../graphqlClient', () => ({
   executeGraphQL: vi.fn(),
@@ -124,5 +129,66 @@ describe('getContact', () => {
       }
     );
     expect(contact?.id).toBe('003a');
+  });
+});
+
+describe('listParticipantLinks', () => {
+  const linkResponse = (nodes: unknown[]) => ({
+    uiapi: {
+      query: {
+        Participant__c: { edges: nodes.map(n => ({ node: n })) },
+      },
+    },
+  });
+
+  it('maps contact id to participant with name and status', async () => {
+    mockedExecute.mockResolvedValueOnce(
+      linkResponse([
+        {
+          Id: 'a059-1',
+          Name: { value: 'Aylin Yilmaz' },
+          Status__c: { value: 'Onboarding' },
+          Contact__c: { value: '003a' },
+        },
+      ])
+    );
+
+    const links = await listParticipantLinks();
+
+    expect(links.get('003a')).toEqual({
+      id: 'a059-1',
+      name: 'Aylin Yilmaz',
+      status: 'Onboarding',
+    });
+  });
+
+  it('omits participants without a contact', async () => {
+    mockedExecute.mockResolvedValueOnce(
+      linkResponse([
+        { Id: 'a059-1', Name: { value: 'Ohne' }, Contact__c: { value: null } },
+      ])
+    );
+
+    expect((await listParticipantLinks()).size).toBe(0);
+  });
+
+  it('tolerates a participant without a status', async () => {
+    mockedExecute.mockResolvedValueOnce(
+      linkResponse([
+        {
+          Id: 'a059-1',
+          Name: { value: 'Aylin' },
+          Status__c: { value: null },
+          Contact__c: { value: '003a' },
+        },
+      ])
+    );
+
+    expect((await listParticipantLinks()).get('003a')?.status).toBeUndefined();
+  });
+
+  it('returns an empty map when there are no participants', async () => {
+    mockedExecute.mockResolvedValueOnce(linkResponse([]));
+    expect((await listParticipantLinks()).size).toBe(0);
   });
 });
