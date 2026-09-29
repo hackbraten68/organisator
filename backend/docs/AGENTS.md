@@ -6,13 +6,13 @@ This repo is a Salesforce monorepo with **two** SFDX projects that deploy into t
 org**. The terms below are fixed. Do not use "backend" for the server side of a web app —
 there is no conventional application server in this repo.
 
-| Term | Means | Path |
-|------|-------|------|
-| **backend** | Salesforce metadata (data model, Apex, triggers) **plus** the internal backoffice React SPA | `backend/` |
-| **frontend** | The Experience Cloud site plus the participant-facing React SPA (the portal) | `frontend/` |
-| **Contact** | The real person. Master data source for name and email. | standard `Contact` |
-| **Participant__c** | That person's role in the academy: program, coach, learning path, appointments, absences | `backend/force-app/main/default/objects/Participant__c/` |
-| **Portal User** | Login identity only. Experience Cloud customer/partner user with a `ContactId`. | standard `User` |
+| Term               | Means                                                                                       | Path                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| **backend**        | Salesforce metadata (data model, Apex, triggers) **plus** the internal backoffice React SPA | `backend/`                                               |
+| **frontend**       | The Experience Cloud site plus the participant-facing React SPA (the portal)                | `frontend/`                                              |
+| **Contact**        | The real person. Master data source for name and email.                                     | standard `Contact`                                       |
+| **Participant__c** | That person's role in the academy: program, coach, learning path, appointments, absences    | `backend/force-app/main/default/objects/Participant__c/` |
+| **Portal User**    | Login identity only. Experience Cloud customer/partner user with a `ContactId`.             | standard `User`                                          |
 
 There is **no** Lead → Opportunity → Participant chain. Salesforce standards for sales are
 `Lead ──convert──▶ Contact + Account + Opportunity`. An opportunity is a business process,
@@ -25,14 +25,14 @@ Both projects deploy to the **same** org — currently `organiser-dev` (see the 
 alias above). Each metadata type has exactly one owning project, so the two deploys never
 fight over the same file.
 
-| Owned by `backend` | Owned by `frontend` |
-|--------------------|---------------------|
-| `CustomObject` (academy objects) | `Network`, `Site`, `DigitalExperienceConfig` |
-| `ParticipantPortalAccess` (grant/revoke/reset) | `ParticipantPortalData` (`/me`, read-only) |
-| `ParticipantContactUniqueness` (trigger) | Portal profiles, permission sets, member setup |
-| `AuditEvent__c` event types | Experience Cloud templates |
-| `CustomPermission` `Manage_Participant_Portal_Access` | |
-| The internal backoffice UI Bundle | The participant UI Bundle |
+| Owned by `backend`                                    | Owned by `frontend`                            |
+| ----------------------------------------------------- | ---------------------------------------------- |
+| `CustomObject` (academy objects)                      | `Network`, `Site`, `DigitalExperienceConfig`   |
+| `ParticipantPortalAccess` (grant/revoke/reset)        | `ParticipantPortalData` (`/me`, read-only)     |
+| `ParticipantContactUniqueness` (trigger)              | Portal profiles, permission sets, member setup |
+| `AuditEvent__c` event types                           | Experience Cloud templates                     |
+| `CustomPermission` `Manage_Participant_Portal_Access` |                                                |
+| The internal backoffice UI Bundle                     | The participant UI Bundle                      |
 
 The portal feature is planned in `docs/portal/portal-access-plan.md`; the binding decisions
 are in `docs/portal/architecture-decisions.md`.
@@ -139,7 +139,7 @@ Program__c
 
 `Student_Test__c` was a leftover of the 2026-09-24 schema troubleshooting and was
 removed from source and from the org on 2026-09-29. `objects/Account/` holds 31
-retrieved *standard* Salesforce fields for reference; they carry no `__c` suffix and
+retrieved _standard_ Salesforce fields for reference; they carry no `__c` suffix and
 are not part of the custom schema.
 
 `Program__c` fields:
@@ -760,11 +760,20 @@ Exit 0 means the runtime schema matches `force-app/main/default/objects/`, exit 
 means drift, exit 2 means the probe itself failed. The 25 fields missing in a fresh
 org are listed in `docs/schema-repair-checklist.md`.
 
-**Rule:** a field is only operational once `sf sobject describe` returns it *and*
+**Rule:** a field is only operational once `sf sobject describe` returns it _and_
 `sf data query` accepts it. Deployment success is not evidence.
 
----
+**Consequence for field creation (proved by control test E1 on 2026-09-29):** a custom
+field created through `sf project deploy start` appears in `FieldDefinition` but never in
+the runtime schema. The same field created by hand in Setup is in the runtime schema
+immediately, and retrieving it yields a byte-identical XML file. So:
 
+> **Never deploy custom fields. Create them in Setup, then retrieve.**
+
+This is the one rule that overrides every other workflow here. It applies to new fields
+on existing objects and to new objects alike.
+
+---
 
 ## Scratch Org Rebuild Result
 
@@ -776,3 +785,4 @@ sf org create scratch \
   --alias backendtest \
   --set-default \
   --target-dev-hub test
+```

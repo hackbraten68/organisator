@@ -92,6 +92,50 @@ Aktueller Stand der übrigen Felder laut Healthcheck: alle 24 sind **Geistfelder
 `FieldDefinition` vorhanden, aber nie ins Runtime-Schema kompiliert. Sie sind also bereits
 angelegt; es fehlt nur der Nachweis, dass Neuanlegen etwas ändert.
 
+### Ergebnis E1 vom 2026-09-29: **bestanden**
+
+`Program__c.Status__c` wurde manuell in Setup angelegt. Alle Prüfebenen grün:
+
+| Prüfung                           | Ergebnis                                                                    |
+| --------------------------------- | --------------------------------------------------------------------------- |
+| Runtime-Schema (`STATUS_PRESENT`) | `true` — vorher dauerhaft `false`                                           |
+| SOQL                              | `SELECT Name, Status__c FROM Program__c` läuft, kein `No such column`       |
+| Schreiben **und** Lesen           | `E1 Probe` / `Active` angelegt und korrekt zurückgelesen, danach gelöscht   |
+| `sf project retrieve`             | liefert die Datei, **988 Bytes, byte-identisch** mit der Fassung von vorher |
+| `node scripts/schema-check.mjs`   | `Program__c  3  3  ok`                                                      |
+
+Damit ist die Annahme belegt:
+
+```text
+Feld per Deploy erzeugt        → in FieldDefinition vorhanden, nie im Runtime-Schema
+Feld manuell in Setup erzeugt  → sofort im Runtime-Schema
+```
+
+Der manuelle Weg ist kein Mythos aus dem alten Workaround, er ist der einzige, der
+funktioniert. Der Byte-Vergleich zeigt zusätzlich, dass manuelles Anlegen exakt das
+erzeugt, was das Repo vorher beschrieben hat — die Reparatur erzeugt **null** Diff.
+
+Der Versuch hat seinen Zweck erfüllt, ohne dass 25 Felder auf Verdacht gelöscht werden
+mussten.
+
+**Was offen bleibt:** warum ein deploytes Feld nicht ins Runtime-Schema gelangt, und dass
+die im Repo gehaltenen Metadaten damit **nicht** zuverlässig deployfähig sind. Nach dem
+manuellen Anlegen und Retrieven ist das zwar die Wahrheit, aber ein späterer Deploy in eine
+frische Org erzeugt dieselbe Lücke erneut. Siehe
+[`runtime-schema-healthcheck.md`](./runtime-schema-healthcheck.md).
+
+### Restliche 24 Felder
+
+```text
+AuditEvent__c     11
+AuditOutbox__c     6
+Learning_Path__c   5
+Module__c          2
+```
+
+Spezifikation jeweils weiter unten in diesem Dokument. Retrieve-Befehle im Abschnitt
+„Reihenfolge nach E1".
+
 ---
 
 ## Reihenfolge nach E1

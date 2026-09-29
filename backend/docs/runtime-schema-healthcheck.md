@@ -66,9 +66,25 @@ Zusätzlich fragt `schema-check.mjs` die Tooling-API, um fehlende Felder zu klas
 | `[fehlt ueberall]` | Gar nicht erst angelegt                                         |
 
 Aktuell sind **alle 24 verbleibenden Felder Geistfelder**. Sie sind also angelegt; es fehlt
-der Nachweis, dass ein Neuanlegen etwas ändert. Deshalb wird zuerst ein einzelnes Feld
-kontrolliert durchgespielt, bevor 25 gelöscht werden — siehe
-[`schema-repair-checklist.md`](./schema-repair-checklist.md), Versuch E1.
+der Nachweis, dass ein Neuanlegen etwas ändert.
+
+### Belegt: manuelles Anlegen funktioniert, Deploy nicht
+
+Kontrollversuch E1 am 2026-09-29 (`Program__c.Status__c`, siehe
+[`schema-repair-checklist.md`](./schema-repair-checklist.md)):
+
+| Art der Erzeugung         | `FieldDefinition` | Runtime-Schema | Retrieve    |
+| ------------------------- | ----------------- | -------------- | ----------- |
+| `sf project deploy start` | vorhanden         | **fehlt**      | leer        |
+| manuell in Setup          | vorhanden         | **vorhanden**  | vollständig |
+
+Der Retrieve des manuell angelegten Feldes war byte-identisch (988 Bytes) mit der
+Repo-Fassung von vorher. Die Reparatur erzeugt also null Diff.
+
+**Konsequenz für künftige Deploys:** die im Repo gehaltenen Objekt-Metadaten sind nicht
+zuverlässig deployfähig. Wer ein neues Custom-Feld braucht, legt es in Setup an und
+retrievt es — `sf project deploy start` für Custom-Felder nicht verwenden. Jeder Deploy in
+eine frische Org erzeugt die Lücke erneut.
 
 > Einschränkung: der Vergleich ist symmetrisch. Fehlt ein Feld aus **beiden** Seiten
 > (Repo und Org), meldet der Healthcheck `ok` — er kann nicht unterscheiden, ob ein Feld
