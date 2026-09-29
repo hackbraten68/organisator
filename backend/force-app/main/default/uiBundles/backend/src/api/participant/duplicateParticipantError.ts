@@ -9,14 +9,14 @@
  * (ADR-007).
  */
 export const DUPLICATE_PARTICIPANT_FOR_CONTACT =
-  "DUPLICATE_PARTICIPANT_FOR_CONTACT";
+  'DUPLICATE_PARTICIPANT_FOR_CONTACT';
 
 export class DuplicateParticipantForContactError extends Error {
   readonly contactId: string;
 
   constructor(contactId: string, message: string) {
     super(message);
-    this.name = "DuplicateParticipantForContactError";
+    this.name = 'DuplicateParticipantForContactError';
     this.contactId = contactId;
   }
 }

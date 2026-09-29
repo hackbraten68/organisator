@@ -5,28 +5,29 @@
  * coach services: uiapi lookup fields expose the related record Id, not its
  * name (displayValue is null for lookups).
  */
-import { executeGraphQL } from "../graphqlClient";
-import { listPrograms } from "../program/programService";
-import { listCoaches } from "../coach/coachService";
-import { recordParticipantCreation, recordParticipantStatusChange, recordParticipantUpdate } from "../audit/participantAuditIntegration";
-import { getAuditActor } from "../audit/actorContext";
-import { generateUUID } from "../audit/auditService";
-import { getContact } from "../contact/contactService";
+import { executeGraphQL } from '../graphqlClient';
+import { listPrograms } from '../program/programService';
+import { listCoaches } from '../coach/coachService';
+import {
+  recordParticipantCreation,
+  recordParticipantStatusChange,
+  recordParticipantUpdate,
+} from '../audit/participantAuditIntegration';
+import { getAuditActor } from '../audit/actorContext';
+import { generateUUID } from '../audit/auditService';
+import { getContact } from '../contact/contactService';
 import {
   DuplicateParticipantForContactError,
   isDuplicateParticipantError,
-} from "./duplicateParticipantError";
-import type {
-  Participant,
-  ParticipantPatch,
-} from "@/types/participant";
-import type { ProgramParticipantSummary } from "@/types/program";
-import type { CreateParticipantFromContactInput } from "@/types/contact";
-import LIST_PARTICIPANTS from "./query/ListParticipants.graphql?raw";
-import GET_PARTICIPANT from "./query/GetParticipant.graphql?raw";
-import CREATE_PARTICIPANT from "./query/CreateParticipant.graphql?raw";
-import UPDATE_PARTICIPANT from "./query/UpdateParticipant.graphql?raw";
-import RECENT_PARTICIPANTS from "./query/RecentParticipants.graphql?raw";
+} from './duplicateParticipantError';
+import type { Participant, ParticipantPatch } from '@/types/participant';
+import type { ProgramParticipantSummary } from '@/types/program';
+import type { CreateParticipantFromContactInput } from '@/types/contact';
+import LIST_PARTICIPANTS from './query/ListParticipants.graphql?raw';
+import GET_PARTICIPANT from './query/GetParticipant.graphql?raw';
+import CREATE_PARTICIPANT from './query/CreateParticipant.graphql?raw';
+import UPDATE_PARTICIPANT from './query/UpdateParticipant.graphql?raw';
+import RECENT_PARTICIPANTS from './query/RecentParticipants.graphql?raw';
 
 type ScalarValue<T = string> = { value?: T | null } | null | undefined;
 
@@ -78,14 +79,14 @@ interface MutationResponse {
 function mapParticipant(
   node: ParticipantNode,
   programNames: Map<string, string>,
-  coachNames: Map<string, string>,
+  coachNames: Map<string, string>
 ): Participant {
   const programId = node.Program__c?.value ?? undefined;
   const coachId = node.Coach_Profile__c?.value ?? undefined;
   return {
     id: node.Id,
-    name: node.Name?.value ?? "Unnamed Participant",
-    status: node.Status__c?.value ?? "Onboarding",
+    name: node.Name?.value ?? 'Unnamed Participant',
+    status: node.Status__c?.value ?? 'Onboarding',
     email: node.Email__c?.value ?? undefined,
     github: node.GitHub__c?.value ?? undefined,
     discord: node.Discord__c?.value ?? undefined,
@@ -107,8 +108,8 @@ async function nameMaps(): Promise<{
     listCoaches(),
   ]);
   return {
-    programs: new Map(programs.map((p) => [p.id, p.name])),
-    coaches: new Map(coaches.map((c) => [c.id, c.name])),
+    programs: new Map(programs.map(p => [p.id, p.name])),
+    coaches: new Map(coaches.map(c => [c.id, c.name])),
   };
 }
 
@@ -119,26 +120,28 @@ export async function listParticipants(): Promise<Participant[]> {
   ]);
   const edges = data.uiapi?.query?.Participant__c?.edges ?? [];
   return edges
-    .map((edge) => edge?.node)
+    .map(edge => edge?.node)
     .filter((node): node is ParticipantNode => node != null)
-    .map((node) => mapParticipant(node, names.programs, names.coaches));
+    .map(node => mapParticipant(node, names.programs, names.coaches));
 }
 
-export async function listRecentParticipants(limit = 6): Promise<Participant[]> {
+export async function listRecentParticipants(
+  limit = 6
+): Promise<Participant[]> {
   try {
-    const data = await executeGraphQL<RecentParticipantsResponse, { limit: number }>(
-      RECENT_PARTICIPANTS,
-      { limit },
-    );
+    const data = await executeGraphQL<
+      RecentParticipantsResponse,
+      { limit: number }
+    >(RECENT_PARTICIPANTS, { limit });
 
     const edges = data.uiapi?.query?.Participant__c?.edges ?? [];
     return edges
-      .map((edge) => edge?.node)
+      .map(edge => edge?.node)
       .filter((node): node is RecentParticipantNode => node != null)
-      .map((node) => ({
+      .map(node => ({
         id: node.Id,
-        name: node.Name?.value ?? "Unnamed Participant",
-        status: node.Status__c?.value ?? "Onboarding",
+        name: node.Name?.value ?? 'Unnamed Participant',
+        status: node.Status__c?.value ?? 'Onboarding',
         createdAt: node.CreatedDate?.value ?? undefined,
         startDate: node.StartDate__c?.value ?? undefined,
       }));
@@ -146,8 +149,8 @@ export async function listRecentParticipants(limit = 6): Promise<Participant[]> 
     const participants = await listParticipants();
     return [...participants]
       .sort((a, b) => {
-        const aDate = a.createdAt ?? a.startDate ?? "";
-        const bDate = b.createdAt ?? b.startDate ?? "";
+        const aDate = a.createdAt ?? a.startDate ?? '';
+        const bDate = b.createdAt ?? b.startDate ?? '';
         const aTime = aDate ? new Date(aDate).getTime() : 0;
         const bTime = bDate ? new Date(bDate).getTime() : 0;
         return bTime - aTime;
@@ -168,30 +171,30 @@ export async function getParticipant(id: string): Promise<Participant | null> {
 }
 
 export async function searchParticipants(
-  query: string,
+  query: string
 ): Promise<ProgramParticipantSummary[]> {
   const needle = query.trim().toLowerCase();
   const participants = await listParticipants();
   return participants
     .filter(
-      (participant) =>
-        needle === "" || participant.name.toLowerCase().includes(needle),
+      participant =>
+        needle === '' || participant.name.toLowerCase().includes(needle)
     )
     .map(({ id, name, programId }) => ({ id, name, programId }));
 }
 
 export async function listProgramParticipants(
-  programId: string,
+  programId: string
 ): Promise<ProgramParticipantSummary[]> {
   const participants = await listParticipants();
   return participants
-    .filter((participant) => participant.programId === programId)
+    .filter(participant => participant.programId === programId)
     .map(({ id, name, programId: pid }) => ({ id, name, programId: pid }));
 }
 
 export async function updateParticipant(
   id: string,
-  patch: ParticipantPatch,
+  patch: ParticipantPatch
 ): Promise<Participant | null> {
   const existing = await getParticipant(id);
   if (!existing) return null;
@@ -200,7 +203,7 @@ export async function updateParticipant(
     if (value === undefined) return undefined;
     if (value === null) return null;
     const trimmed = value.trim();
-    return trimmed === "" ? null : trimmed;
+    return trimmed === '' ? null : trimmed;
   };
 
   await executeGraphQL<
@@ -259,7 +262,7 @@ export async function updateParticipant(
           correlationId,
         });
       } catch (err) {
-        console.error("Failed to write audit event", err);
+        console.error('Failed to write audit event', err);
       }
     }
     try {
@@ -267,18 +270,15 @@ export async function updateParticipant(
         id,
         { ...existing, status: saved.status },
         saved,
-        { actor, correlationId },
+        { actor, correlationId }
       );
     } catch (err) {
       // recordParticipantUpdate throws when nothing (besides status)
       // changed — expected, not an error worth logging.
-      if (
-        err instanceof Error &&
-        err.message.includes("No fields changed")
-      ) {
+      if (err instanceof Error && err.message.includes('No fields changed')) {
         // no-op
       } else {
-        console.error("Failed to write audit event", err);
+        console.error('Failed to write audit event', err);
       }
     }
   }
@@ -300,13 +300,13 @@ export async function updateParticipant(
  * translates its code into something the UI can render.
  */
 export async function createParticipant(
-  input: CreateParticipantFromContactInput & { status?: string },
+  input: CreateParticipantFromContactInput & { status?: string }
 ): Promise<Participant | null> {
   const textOrNull = (value: string | null | undefined) => {
     if (value === undefined) return undefined;
     if (value === null) return null;
     const trimmed = value.trim();
-    return trimmed === "" ? null : trimmed;
+    return trimmed === '' ? null : trimmed;
   };
 
   const contact = await getContact(input.contactId);
@@ -336,17 +336,20 @@ export async function createParticipant(
       ...(input.expectedEndDate !== undefined
         ? { expectedEndDate: input.expectedEndDate }
         : {}),
-      ...(input.programId !== undefined ? { programId: textOrNull(input.programId) } : {}),
-      ...(input.coachId !== undefined ? { coachId: textOrNull(input.coachId) } : {}),
+      ...(input.programId !== undefined
+        ? { programId: textOrNull(input.programId) }
+        : {}),
+      ...(input.coachId !== undefined
+        ? { coachId: textOrNull(input.coachId) }
+        : {}),
     });
 
     const id = (Object.values(data.uiapi ?? {})[0]?.Record?.Id ?? null) as
-      | string
-      | null;
-    if (!id) throw new Error("Participant creation returned no Id.");
+      string | null;
+    if (!id) throw new Error('Participant creation returned no Id.');
 
     const created = await getParticipant(id);
-    if (!created) throw new Error("Created participant not found.");
+    if (!created) throw new Error('Created participant not found.');
 
     try {
       await recordParticipantCreation(created.id, created, {
@@ -355,7 +358,7 @@ export async function createParticipant(
     } catch (err) {
       console.error(
         `Failed to write audit event participant.created for ${created.id}`,
-        err,
+        err
       );
     }
 
@@ -364,7 +367,7 @@ export async function createParticipant(
     if (isDuplicateParticipantError(err)) {
       throw new DuplicateParticipantForContactError(
         input.contactId,
-        "Dieser Contact ist bereits einem Teilnehmer zugeordnet.",
+        'Dieser Contact ist bereits einem Teilnehmer zugeordnet.'
       );
     }
     throw err;
@@ -373,13 +376,13 @@ export async function createParticipant(
 
 export async function assignParticipant(
   participantId: string,
-  programId: string,
+  programId: string
 ): Promise<void> {
   await updateParticipant(participantId, { programId });
 }
 
 export async function unassignParticipant(
-  participantId: string,
+  participantId: string
 ): Promise<void> {
   await updateParticipant(participantId, { programId: null });
 }
