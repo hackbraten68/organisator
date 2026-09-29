@@ -42,19 +42,17 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { resolveTargetOrgOrThrow } from "./target-org.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.join(ROOT, "force-app/main/default/uiBundles/backend/src");
 const MANIFEST_PATH = path.join(ROOT, "scripts/.seed-manifest.json");
 
 const args = process.argv.slice(2);
-const opt = (name, fallback) => {
-  const i = args.indexOf(name);
-  return i !== -1 && args[i + 1] && !args[i + 1].startsWith("--")
-    ? args[i + 1]
-    : fallback;
-};
-const TARGET_ORG = opt("--target-org", "organiser-dev");
+// No hardcoded fallback: the org is either given explicitly or comes from
+// `sf config get target-org`. Seed data written to the wrong org is not
+// recoverable by rerunning. See scripts/target-org.mjs.
+const TARGET_ORG = resolveTargetOrgOrThrow({ argv: args, label: 'seed-sample-data' }).org;
 const DRY_RUN = args.includes("--dry-run");
 const REBUILD = args.includes("--rebuild");
 

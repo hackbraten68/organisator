@@ -36,6 +36,7 @@ import { execFileSync } from "node:child_process";
 import { readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { resolveTargetOrgOrThrow } from "./target-org.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OBJECTS_DIR = path.join(ROOT, "force-app/main/default/objects");
@@ -48,7 +49,13 @@ const opt = (name, fallback) => {
     ? args[i + 1]
     : fallback;
 };
-const TARGET_ORG = opt("--target-org", "organiser-dev");
+// No hardcoded fallback: the org is either given explicitly or comes from
+// `sf config get target-org`. A wrong guess here would report on one org while the
+// developer believes they are looking at another. See scripts/target-org.mjs.
+const { org: TARGET_ORG } = resolveTargetOrgOrThrow({
+  argv: args,
+  label: "schema-check"
+});
 
 // ---------------------------------------------------------------------------
 // Org side: run the Apex probe and parse its report

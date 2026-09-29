@@ -742,6 +742,63 @@ Progress reporting across participants
 Binding workflow rules for any future schema work: finding 9
 (manual creation, then retrieve — never `sf schema generate`).
 
+### 13. The target org is resolved from one place, and it is not in git
+
+`backend/scripts/target-org.mjs` is the only place that decides which org a script
+touches. Resolution order:
+
+1. explicit `--target-org <alias>` — always wins
+2. `sf config get target-org` — i.e. `backend/.sf/config.json`
+3. **abort**, with a message telling you to run `sf config set target-org=<alias>`
+
+There is no hardcoded fallback anywhere. `seed-sample-data.mjs` and `schema-check.mjs`
+used to carry `"organiser-dev"` as a literal, which meant the effective target depended
+on the entry point — for a script that writes records, that is the wrong failure mode.
+
+**Both `.sf/` and `.sfdx/` are gitignored, so the configured org does not travel with
+the repo.** A fresh clone has no default org and the scripts abort by design. Set it once
+per machine:
+
+```bash
+cd backend  && sf config set target-org=<alias>
+cd ../frontend && sf config set target-org=<alias>
+```
+
+Each project keeps its own, because this is a two-project repo deploying into one org and
+the two can legitimately differ during migration.
+
+### 14. Every deploy path runs a preflight; .forceignore does not count
+
+`org-setup.mjs` in **both** projects deploys with `--source-dir force-app`, which sweeps
+up every file in the tree, untracked included. `scripts/preflight-deploy.mjs` runs
+immediately before that call — not as a toggleable step, so it cannot be skipped — and
+aborts when a `Profile`, `SharingRule` or `SharingSet` is present. A Profile cannot
+provision a required field; the deploy fails, and `rollbackOnError` takes every custom
+object down with it (E3).
+
+**.forceignore is not a substitute, and this was measured rather than assumed.** With
+`@salesforce/cli` 2.149.9, `package.xml` appears as a component in
+`sf project deploy start --dry-run` even though both projects list it in `.forceignore`.
+The patterns are kept as a second layer. The CLI is **not** pinned in `devDependencies`,
+so treat its behaviour as unverified and re-measure after any CLI change.
+
+Coverage, stated precisely:
+
+| Entry point                           | Guard                                              |
+| ------------------------------------- | -------------------------------------------------- |
+| `backend/scripts/org-setup.mjs`       | preflight + .forceignore                           |
+| `frontend/scripts/org-setup.mjs`      | preflight + .forceignore                           |
+| repo-owned npm wrapper                | preflight + .forceignore                           |
+| direct `sf project deploy start`      | .forceignore only — unproven, not a guarantee      |
+| direct CLI with explicit `--metadata` | separate scope, bypasses source traversal entirely |
+
+Check what a deploy would carry:
+
+```bash
+node scripts/preflight-deploy.mjs
+node scripts/preflight-deploy.mjs --project ../frontend
+```
+
 ### 12. Verify the runtime schema, never the deploy report
 
 A successful deploy does not mean the custom fields reached the runtime schema. In
