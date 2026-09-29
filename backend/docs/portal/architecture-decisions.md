@@ -360,3 +360,18 @@ nicht erreichbar. Getestet sind deshalb alle Branches ab `Contact`; der Link `Us
 und ein echter Portal-Login über HTTP bleiben dem Positiv-/Negativtest in
 [`spike-sharing-1.5.md`](./spike-sharing-1.5.md) vorbehalten. Ein grüner Testlauf ist **kein**
 Nachweis, dass der Endpoint gegen einen echten Portal-User verifiziert wurde.
+
+**Nebenentscheidung — kein Schreibpfad.** `getMe()` liest ausschließlich. Es gibt kein
+`Portal_Status__c`-Feld und keinen Aktivierungszweig; der Endpoint behauptet keinen
+Portalzustand. Grund ist nicht nur Sauberkeit, sondern Wiederholbarkeit: Ein GET, der beim
+ersten Aufruf eine Einladung aktiviert, ist weder idempotent noch aus einem Refetch oder
+Health-Check gefahrlos aufrufbar. Die Aktivierung ist Phase 3.2 zugeordnet und wird dort
+festgelegt, sobald `Portal_Status__c` und `Portal_ActivatedAt__c` existieren.
+
+**Korrektur zur Historie.** Der Commit, der den Endpoint eingeführt hat, enthält in seiner
+Beschreibung den Satz, der Verzicht auf einen Gated-Endpunkt sei „in `portal-access-plan.md`
+Phase 5 festgehalten". Das war unbelegt und ist falsch: Phase 5 behandelt Termine,
+Abwesenheiten und Lernpfad, nicht das Gating. Die Aussage wurde nicht per Amend entfernt,
+sondern im Folge-Commit inhaltlich richtiggestellt — der ursprüngliche Endpoint hat weder
+Lade-Regeln noch eine Gating-Entscheidung. Wer die alte Beschreibung liest, findet hier die
+Korrektur und den belegten Stand.

@@ -1,7 +1,8 @@
 # Portal Access Plan (Participant Portal)
 
-**Stand:** 2026-09-29
-**Status:** Freigegeben zur Umsetzung
+**Stand:** 2026-09-30
+**Status:** In Umsetzung — Phase 4.1 (`/me`-Endpoint) ist implementiert und in
+`organiser-dev` deployed. Phasen 1 bis 3 sind noch offen.
 **Gilt für:** `frontend/` (Experience Cloud Portal) + `backend/` (Metadaten, Portal-Apex, Aktivierungs-UI)
 
 Dieser Plan setzt die Entscheidungen aus [`architecture-decisions.md`](./architecture-decisions.md) um.
@@ -126,7 +127,7 @@ nur Ladehinweis für eine gute Fehlermeldung, die maßgebliche Absicherung ist s
 | ------------------------------- | ---------------------------------------------------------------------- | -------------------------------- |
 | `Portal_Status__c`              | Picklist `None` (default) / `Invited` / `Active` / `Revoked` / `Error` | Portalzugang-Status              |
 | `Portal_InvitedAt__c`           | DateTime                                                               | Einladung versendet              |
-| `Portal_ActivatedAt__c`         | DateTime                                                               | erster Portalzugriff             |
+| `Portal_ActivatedAt__c`         | DateTime                                                               | Portalaktivierung abgeschlossen  |
 | `Portal_RevokedAt__c`           | DateTime                                                               | Zugang gesperrt                  |
 | `Portal_LastError__c`           | Text(255)                                                              | letzter Fehler der Portal-Aktion |
 | `Initial_Source_Opportunity__c` | Lookup `Opportunity`, **required: false**                              | optionale initiale Herkunft      |
@@ -318,17 +319,22 @@ Portalzugang aktivieren
   ▶ User erfolgreich erstellt
     ▶ Portal_Status__c = Invited
       ▶ Salesforce Welcome-Mail
-        ▶ Teilnehmer setzt Passwort
-          ▶ erster Portalzugriff auf /me
-            ▶ Portal_Status__c = Active, Portal_ActivatedAt__c = now
+        ▶ Teilnehmer setzt Passwort und schließt das Portal-Onboarding ab
+          ▶ Portal_Status__c = Active, Portal_ActivatedAt__c = now
 
 Fehler beim Anlegen
   ▶ Portal_Status__c = Error, Portal_LastError__c = <Meldung>
 ```
 
-`Active` wird **nicht** nach der User-Erstellung gesetzt. Der MVP aktiviert bei
-`Invited → Active` beim ersten erfolgreichen `/me`-Aufruf. Das ist kein vollständiger
-Login-Audit, aber fachlich deutlich präziser als `Active` direkt nach dem Anlegen.
+`Active` wird **nicht** nach der User-Erstellung gesetzt. Der Übergang hängt an einem
+abgeschlossenen Portal-Onboarding-Schritt, nicht an einem API-Aufruf.
+
+**Der Auslöser ist bewusst noch nicht festgelegt.** Er wird erst verbindlich, wenn
+`Portal_Status__c` und `Portal_ActivatedAt__c` angelegt sind — beide fehlen bisher in Repo
+und Org. Fest steht nur das Ausschlusskriterium: **`GET /me` aktiviert nicht.** Ein
+Lesezugriff verändert keinen Zustand; die Gründe stehen in Phase 4.1. Wird der Übergang
+später an einen serverseitigen Aufruf gebunden, muss dieser eine eigene POST-Route sein und
+idempotent laufen, damit ein wiederholter Aufruf keinen Schaden anrichtet.
 
 **3.3 Backend-UI**
 
@@ -362,7 +368,8 @@ Domain `authentication` (Anbindung an den Contact) — Matrix in
 `../activity-coverage.md` fortschreiben.
 
 **Akzeptanz:** Staff aktiviert den Zugang, Zustand ist `Invited`, Welcome-Mail ist raus.
-Weder ein Passwort noch ein Startpasswort ist im System bekannt.
+Weder ein Passwort noch ein Startpasswort ist im System bekannt. `Active` entsteht erst mit
+dem Abschluss des Portal-Onboardings, nicht durch einen Leseaufruf.
 
 ---
 
@@ -373,7 +380,21 @@ User → Contact → Participant → Sharing → Apex → React, bevor der Porta
 
 **4.1 `ParticipantPortalData.cls`** im `frontend`-Projekt
 
-`@RestResource(urlMapping='/participant-portal/me')`, `global with sharing`.
+```apex
+@RestResource(urlMapping='/participant-portal')
+global without sharing class ParticipantPortalData {
+  @HttpGet
+  global static void getMe() {
+    /* ... */
+  }
+}
+```
+
+Der öffentliche Pfad ist damit `GET /services/apexrest/participant-portal/me`. Das Mapping
+liegt bewusst auf dem Präfix und nicht auf `/me`: der Endpoint ist damit erweiterbar, ohne
+das Routing umzubauen, und `@HttpGet` ist die einzige zugelassene Methode. Die Verifikation
+läuft über `responseBody` / `responseStatus` statt `RestContext.response.response` — diese
+Property existiert in dieser Org nicht (ADR-011).
 
 Serverseitige Auflösung, **kein** Filter nach einer vom Browser übermittelten ID:
 
@@ -383,15 +404,70 @@ UserInfo.getUserId()
     ▶ Participant__c WHERE Contact__c = :contactId
 ```
 
-Damit kann niemand durch Einsetzen einer fremden `participantId` Daten erlangen.
+Damit kann niemand durch Einsetzen einer fremden `participantId` Daten erlangen. Der Request
+akzeptiert weder `participantId` noch `contactId`; `getMe()` hat keine Parameter.
+
+**Warum `without sharing` — und was es nicht bedeutet**
+
+`Participant__c` hat `externalSharingModel = Private`. Ein `with sharing`-Endpoint gäbe dem
+externen Portal-User darum **gar nichts** zurück: der positiv aufgelöste Datensatz wäre für
+ihn unsichtbar. Solange das deklarative Sharing (Ansatz A oder B aus Phase 1.5) nicht
+verifiziert ist, bleibt `without sharing` die einzige Variante, in der der Endpoint
+überhaupt antwortet.
+
+Das ist **keine** Autorisierung und keine Legitimation einer allgemeinen Ausnahme. Die
+Autorisierung bleibt prozedural und ausschließlich die Einzeilen-Kette oben:
+
+```text
+aktueller User ▶ User.ContactId ▶ WHERE Participant__c.Contact__c = :contactId
+```
+
+Die Ausgabe ist eine explizite DTO-Whitelist mit zehn Feldern, einzeln kopiert — keine
+sObject-Serialisierung. Ein neuer Filter darf die Kette nicht erweitern. Siehe
+[ADR-010](./architecture-decisions.md) und [ADR-011](./architecture-decisions.md).
+
+Sobald Ansatz A oder B live ist **und** der Spike-Nachweis vorliegt, wird auf
+`with sharing` umgestellt und diese Ausnahme entfällt.
 
 Ablauf:
 
-1. `User.ContactId` auflösen — existiert keiner, sauberes „noch kein Portalzugang"
-2. `Participant__c` laden — existiert keiner, dito
-3. `Portal_Status__c == Invited` → auf `Active` setzen, `Portal_ActivatedAt__c = now`
-4. Programm, Coach, Start-/Enddatum zurückgeben
-5. Objekt-, Feld- und Datensatzberechtigungen bewusst behandeln
+1. `User.ContactId` auflösen — existiert keiner, `401 NO_CONTACT_IDENTITY`
+2. `Participant__c` laden — existiert keiner, `404 NO_PARTICIPANT`; mehr als einer,
+   `500 AMBIGUOUS_PARTICIPANT` statt willkürlich einen zu wählen
+3. Programm, Coach, Start-/Enddatum sowie Name und E-Mail aus dem `Contact` zurückgeben
+4. Fehlerantworten tragen HTTP-Status und stabilen Code; die rohe Exception wird nie
+   ausgegeben, sie würde Feldnamen und Ids leaken
+
+**`GET` ohne Schreibnebenwirkung — verbindlich**
+
+Der Endpoint liest ausschließlich. Er aktiviert **keine** Einladung und schreibt **keinen**
+Datensatz. Ein Lesezugriff darf keinen fachlichen Zustand verändern, sonst ändert bereits
+eines dieser Ereignisse die Daten:
+
+- die Seite wird vor dem Login geladen
+- ein fehlgeschlagener Request wird vom Client wiederholt
+- ein Refetch nach einer Mutation läuft erneut
+- ein Health-Check oder Monitoring ruft den Endpoint auf
+- der Anwender öffnet die Seite in einem zweiten Tab
+
+Ohne diese Regel ist der Endpoint nicht wiederholbar und aus einem Refetch nicht gefahrlos
+aufrufbar. Aktivierung gehört in einen expliziten Schritt des Portal-Lebenszyklus — siehe
+Phase 3.2.
+
+**Vor Produktivfreigabe zu verifizieren**
+
+Die DTO-Whitelist begrenzt die Ausgabe, ersetzt aber keine der folgenden Prüfungen:
+
+- [ ] Objektzugriff: welche Objekte der externe User überhaupt sehen darf
+- [ ] Feldzugriff: die Whitelist ersetzt keine Feldprüfung
+- [ ] Datensatzbegrenzung: ausschließlich der eigene `Participant__c`
+- [ ] Verhalten mit einem **echten** externen User, nicht nur im Apex-Test
+- [ ] Positivtest: User A sieht Participant A
+- [ ] Negativtest: User A sieht Participant B **nicht**
+
+Offen und nicht automatisierbar: Salesforce lässt `User.ContactId` nur bei Portal-Usern zu,
+und deren Anlage verlangt zusätzlich den Setup-Schalter für externe Standardprofile. Die
+Apex-Tests decken deshalb alle Branches ab `Contact` ab, nicht den Link `User → Contact`.
 
 **4.2 Eine Seite: `/me`**
 
