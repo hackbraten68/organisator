@@ -1,0 +1,33 @@
+query ListContacts {
+  uiapi {
+    query {
+      Contact(first: 200, orderBy: { LastName: { order: ASC } }) {
+        edges {
+          node {
+            Id
+            FirstName @optional {
+              value
+            }
+            LastName @optional {
+              value
+            }
+            Email @optional {
+              value
+            }
+            Phone @optional {
+              value
+            }
+            AccountId @optional {
+              value
+            }
+            Account @optional {
+              Name {
+                value
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

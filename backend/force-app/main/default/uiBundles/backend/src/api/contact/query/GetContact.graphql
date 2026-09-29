@@ -1,0 +1,33 @@
+query GetContact($id: ID!) {
+  uiapi {
+    query {
+      Contact(where: { Id: { eq: $id } }, first: 1) {
+        edges {
+          node {
+            Id
+            FirstName @optional {
+              value
+            }
+            LastName @optional {
+              value
+            }
+            Email @optional {
+              value
+            }
+            Phone @optional {
+              value
+            }
+            AccountId @optional {
+              value
+            }
+            Account @optional {
+              Name {
+                value
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

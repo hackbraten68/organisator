@@ -6,9 +6,14 @@ import {
   recordParticipantUpdate,
 } from "../audit/participantAuditIntegration";
 import { createParticipant, updateParticipant } from "./participantService";
+import { getContact } from "../contact/contactService";
 
 vi.mock("../graphqlClient", () => ({
   executeGraphQL: vi.fn(),
+}));
+
+vi.mock("../contact/contactService", () => ({
+  getContact: vi.fn(),
 }));
 
 vi.mock("../program/programService", () => ({
@@ -26,6 +31,7 @@ vi.mock("../audit/participantAuditIntegration", () => ({
 }));
 
 const mockedExecute = vi.mocked(executeGraphQL);
+const mockedGetContact = vi.mocked(getContact);
 const mockedRecordCreation = vi.mocked(recordParticipantCreation);
 const mockedRecordStatus = vi.mocked(recordParticipantStatusChange);
 const mockedRecordUpdate = vi.mocked(recordParticipantUpdate);
@@ -150,6 +156,13 @@ describe("updateParticipant audit wiring", () => {
 describe("createParticipant audit wiring", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedGetContact.mockResolvedValue({
+      id: "a01b00000contact01AAA",
+      firstName: "Lena",
+      lastName: "Neu",
+      name: "  Lena Neu  ",
+      email: "lena.neu@example.com",
+    });
     mockedExecute.mockImplementation(async (operation: string, variables?: unknown) => {
       if (operation.includes("Participant__cCreate")) {
         return { uiapi: { Participant__cCreate: { Record: { Id: "a059b00000new000AAA" } } } };
@@ -160,7 +173,7 @@ describe("createParticipant audit wiring", () => {
   });
 
   it("records participant.created after the confirmed read-back", async () => {
-    const created = await createParticipant({ name: "  Lena Neu  " });
+    const created = await createParticipant({ contactId: "a01b00000contact01AAA" });
 
     expect(created?.id).toBe("a059b00000new000AAA");
     expect(mockedRecordCreation).toHaveBeenCalledOnce();
@@ -169,11 +182,13 @@ describe("createParticipant audit wiring", () => {
       expect.objectContaining({ name: "Max Mustermann" }),
       expect.objectContaining({ actor: expect.objectContaining({ type: "system" }) }),
     );
-    // Name is trimmed before the mutation.
+    // Name comes from the contact, not from the caller (ADR-001).
     const [, variables] = mockedExecute.mock.calls.find(([op]) =>
       (op as string).includes("Participant__cCreate"),
     ) as [string, Record<string, unknown>];
-    expect(variables.name).toBe("Lena Neu");
+    expect(variables.name).toBe("  Lena Neu  ");
+    expect(variables.contactId).toBe("a01b00000contact01AAA");
+    expect(variables.email).toBe("lena.neu@example.com");
   });
 
   it("still returns the participant when the audit write fails", async () => {
@@ -181,7 +196,7 @@ describe("createParticipant audit wiring", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     try {
-      const created = await createParticipant({ name: "Lena Neu" });
+      const created = await createParticipant({ contactId: "a01b00000contact01AAA" });
 
       expect(created?.id).toBe("a059b00000new000AAA");
       expect(errorSpy).toHaveBeenCalledWith(

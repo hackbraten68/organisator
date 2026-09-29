@@ -11,11 +11,17 @@ import { listCoaches } from "../coach/coachService";
 import { recordParticipantCreation, recordParticipantStatusChange, recordParticipantUpdate } from "../audit/participantAuditIntegration";
 import { getAuditActor } from "../audit/actorContext";
 import { generateUUID } from "../audit/auditService";
+import { getContact } from "../contact/contactService";
+import {
+  DuplicateParticipantForContactError,
+  isDuplicateParticipantError,
+} from "./duplicateParticipantError";
 import type {
   Participant,
   ParticipantPatch,
 } from "@/types/participant";
 import type { ProgramParticipantSummary } from "@/types/program";
+import type { CreateParticipantFromContactInput } from "@/types/contact";
 import LIST_PARTICIPANTS from "./query/ListParticipants.graphql?raw";
 import GET_PARTICIPANT from "./query/GetParticipant.graphql?raw";
 import CREATE_PARTICIPANT from "./query/CreateParticipant.graphql?raw";
@@ -280,11 +286,21 @@ export async function updateParticipant(
   return saved;
 }
 /**
- * Create a participant, then record `participant.created` best-effort
- * (ADR-14: audit failures never block the mutation).
+ * Create a participant **for a contact**, then record `participant.created`
+ * best-effort (ADR-14: audit failures never block the mutation).
+ *
+ * The caller supplies a contact, not a name. Name and email are read from the
+ * contact here, so a participant can never be created for a person that does
+ * not exist and the snapshot fields cannot drift from the master data
+ * (ADR-001, ADR-009). The onboarding fields a staff member cannot know yet
+ * (github, discord) stay optional and can be filled in on the detail page.
+ *
+ * @throws {DuplicateParticipantForContactError} when the contact already has a
+ * participant. The Apex trigger is the authoritative guard; this only
+ * translates its code into something the UI can render.
  */
 export async function createParticipant(
-  input: Omit<ParticipantPatch, "status"> & { name: string; status?: string },
+  input: CreateParticipantFromContactInput & { status?: string },
 ): Promise<Participant | null> {
   const textOrNull = (value: string | null | undefined) => {
     if (value === undefined) return undefined;
@@ -293,56 +309,66 @@ export async function createParticipant(
     return trimmed === "" ? null : trimmed;
   };
 
-  const data = await executeGraphQL<
-    MutationResponse,
-    {
-      name: string;
-      status?: string;
-      email?: string | null;
-      github?: string | null;
-      discord?: string | null;
-      startDate?: string | null;
-      expectedEndDate?: string | null;
-      programId?: string | null;
-      coachId?: string | null;
-    }
-  >(CREATE_PARTICIPANT, {
-    name: input.name.trim(),
-    ...(input.status !== undefined ? { status: input.status } : {}),
-    ...(input.email !== undefined ? { email: textOrNull(input.email) } : {}),
-    ...(input.github !== undefined ? { github: textOrNull(input.github) } : {}),
-    ...(input.discord !== undefined
-      ? { discord: textOrNull(input.discord) }
-      : {}),
-    ...(input.startDate !== undefined
-      ? { startDate: input.startDate || null }
-      : {}),
-    ...(input.expectedEndDate !== undefined
-      ? { expectedEndDate: input.expectedEndDate || null }
-      : {}),
-    ...(input.programId !== undefined ? { programId: input.programId } : {}),
-    ...(input.coachId !== undefined ? { coachId: input.coachId } : {}),
-  });
-
-  const id = (Object.values(data.uiapi ?? {})[0]?.Record?.Id ?? null) as
-    | string
-    | null;
-  if (!id) throw new Error("Participant creation returned no Id.");
-  const created = await getParticipant(id);
-  if (!created) throw new Error("Created participant not found.");
-
-  try {
-    await recordParticipantCreation(created.id, created, {
-      actor: getAuditActor(),
-    });
-  } catch (err) {
-    console.error(
-      `Failed to write audit event participant.created for ${created.id}`,
-      err,
-    );
+  const contact = await getContact(input.contactId);
+  if (!contact) {
+    throw new Error(`Contact ${input.contactId} not found.`);
   }
 
-  return created;
+  try {
+    const data = await executeGraphQL<
+      MutationResponse,
+      {
+        name: string;
+        contactId: string;
+        status?: string;
+        email?: string;
+        startDate?: string | null;
+        expectedEndDate?: string | null;
+        programId?: string | null;
+        coachId?: string | null;
+      }
+    >(CREATE_PARTICIPANT, {
+      name: contact.name,
+      contactId: input.contactId,
+      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(contact.email ? { email: contact.email } : {}),
+      ...(input.startDate !== undefined ? { startDate: input.startDate } : {}),
+      ...(input.expectedEndDate !== undefined
+        ? { expectedEndDate: input.expectedEndDate }
+        : {}),
+      ...(input.programId !== undefined ? { programId: textOrNull(input.programId) } : {}),
+      ...(input.coachId !== undefined ? { coachId: textOrNull(input.coachId) } : {}),
+    });
+
+    const id = (Object.values(data.uiapi ?? {})[0]?.Record?.Id ?? null) as
+      | string
+      | null;
+    if (!id) throw new Error("Participant creation returned no Id.");
+
+    const created = await getParticipant(id);
+    if (!created) throw new Error("Created participant not found.");
+
+    try {
+      await recordParticipantCreation(created.id, created, {
+        actor: getAuditActor(),
+      });
+    } catch (err) {
+      console.error(
+        `Failed to write audit event participant.created for ${created.id}`,
+        err,
+      );
+    }
+
+    return created;
+  } catch (err) {
+    if (isDuplicateParticipantError(err)) {
+      throw new DuplicateParticipantForContactError(
+        input.contactId,
+        "Dieser Contact ist bereits einem Teilnehmer zugeordnet.",
+      );
+    }
+    throw err;
+  }
 }
 
 export async function assignParticipant(
