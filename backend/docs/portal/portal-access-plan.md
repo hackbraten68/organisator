@@ -1,8 +1,11 @@
 # Portal Access Plan (Participant Portal)
 
 **Stand:** 2026-09-30
-**Status:** In Umsetzung — Phase 4.1 (`/me`-Endpoint) ist implementiert und in
-`organiser-dev` deployed. Phasen 1 bis 3 sind noch offen.
+**Status:** Phasen 1 bis 3 sind noch nicht vollständig abgeschlossen. Phase 4.1 wurde als
+**vorläufiger Zugriffspfad vorgezogen**, weil die deklarativen Sharing-Ansätze der Phase 1.5
+ohne aktivierte Experience-Cloud-Infrastruktur nicht verifizierbar waren. **Phase 1.5 bleibt
+als Architektur- und Berechtigungsentscheidung offen.** Siehe
+[ADR-012](./architecture-decisions.md).
 **Gilt für:** `frontend/` (Experience Cloud Portal) + `backend/` (Metadaten, Portal-Apex, Aktivierungs-UI)
 
 Dieser Plan setzt die Entscheidungen aus [`architecture-decisions.md`](./architecture-decisions.md) um.
@@ -196,6 +199,12 @@ serverseitig abgewiesen. Anzeige aller E-Mail-Adressen kommt aus dem Contact.
 
 ### Phase 1.5 — Sharing- und Lizenz-Spike
 
+> **Status: offen.** Teil A ist protokolliert, der Mechanismus ist **nicht** entschieden.
+> Kandidat 4 ist als vorläufiger Zugriffspfad umgesetzt ([ADR-012](./architecture-decisions.md)),
+> die Ansätze A und B sind nach Aktivierung von Digital Experiences **nicht** erneut getestet
+> worden. „Nicht verifizierbar" ist damit nicht „gescheitert". Die Entscheidung zwischen A, B
+> und C sowie möglichen Kombinationen steht aus.
+
 Steht **vor** der Portalentwicklung, weil der Zugriffspfad über
 `Participant__c.Contact__r.AccountId` nicht garantiert verfügbar ist. Die Auswahl hängt
 von der tatsächlichen externen Lizenz und dem Sharing-Mechanismus ab.
@@ -214,10 +223,10 @@ Kandidaten, in dieser Präferenz:
 4. **Ausschließlich `/me`-Endpoint** — Zugriff nur über den serverseitig aufgelösten
    eigenen Datensatz. MVP-tauglich, aber der Endpoint muss Objekt-, Feld- und
    Datensatzberechtigungen bewusst behandeln. „Apex läuft im System Mode" darf nicht die
-   eigentliche Autorisierung ersetzen.
+   eigentliche Autorisierung ersetzen. → **vorläufig umgesetzt, siehe ADR-012**
 
 **Akzeptanz:** Spike abgeschlossen, Negativtest dokumentiert (fremder `Participant__c`
-muss unerreichbar sein), Mechanismus entschieden.
+muss unerreichbar sein), Mechanismus entschieden. **Noch nicht erfüllt.**
 
 ---
 
@@ -377,6 +386,11 @@ dem Abschluss des Portal-Onboardings, nicht durch einen Leseaufruf.
 
 Ziel: **vertikaler Schnitt**. Ein Testbenutzer validiert damit gleichzeitig
 User → Contact → Participant → Sharing → Apex → React, bevor der Portalumfang wächst.
+
+> **Reihenfolgeabweichung.** Diese Teilphase wurde **vor Abschluss von Phase 1.5** umgesetzt.
+> Grund und Rückkehrbedingung sind in [ADR-012](./architecture-decisions.md) dokumentiert.
+> Phase 1.5 ist damit **nicht** erledigt: Kandidat 4 des Spike ist implementiert, die
+> Mechanismen-Entscheidung A/B/C steht aus.
 
 **4.1 `ParticipantPortalData.cls`** im `frontend`-Projekt
 

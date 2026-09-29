@@ -219,7 +219,7 @@ Kein Schreibpfad nimmt eine `participantId` aus dem Request entgegen.
 
 > Diese Liste ist der Sharing-spezifische Teil. Die konsolidierte Liste aller offenen
 > Punkte mit Prioritäten steht in [Abschnitt 6](#6-offene-punkte-nach-phase-4); dort
-> liegen Priorität 1 bis 4. Diese Tabelle bleibt als die ursprüngliche Spike-Reihenfolge
+> liegen Priorität 1 bis 6. Diese Tabelle bleibt als die ursprüngliche Spike-Reihenfolge
 > unverändert stehen und wird nicht dupliziert.
 
 | #   | Schritt                                                                                                                     | Wer         | Blockiert               |
@@ -237,8 +237,12 @@ B sieht Participant B, User A sieht Participant B **nicht**. Er ist in
 
 ## 6. Offene Punkte nach Phase 4
 
-Priorität 1 bis 4 sind Portal- und Experience-Themen. Priorität 5 ist ein Aufräumticket und
+Priorität 1 bis 5 sind Portal- und Experience-Themen. Priorität 6 ist ein Aufräumticket und
 blockiert nichts.
+
+Punkt 3 und Punkt 4 sind bewusst getrennt: Punkt 3 liefert die **Evidenz**, Punkt 4 trifft die
+**Architekturentscheidung**. Ein technisch erfolgreicher Zugriffstest entscheidet nicht
+automatisch, welcher Mechanismus langfristig verwendet wird.
 
 > **Stand zu Experience Cloud:** [Abschnitt 2](#2-das-echte-gate-experience-cloud-fehlt-nicht-die-lizenz)
 > ist eine Momentaufnahme vom 2026-09-29 und hält fest, dass Digital Experiences im Org fehlten.
@@ -248,15 +252,16 @@ blockiert nichts.
 > stehen. Was seitdem **nicht** erneut geprüft wurde, ist die Ablehnung der Sharing-Regel
 > (Abschnitt 2.3) — sie wurde nach der Aktivierung nicht erneut getestet.
 
-| #   | Punkt                                                                                                                                                                                                                                               | Wer         | Blockiert                           |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ----------------------------------- |
-| 1   | Experience-Cloud-Infrastruktur validieren: `CustomSite frontend` und `Network frontend` referenzieren sich gegenseitig; ein Site muss in Setup → Digital Experiences → All Sites → **Create Site** angelegt werden, sonst deployt keiner der beiden | Architektur | Priorität 3, `/me`-Abnahme          |
-| 2   | OWD für `Account`, `Contact` und `Participant__c` in Setup auslesen und hier dokumentieren                                                                                                                                                          | Team        | Bewertung Ansatz A, Sharing-Regel   |
-| 3   | Sharing-Spike abschließen: `Contact__c`-Sharing, zwei externe Portal-User, Negativtest User A sieht **nicht** Participant B                                                                                                                         | Team        | Abschlussnachweis Ansatz A und B    |
-| 4   | `/me`-Endpoint gegen einen echten Portal-User verifizieren. Die Apex-Tests decken **alle Branches ab `Contact`** ab, nicht den Link `User → Contact` — siehe [ADR-011](./architecture-decisions.md)                                                 | Team        | Produktive Nutzung des Portals      |
-| 5   | Test-Runner konsolidieren (siehe unten)                                                                                                                                                                                                             | Team        | **Nichts** — Low Risk, kein Blocker |
+| #   | Punkt                                                                                                                                                                                                                                                                                                                                            | Wer         | Blockiert                           |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- | ----------------------------------- |
+| 1   | **Experience-Cloud-Site bereitstellen** — Site, Network, Membership und Portalprofil funktionsfähig machen; die Zirkelreferenz zwischen `CustomSite` und `Network` auflösen (Setup → Digital Experiences → All Sites → **Create Site**)                                                                                                          | Architektur | Priorität 2, 3 und 4                |
+| 2   | **OWD dokumentieren** — `Account`, `Contact` und `Participant__c`, jeweils interner und externer Zugriff, in Setup auslesen und hier eintragen                                                                                                                                                                                                   | Team        | Bewertung Ansatz A, Priorität 4     |
+| 3   | **Sharing-Spike praktisch abschließen** — zwei externe Benutzer auf getrennten Accounts; positiver Zugriff auf den eigenen `Participant__c`, negativer auf den fremden; `SharingRules` nach Aktivierung von Digital Experiences erneut testen                                                                                                    | Team        | Priorität 4                         |
+| 4   | **Mechanismus A/B/C entscheiden (Phase 1.5)** — A: Sharing Rule, B: Sharing Set, C: prozedural autorisierter `/me`-Endpoint. Kombinationen ausdrücklich zulassen. Ergebnis als endgültige Architekturentscheidung festhalten, siehe [ADR-012](./architecture-decisions.md)                                                                       | Architektur | Produktivfreigabe des Portals       |
+| 5   | **`/me` gegen echten Portal-User verifizieren** — `User.ContactId` auflösbar, eigener `Participant__c` sichtbar, fremder **nicht**; zusätzlich Objekt-, Feld- und Datensatzberechtigungen sowie das Verhalten von `without sharing` unter realer externer Identität. Ein Fehlschlag ist eine Aussage über die Autorisierung, nicht über den Test | Team        | Abnahme des Endpoints               |
+| 6   | **Root-Test-Runner bereinigen** (siehe unten) — temporäres Ersatz-Gate bleibt `npx vitest run`                                                                                                                                                                                                                                                   | Team        | **Nichts** — Low Risk, kein Blocker |
 
-### Priorität 5 — Test-Runner konsolidieren (Low Risk / Nicht Blocker)
+### Priorität 6 — Root-Test-Runner bereinigen (Low Risk / Nicht Blocker)
 
 **Befund**
 

@@ -161,9 +161,9 @@ bevor Phase 3 implementiert wird.
 
 ---
 
-## ADR-006 — Status zuerst `Invited`, `Active` erst nach Erstzugriff
+## ADR-006 — Status zuerst `Invited`, `Active` erst nach abgeschlossenem Portalzugang
 
-**Status:** bestätigt
+**Status:** bestätigt, Auslöser am 2026-09-30 präzisiert (ADR-012)
 
 ```text
 None → Invited → Active → Revoked
@@ -177,7 +177,7 @@ Felder, die die Zeitpunkte trennen:
 
 ```text
 Portal_InvitedAt__c     Einladung versendet
-Portal_ActivatedAt__c   erster Portalzugriff
+Portal_ActivatedAt__c   Portalzugang abgeschlossen
 Portal_RevokedAt__c     gesperrt
 Portal_LastError__c     letzter Fehler
 ```
@@ -185,8 +185,16 @@ Portal_LastError__c     letzter Fehler
 **Verworfen:** `Portal_GrantedAt__c` — die Bezeichnung ist mehrdeutig. „Einladung
 versendet", „User erstellt" und „erstmals angemeldet" sind drei verschiedene Zeitpunkte.
 
-**MVP:** Aktivierung `Invited → Active` beim ersten erfolgreichen `/me`-Aufruf. Kein
-vollständiger Login-Audit, aber deutlich präziser als `Active` nach dem Anlegen.
+**Auslöser offen, nicht festgelegt.** `Active` setzt einen abgeschlossenen
+Portal-Aktivierungsschritt voraus, nicht einen API-Aufruf. Dieser Schritt wird erst
+festgelegt, wenn `Portal_Status__c` und `Portal_ActivatedAt__c` angelegt sind — beide fehlen
+bisher in Repo und Org. Feste Ausschlussregel: **`GET /me` aktiviert nicht**, siehe ADR-011.
+Wird der Übergang später an einen serverseitigen Aufruf gebunden, muss dieser eine eigene
+POST-Route sein und idempotent laufen, damit ein wiederholter Aufruf keinen Schaden
+anrichtet.
+
+Die frühere Fassung dieser Entscheidung sah den Auslöser beim ersten erfolgreichen `/me`-Aufruf.
+Das ist mit dem Read-only-Endpoint aus ADR-011 nicht mehr vereinbar, siehe ADR-012.
 
 ---
 
@@ -375,3 +383,63 @@ Abwesenheiten und Lernpfad, nicht das Gating. Die Aussage wurde nicht per Amend 
 sondern im Folge-Commit inhaltlich richtiggestellt — der ursprüngliche Endpoint hat weder
 Lade-Regeln noch eine Gating-Entscheidung. Wer die alte Beschreibung liest, findet hier die
 Korrektur und den belegten Stand.
+
+---
+
+## ADR-012 — Phase 4.1 als vorläufiger Zugriffspfad vor Phase 1.5
+
+**Status:** bestätigt (Reihenfolgeabweichung); der Zugriffsmechanismus selbst ist **offen**
+
+### Entscheidung
+
+`ParticipantPortalData` und `GET /participant-portal/me` werden als **vorläufiger
+Portal-Datenzugriff** genutzt, solange Phase 1.5 nicht abgeschlossen ist. Der Endpoint
+autorisiert prozedural ausschließlich über:
+
+```text
+aktueller User → User.ContactId → Participant__c WHERE Contact__c = :contactId
+```
+
+Ansätze A und B bleiben offen und sind nach vollständiger Experience-Cloud-Konfiguration
+erneut zu prüfen.
+
+### Grund
+
+Ansätze A und B waren zum Entscheidungszeitpunkt **nicht verifizierbar**, weil die
+erforderliche Experience-Cloud-Infrastruktur im Org nicht bereitstand: `Network` fehlte, und
+`SharingRules` wurden vom Schema abgelehnt. Das ist kein Beleg gegen A oder B — der Versuch
+wurde nicht wiederholt, nachdem Digital Experiences manuell aktiviert wurde.
+
+Ansatz C war davon unabhängig implementierbar. Er wurde vorgezogen, damit die
+Portalentwicklung nicht vollständig auf die Org-Konfiguration warten muss und der
+Identity-Pfad technisch abgesichert werden konnte.
+
+### Status von C — ausdrücklich kein Endzustand
+
+C wird nicht als Notlösung und nicht als endgültige Zielarchitektur festgeschrieben. Der
+Endpoint liefert einen stabilen DTO- und API-Vertrag für das Frontend, den A oder B später
+nicht zwingend ersetzen müssen. Mögliche Zielbilder:
+
+```text
+C bleibt + deklaratives Sharing kommt als zusätzliche Schutzschicht dazu
+C bleibt + Klasse wechselt nach erfolgreichem Spike auf with sharing
+C wird ersetzt, nur wenn der abgeschlossene Spike einen klar besseren Zugriffspfad belegt
+```
+
+Kombinationen sind ausdrücklich zulässig; ein Verzicht auf `/me` ist nicht vorgesehen.
+
+### Rückkehrbedingung
+
+Nach Einrichtung der Experience-Cloud-Site, Dokumentation der OWD-Werte und Durchführung der
+positiven und negativen Zugriffstests wird Phase 1.5 abgeschlossen. **Dann** wird
+entschieden, ob C unverändert bleibt, auf `with sharing` umgestellt wird, von A oder B ergänzt
+wird oder ersetzt wird.
+
+Diese Entscheidung nimmt ADR-012 nicht vorweg.
+
+### Folgen
+
+- `with sharing` bleibt die dokumentierte Rückbaurichtung, sobald A oder B verifiziert ist.
+- Der `/me`-Vertrag kann bestehen bleiben, unabhängig vom Ergebnis der Mechanismus-Entscheidung.
+- Ein Fehlschlag des Portal-User-Verifikationstests ist eine **Aussage über die Autorisierung**,
+  nicht über den Test. Zu prüfen wäre dann `without sharing` unter realer externer Identität.
