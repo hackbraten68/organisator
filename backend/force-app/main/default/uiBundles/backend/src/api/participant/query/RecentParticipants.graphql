@@ -5,6 +5,15 @@ query RecentParticipants($limit: Int!) {
         edges {
           node {
             Id
+            Contact__r @optional {
+              Id
+              Name @optional {
+                value
+              }
+              Email @optional {
+                value
+              }
+            }
             Name @optional {
               value
             }

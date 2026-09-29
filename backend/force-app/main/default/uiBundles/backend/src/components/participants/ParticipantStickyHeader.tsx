@@ -2,6 +2,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getCompletion } from "@/utils/participantOnboarding";
+import { participantDisplayName } from "@/utils/participantDisplay";
 import type { Participant } from "@/types/participant";
 
 interface ParticipantStickyHeaderProps {
@@ -36,16 +37,19 @@ export default function ParticipantStickyHeader({
     `${completion.percent}% Onboarding`,
   ].filter(Boolean);
 
+  // The heading is a person, so it comes from the contact (ADR-001).
+  const displayName = participantDisplayName(participant);
+
   return (
     <div className="sticky top-0 z-10 -mx-1 bg-background/95 px-1 py-3 backdrop-blur">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b pb-4">
         <Avatar className="size-10">
-          <AvatarFallback>{initials(participant.name)}</AvatarFallback>
+          <AvatarFallback>{initials(displayName)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="truncate text-h2 font-semibold">
-              {participant.name}
+              {displayName}
             </h2>
             <Badge variant="secondary">{participant.status}</Badge>
           </div>

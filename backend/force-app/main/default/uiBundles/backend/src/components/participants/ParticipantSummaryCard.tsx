@@ -20,6 +20,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUpRight, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { PARTICIPANT_STATUSES, type Participant } from '@/types/participant';
+import {
+  participantDisplayEmail,
+  participantDisplayName,
+} from '@/utils/participantDisplay';
 import type { Program, ProgramCoachSummary } from '@/types/program';
 
 const NONE = '__none';
@@ -161,7 +165,7 @@ export default function ParticipantSummaryCard({
               </h3>
               <dl className="grid gap-4">
                 <ContactField contactId={participant.contactId} />
-                <Field label="E-Mail" value={participant.email} />
+                <Field label="E-Mail" value={participantDisplayEmail(participant)} />
                 <Field label="GitHub" value={participant.github} />
                 <Field label="Discord" value={participant.discord} />
               </dl>
@@ -172,6 +176,7 @@ export default function ParticipantSummaryCard({
                 Zuordnung
               </h3>
               <dl className="grid gap-4">
+                <Field label="Name" value={participantDisplayName(participant)} />
                 <Field label="Status" value={participant.status} />
                 <Field label="Programm" value={participant.programName} />
                 <Field label="Coach" value={participant.coachName} />
@@ -216,13 +221,17 @@ export default function ParticipantSummaryCard({
               <legend className="text-h4 font-medium">Kontakt</legend>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="email">E-Mail</Label>
+                  <Label htmlFor="email">E-Mail (Teilnehmerakte)</Label>
                   <Input
                     id="email"
                     type="email"
                     value={participant.email ?? ''}
                     onChange={e => onFieldChange('email', e.target.value)}
                   />
+                  <p className="text-caption text-muted-foreground">
+                    Die Person wird über den Contact gepflegt. Dieses Feld ist ein
+                    Snapshot und dient nur als Rückfall.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="github">GitHub</Label>

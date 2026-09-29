@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/layout";
 import OnboardingBadge from "@/components/participants/OnboardingBadge";
 import CompletionBar from "@/components/participants/CompletionBar";
 import { getCompletion } from "@/utils/participantOnboarding";
+import { participantDisplayName } from "@/utils/participantDisplay";
 import type { Participant } from "@/types/participant";
 
 export interface ParticipantListCounts {
@@ -137,7 +138,7 @@ export default function ParticipantListCard({
         if (!g.filter(p)) return false;
         if (!q) return true;
         return (
-          p.name.toLowerCase().includes(q) ||
+          participantDisplayName(p).toLowerCase().includes(q) ||
           (p.programName ?? "").toLowerCase().includes(q) ||
           (p.coachName ?? "").toLowerCase().includes(q)
         );
@@ -185,13 +186,15 @@ export default function ParticipantListCard({
                       <button
                         key={p.id}
                         onClick={() => onSelect(p.id)}
-                        aria-label={`Teilnehmer ${p.name} auswählen`}
+                        aria-label={`Teilnehmer ${participantDisplayName(p)} auswählen`}
                         className={`w-full text-left px-4 py-3 hover:bg-accent/50 transition-colors ${
                           isSelected ? "bg-accent" : ""
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="truncate text-sm font-medium">{p.name}</span>
+                          <span className="truncate text-sm font-medium">
+                            {participantDisplayName(p)}
+                          </span>
                           <span className="text-xs text-muted-foreground">{p.status}</span>
                         </div>
                         <div className="mt-1 flex items-center gap-2">

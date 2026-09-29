@@ -234,18 +234,38 @@ Protokoll: [`spike-sharing-1.5.md`](./spike-sharing-1.5.md)
 
 ## ADR-009 — `Contact.Email` ist die führende E-Mail
 
-**Status:** bestätigt
+**Status:** bestätigt, **umgesetzt in Phase 1.2 (2026-09-29)**
 
 ```ts
-const displayedEmail = participant.contact?.email ?? participant.email ?? null;
+// src/utils/participantDisplay.ts — die Regel existiert genau einmal
+export function participantDisplayEmail(p: Participant) {
+  return p.contact?.email?.trim() || p.email;
+}
+export function participantDisplayName(p: Participant) {
+  return p.contact?.name?.trim() || p.name;
+}
 ```
 
-`Participant__c.Email__c` bleibt als Legacy-/Snapshot-Fallback, ist aber **nicht mehr
-manuell editierbar** und erscheint nicht als zweite unabhängige Quelle in der UI.
-Beim Anlegen bzw. Synchronisieren aus `Contact.Email` übernehmen.
+Die Queries holen `Contact__r { Id Name Email }` mit, der Service bildet daraus
+`participant.contact`. Sämtliche Anzeigeorte gehen über die beiden Helfer:
+`ParticipantStickyHeader`, `ParticipantListCard` (Anzeige **und** Suche),
+`ParticipantSummaryCard` sowie die Program-Teilnehmerliste, deren
+`ProgramParticipantSummary` den Anzeigenamen bereits im Service auflöst — damit stimmt
+jeder Consumer automatisch und die Regel muss nicht pro Komponente neu erfunden werden.
 
-Langfristig wird das Feld entfernt, sobald alle Datensätze einen Contact haben, alle
-Komponenten umgestellt sind und Reports sowie Automationen geprüft wurden.
+**Was bewusst offen bleibt:**
+
+- `Participant__c.Email__c` wird **nicht** gelöscht und bleibt editierbar, im
+  Bearbeiten-Formular aber als „E-Mail (Teilnehmerakte)" mit Herkunftshinweis beschriftet.
+- `Participant__c.Name` bleibt der Name des Datensatzes.
+- Reports und Automationen sind **nicht** umgestellt.
+
+Der Snapshot ist damit weiterhin eine zweite Quelle, die vom Contact abweichen _kann_.
+Genau deswegen ist das Bearbeiten des Feldes als solches gekennzeichnet.
+
+**Abbaufähig, sobald:** alle Datensätze einen Contact haben (in `organiser-dev` per SOQL
+verifiziert: `WITHOUT_CONTACT=0`), alle Komponenten umgestellt sind und Reports sowie
+Automationen geprüft wurden.
 
 **Begründung:** standardisierte und normalisierte Daten statt Redundanz — Voraussetzung für
 belastbares Reporting und Automation.

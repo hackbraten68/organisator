@@ -16,12 +16,27 @@ export const PARTICIPANT_STATUSES = [
 
 export type ParticipantStatus = (typeof PARTICIPANT_STATUSES)[number];
 
+/**
+ * The person behind the participant role (ADR-001).
+ *
+ * Every participant has a contact — `Participant__c.Contact__c` is required —
+ * but the object is queried as `@optional` so a partially wired record does not
+ * take the whole list down. The display helpers below fall back to the
+ * participant's own snapshot fields when it is missing.
+ */
+export interface ParticipantContact {
+  id: string;
+  name?: string;
+  email?: string;
+}
+
 export interface Participant {
   id: string;
   name: string;
   status: string;
   /** The person this participant role belongs to (ADR-001). Read-only here. */
   contactId?: string;
+  contact?: ParticipantContact;
   createdAt?: string;
   email?: string;
   github?: string;

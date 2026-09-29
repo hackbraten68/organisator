@@ -788,13 +788,15 @@ audit history — is bootstrapped by `scripts/seed-sample-data.mjs` with no manu
 **Full deploys need a clean source tracking after an `--ignore-conflicts` deploy (2026-09-29):**
 once a deploy has bypassed conflict detection, the project-local `.sf/` cache reports
 `ExpectedSourceFilesError: ... backend.uibundle-meta.xml` and the full deploy stops before
-resolving anything. It is not a bundle problem — it is a stale cache. Delete `.sf/` and
-deploy with `--ignore-conflicts` once; after that the normal full deploy works.
+resolving anything. It is not a bundle problem — it is a stale cache.
 
 ```bash
 rm -rf .sf && sf project deploy start --target-org organiser-dev --ignore-conflicts
-sf project deploy start --target-org organiser-dev    # works from here on
 ```
+
+After that one-off repair the normal full deploy works again. Verified: `npm run setup`
+completed three times in a row afterwards. Treat `--ignore-conflicts` as a repair tool, not
+as part of the normal flow — mixing it into a normal round leaves the cache partial again.
 
 **Never deploy profiles (E3):** a Profile deploy cannot provision a required field and
 fails with \"Sie können kein Pflichtfeld bereitstellen\". With the default

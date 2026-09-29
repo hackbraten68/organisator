@@ -23,6 +23,7 @@ import {
 import type { Participant, ParticipantPatch } from '@/types/participant';
 import type { ProgramParticipantSummary } from '@/types/program';
 import type { CreateParticipantFromContactInput } from '@/types/contact';
+import { participantDisplayName } from '@/utils/participantDisplay';
 import LIST_PARTICIPANTS from './query/ListParticipants.graphql?raw';
 import GET_PARTICIPANT from './query/GetParticipant.graphql?raw';
 import CREATE_PARTICIPANT from './query/CreateParticipant.graphql?raw';
@@ -31,11 +32,18 @@ import RECENT_PARTICIPANTS from './query/RecentParticipants.graphql?raw';
 
 type ScalarValue<T = string> = { value?: T | null } | null | undefined;
 
+interface ContactRefNode {
+  Id: string;
+  Name?: ScalarValue<string>;
+  Email?: ScalarValue<string>;
+}
+
 interface ParticipantNode {
   Id: string;
   Name?: ScalarValue<string>;
   Status__c?: ScalarValue<string>;
   Contact__c?: ScalarValue<string>;
+  Contact__r?: ContactRefNode | null;
   Email__c?: ScalarValue<string>;
   GitHub__c?: ScalarValue<string>;
   Discord__c?: ScalarValue<string>;
@@ -84,11 +92,21 @@ function mapParticipant(
 ): Participant {
   const programId = node.Program__c?.value ?? undefined;
   const coachId = node.Coach_Profile__c?.value ?? undefined;
+  const contactRef = node.Contact__r;
+  const contact = contactRef
+    ? {
+        id: contactRef.Id,
+        name: contactRef.Name?.value ?? undefined,
+        email: contactRef.Email?.value ?? undefined,
+      }
+    : undefined;
+
   return {
     id: node.Id,
     name: node.Name?.value ?? 'Unnamed Participant',
     status: node.Status__c?.value ?? 'Onboarding',
-    contactId: node.Contact__c?.value ?? undefined,
+    contactId: node.Contact__c?.value ?? contact?.id,
+    contact,
     email: node.Email__c?.value ?? undefined,
     github: node.GitHub__c?.value ?? undefined,
     discord: node.Discord__c?.value ?? undefined,
@@ -172,17 +190,30 @@ export async function getParticipant(id: string): Promise<Participant | null> {
   return node ? mapParticipant(node, names.programs, names.coaches) : null;
 }
 
+/**
+ * The summary carries the *display* name, not the participant's own snapshot
+ * name. Every consumer of ProgramParticipantSummary is showing a person, so
+ * the contact has to win here — resolving it in the components instead would
+ * mean re-implementing the rule at each call site.
+ */
 export async function searchParticipants(
   query: string
 ): Promise<ProgramParticipantSummary[]> {
   const needle = query.trim().toLowerCase();
   const participants = await listParticipants();
   return participants
-    .filter(
-      participant =>
-        needle === '' || participant.name.toLowerCase().includes(needle)
-    )
-    .map(({ id, name, programId }) => ({ id, name, programId }));
+    .filter(participant => {
+      if (needle === '') return true;
+      return (
+        participantDisplayName(participant).toLowerCase().includes(needle) ||
+        participant.name.toLowerCase().includes(needle)
+      );
+    })
+    .map(participant => ({
+      id: participant.id,
+      name: participantDisplayName(participant),
+      programId: participant.programId,
+    }));
 }
 
 export async function listProgramParticipants(
@@ -191,7 +222,11 @@ export async function listProgramParticipants(
   const participants = await listParticipants();
   return participants
     .filter(participant => participant.programId === programId)
-    .map(({ id, name, programId: pid }) => ({ id, name, programId: pid }));
+    .map(participant => ({
+      id: participant.id,
+      name: participantDisplayName(participant),
+      programId: participant.programId,
+    }));
 }
 
 export async function updateParticipant(
