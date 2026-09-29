@@ -88,6 +88,21 @@ zusätzlich zur Sharing-Regel auch Lesezugriff auf den Contact und dessen Accoun
 
 ## Schritt 5 — Portal-User anlegen
 
+**Vorher in Setup nötig:** Digital Experiences → Settings → **„Allow using standard external
+profiles for self-registration, user creation, and login" aktivieren.** Ohne diesen Schalter
+lehnt Salesforce das Anlegen eines Users mit `ContactId` ab, auch wenn das Profil ein
+Portal-Profil ist:
+
+```
+FIELD_INTEGRITY_EXCEPTION: To create or update users for this profile, go to
+Setup > Digital Experiences > Settings and select Allow using standard external
+profiles for self-registration, user creation, and login.
+```
+
+Der Schalter ist weder per API noch aus Apex setzbar. Er ist der Grund, warum der
+`User → Contact`-Link der Identitätskette nicht in Apex-Tests abgedeckt werden kann
+(siehe [ADR-011](./architecture-decisions.md)).
+
 Über den späteren `POST /grant`-Pfad, falls Phase 3 steht. Sonst manuell:
 
 ```bash
@@ -98,6 +113,7 @@ LastName=Alpha ContactId=CONTACT_A ProfileId=PORTAL_PROFILE_ID"
 
 Ein zweiter User für `spike.beta@example.invalid` / `CONTACT_B`.
 
+- [ ] Setup-Schalter für externe Standardprofile aktiviert
 - [ ] Login als Portal-User erfolgreich
 - [ ] `User.ContactId` zeigt auf den richtigen Contact
 - [ ] `Portal_Status__c` steht auf `Invited`, nicht auf `Active`

@@ -329,3 +329,34 @@ Kursdurchführung als zusammenhängende Customer Journey beschreibt.
 **Befüllung:** Anlage aus der Opportunity → automatisch vorbefüllt. Anlage direkt vom
 Contact → leer, oder Staff wählt sie. Die manuelle Teilnehmeranlage bleibt unabhängig von
 `Closed Won`, die Herkunft bleibt nachvollziehbar.
+
+---
+
+## ADR-011 — `GET /participant-portal/me`: Antwort-Stil und Testnaht
+
+**Entscheidung.** `ParticipantPortalData` baut die Antwort über die statischen Felder
+`responseBody` / `responseStatus` und stellt die Kette `User → User.ContactId → Contact →
+Participant__c` in zwei testbare Schritten (`resolveForUser`, `resolveForContact`) bereit.
+
+**Auslöser, der zur Entscheidung führte.** Zwei Eigenschaften dieser Org, beide empirisch
+geprüft und nicht aus der Apex-Dokumentation ableitbar:
+
+1. **`RestContext.response.response` existiert hier nicht.** Auch die kanonische Doku-Form
+   kompiliert nicht (`Variable does not exist: response`), ebenso wenig `RestContext` als
+   Methodenparameter. `RestContext.response.statusCode` und `.addHeader(...)` funktionieren
+   dagegen. Deshalb statische Felder für Body und Status, `RestContext` nur für Header.
+2. **Statics aus `@TestSetup` sind in den Testmethoden `null`.** Bei Deklaration
+   initialisierte Statics überleben. Ein minimaler Testaufbau hat das bestätigt. Das Fixture
+   wird deshalb von `ensureData()` lazy gebaut statt per `@TestSetup`.
+
+**Folgen.** `getMe()` ist der einzige echte HTTP-Einstieg und hat keine Parameter; `resolve()`
+ruft `resolveForUser(UserInfo.getUserId())`. Die Naht existiert nur für Tests und darf nicht
+von `getMe()` verdrahtet werden.
+
+**Nicht abgedeckt — bewusst.** Salesforce erlaubt `User.ContactId` nur bei Portal-Usern, und
+das Anlegen solcher User aus Apex verlangt zusätzlich den Setup-Schalter „Allow using standard
+external profiles for self-registration, user creation and login". Beides ist aus einem Test
+nicht erreichbar. Getestet sind deshalb alle Branches ab `Contact`; der Link `User → Contact`
+und ein echter Portal-Login über HTTP bleiben dem Positiv-/Negativtest in
+[`spike-sharing-1.5.md`](./spike-sharing-1.5.md) vorbehalten. Ein grüner Testlauf ist **kein**
+Nachweis, dass der Endpoint gegen einen echten Portal-User verifiziert wurde.

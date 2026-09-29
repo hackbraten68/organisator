@@ -217,6 +217,11 @@ Kein Schreibpfad nimmt eine `participantId` aus dem Request entgegen.
 
 ## 5. Was als Nächstes nötig ist
 
+> Diese Liste ist der Sharing-spezifische Teil. Die konsolidierte Liste aller offenen
+> Punkte mit Prioritäten steht in [Abschnitt 6](#6-offene-punkte-nach-phase-4); dort
+> liegen Priorität 1 bis 4. Diese Tabelle bleibt als die ursprüngliche Spike-Reihenfolge
+> unverändert stehen und wird nicht dupliziert.
+
 | #   | Schritt                                                                                                                     | Wer         | Blockiert               |
 | --- | --------------------------------------------------------------------------------------------------------------------------- | ----------- | ----------------------- |
 | 1   | OWD für `Contact` und `Account` in Setup nachlesen                                                                          | Team        | Bewertung von Ansatz A  |
@@ -227,3 +232,74 @@ Kein Schreibpfad nimmt eine `participantId` aus dem Request entgegen.
 Der Abschlussnachweis ist bewusst kurz gehalten: Test-User A sieht Participant A, Test-User
 B sieht Participant B, User A sieht Participant B **nicht**. Er ist in
 [`spike-sharing-1.5.md`](./spike-sharing-1.5.md), Schritte 7–9, vorbereitet.
+
+---
+
+## 6. Offene Punkte nach Phase 4
+
+Priorität 1 bis 4 sind Portal- und Experience-Themen. Priorität 5 ist ein Aufräumticket und
+blockiert nichts.
+
+> **Stand zu Experience Cloud:** [Abschnitt 2](#2-das-echte-gate-experience-cloud-fehlt-nicht-die-lizenz)
+> ist eine Momentaufnahme vom 2026-09-29 und hält fest, dass Digital Experiences im Org fehlten.
+> Inzwischen wurde Digital Experiences in `organiser-dev` **manuell in Setup aktiviert**;
+> `Network`, `NetworkMember` und `NetworkMemberGroup` sind seitdem vorhanden und die externen
+> Lizenzen sind zugewiesen. Abschnitt 2 bleibt unverändert als historische Aufzeichnung
+> stehen. Was seitdem **nicht** erneut geprüft wurde, ist die Ablehnung der Sharing-Regel
+> (Abschnitt 2.3) — sie wurde nach der Aktivierung nicht erneut getestet.
+
+| #   | Punkt                                                                                                                                                                                                                                               | Wer         | Blockiert                           |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ----------------------------------- |
+| 1   | Experience-Cloud-Infrastruktur validieren: `CustomSite frontend` und `Network frontend` referenzieren sich gegenseitig; ein Site muss in Setup → Digital Experiences → All Sites → **Create Site** angelegt werden, sonst deployt keiner der beiden | Architektur | Priorität 3, `/me`-Abnahme          |
+| 2   | OWD für `Account`, `Contact` und `Participant__c` in Setup auslesen und hier dokumentieren                                                                                                                                                          | Team        | Bewertung Ansatz A, Sharing-Regel   |
+| 3   | Sharing-Spike abschließen: `Contact__c`-Sharing, zwei externe Portal-User, Negativtest User A sieht **nicht** Participant B                                                                                                                         | Team        | Abschlussnachweis Ansatz A und B    |
+| 4   | `/me`-Endpoint gegen einen echten Portal-User verifizieren. Die Apex-Tests decken **alle Branches ab `Contact`** ab, nicht den Link `User → Contact` — siehe [ADR-011](./architecture-decisions.md)                                                 | Team        | Produktive Nutzung des Portals      |
+| 5   | Test-Runner konsolidieren (siehe unten)                                                                                                                                                                                                             | Team        | **Nichts** — Low Risk, kein Blocker |
+
+### Priorität 5 — Test-Runner konsolidieren (Low Risk / Nicht Blocker)
+
+**Befund**
+
+- `npm run setup` ✅
+- `npx vitest run` ✅ (247/247)
+- `npm test` ❌
+
+**Präzisierung**
+
+- Das UIBundle verwendet bereits **korrekt** Vitest
+  (`force-app/main/default/uiBundles/backend/package.json`, `"test": "vitest"`).
+- Der Fehler liegt **ausschließlich auf Root-Ebene**.
+- In der Root-`package.json` zeigen `test` und `test:unit` weiterhin auf `sfdx-lwc-jest`.
+- Zusätzlich werden über den Root-Testpfad noch die Playwright-`e2e/`-Specs mit
+  beeinflusst (`Test suite failed to run: Playwright Test did not expect test.describe()`).
+  Wer nur `test:unit` umstellt, muss diesen zweiten Effekt mitbeheben.
+
+**Ursache**
+
+- Unvollständig abgeschlossene Migration von Jest auf Vitest.
+- Jest-Reste auf Repository-Ebene: vier Script-Einträge in der Root-`package.json`,
+  die Dev-Dependency `@salesforce/sfdx-lwc-jest` und die Datei `jest.config.js`.
+
+**Risiko**
+
+- `npm test` erscheint als fehlgeschlagenes Qualitäts-Gate.
+- Der Zustand kann als echter Blocker missverstanden werden — oder, schlimmer, dauerhaft
+  ignoriert werden. Beides führt dazu, dass rote Checks irgendwann generell nicht mehr
+  ernst genommen werden.
+
+**Temporäre Gegenmaßnahme**
+
+- Bis zur Bereinigung gilt `npx vitest run` im UIBundle `backend` als maßgebliches
+  Test-Gate.
+
+**Aufgabe**
+
+- Root-`package.json` bereinigen
+- Jest-Reste vollständig identifizieren
+- `npm test` auf Vitest umstellen
+- Einfluss auf die Playwright-Testpfade prüfen
+- Dokumentation aktualisieren
+
+Das rote Gate ist hier bewusst dokumentiert: **rot = bekannt, rot = kein Produktfehler,
+rot = noch aufzuräumen. Grün = Vitest.** Wer in zwei Monaten `npm test` laufen lässt und
+rot sieht, soll hier fündig werden statt einen halben Tag zu suchen.
