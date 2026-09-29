@@ -83,11 +83,6 @@ export default function Login() {
 					description="Enter your email below to login to your account"
 					error={submitError}
 					submit={{ text: "Login", loadingText: "Logging in…" }}
-					footer={{
-						text: "Don't have an account?",
-						link: ROUTES.REGISTER.PATH,
-						linkText: "Sign up",
-					}}
 				>
 					<form.AppField name="email">
 						{(field) => <field.EmailField label="Email" />}

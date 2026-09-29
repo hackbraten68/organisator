@@ -56,23 +56,44 @@ legt den Teilnehmer an, nachdem der Vorgang fachlich geprüft ist.
 
 ## 3. Phasen
 
-### Phase 0 — Security, Template-Bereinigung, Ownership
+### Phase 0 — Security, Template-Bereinigung, Ownership ✅
 
 Ziel: keine offene Selbstregistrierung, kein fremder Scope im Portal, Ownership schriftlich.
+**Erledigt am 2026-09-29.**
 
-| # | Aufgabe | Dateien |
-|---|---------|---------|
-| 0.1 | Naming-Konvention + Ownership-Matrix dokumentieren | `backend/docs/AGENTS.md` |
-| 0.2 | `/register` aus den Routen entfernen, `Register.tsx` löschen | `frontend/.../src/routes.tsx`, `frontend/.../src/features/authentication/pages/Register.tsx` |
-| 0.3 | `UIBundleRegistration` samt `-meta.xml` und Test löschen | `frontend/force-app/main/default/classes/UIBundleRegistration.*` |
-| 0.4 | `UIBundleRegistration`-Zugriff aus dem Gast-Permset entfernen | `frontend/.../permissionsets/frontend_Guest_User_Api_Access.permissionset-meta.xml` |
-| 0.5 | Portal-fremde Template-Reste entfernen: `TestChatPage`, `AccountObjectDetailPage`, `CustomerWebClientChat`, `features/search/config.json` (Accounte-/Opportunity-Suche darf Teilnehmer nicht sehen) | `frontend/.../src/pages/`, `frontend/.../src/components/`, `frontend/.../src/features/search/` |
+| # | Aufgabe | Dateien | Status |
+|---|---------|---------|--------|
+| 0.1 | Naming-Konvention + Ownership-Matrix dokumentieren | `backend/docs/AGENTS.md` | ✅ |
+| 0.2 | `/register` aus den Routen entfernen, `Register.tsx` löschen | `frontend/.../src/routes.tsx`, `.../pages/Register.tsx` | ✅ |
+| 0.3 | `UIBundleRegistration` samt `-meta.xml` und Test löschen | `frontend/.../classes/UIBundleRegistration.*` | ✅ |
+| 0.4 | `UIBundleRegistration`-Zugriff aus dem Gast-Permset entfernen | `frontend/.../permissionsets/frontend_Guest_User_Api_Access.permissionset-meta.xml` | ✅ |
+| 0.5 | Portal-fremde Template-Reste entfernen | `TestChatPage`, `AccountObjectDetailPage`, `CustomerWebClientChat`, `features/search/` (54 Dateien) + verwaiste Helfer | ✅ |
 
-`Network.selfRegistration` steht bereits auf `false` — die Selbstregistrierung ist auf
-Network-Ebene zu, der Apex-Weg davor ist es noch nicht.
+Bei 0.5 mitentfernt, weil sie ohne ihren einzigen Aufrufer nicht mehr erreichbar waren:
+`src/types/chat.ts`, `src/api/account/`, `src/utils/accountFields.ts`,
+`src/hooks/useAsyncData.ts`.
 
-**Akzeptanz:** Kein registrierbarer Zugang im Portal. `/register` liefert 404. Keine Route
-zeigt Accounte, Opportunities oder Chatter.
+Drei Stellen hingen an den gelöschten Routen und sind mitgezogen:
+
+- `appLayout.tsx` mountete `CustomerWebClientChat` auf **jeder** Seite — entfernt
+- `Home.tsx` rendert `GlobalSearchBox` — durch einen Platzhalter ersetzt
+- `AuthMenu.tsx` und `Login.tsx` verlinkten auf `/register` — beide Verweise entfernt,
+  sonst hätte es zwei lebende Links auf eine 404 gegeben
+
+Aus `authenticationConfig.ts` sind zusätzlich vier Platzhalter verschwunden, die nur
+`Register.tsx` benutzte (`PASSWORD_CREATE`, `PASSWORD_CONFIRM`, `FIRST_NAME`, `LAST_NAME`).
+
+**Kein `package.json`-Eintrag wurde dadurch ungenutzt.**
+
+**Akzeptanz:** ✅ Kein registrierbarer Zugang im Portal. `/register` liefert 404. Keine Route
+zeigt Accounte, Opportunities oder Chatter. Abgesichert durch vier neue Playwright-Tests
+(`/register`, `/search`, `/test-chat`, `/accounts/001` sind nicht erreichbar; die Login-Seite
+hat keinen Registrierungslink). `npm run build`, `npm run lint` und die E2E-Suite laufen grün.
+
+> **Nebenbefund:** Die beiden bisherigen E2E-Tests waren schon rot, bevor hier etwas geändert
+> wurde — sie prüften einen Text (`Welcome to your React application.`), den es im Bundle
+> nie gab, und liefen ohne `npm run build:e2e`, also ohne SPA-Fallback, wodurch `serve`
+> statt der App seine eigene 404-Seite auslieferte. Beides ist mitgefixt.
 
 ---
 
@@ -443,7 +464,7 @@ Diese Punkte blockieren die Umsetzung und liegen außerhalb des Repos:
 ## 5. Reihenfolge auf einen Blick
 
 ```text
-0   Security, Template-Bereinigung, Ownership
+0   Security, Template-Bereinigung, Ownership          ✅ 2026-09-29
 1   Contact-basierte Teilnehmeranlage, Eindeutigkeit, Migration
 1.5 Sharing- und Lizenz-Spike (genau ein Testbenutzer)
 2   Experience-Cloud-Mitgliedschaft, Profil, Permset, Templates

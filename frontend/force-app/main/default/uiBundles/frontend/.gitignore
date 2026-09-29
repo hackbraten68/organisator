@@ -1,0 +1,25 @@
+# This file is used for Git repositories to specify intentionally untracked files that Git should ignore.
+# For useful gitignore templates see: https://github.com/github/gitignore
+
+# Build output
+dist/
+
+# Test artifacts
+test-results/
+playwright-report/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Node
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# tsc -b output for vite.config (tsconfig.node.json, composite)
+build/

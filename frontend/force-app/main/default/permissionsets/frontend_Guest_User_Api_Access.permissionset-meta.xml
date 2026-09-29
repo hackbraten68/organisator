@@ -6,16 +6,18 @@
         <enabled>true</enabled>
         <name>ApiEnabled</name>
     </userPermissions>
+    <!--
+        No registration endpoint on purpose. Portal accounts are provisioned by staff in the
+        internal backend (Contact -> Participant__c -> portal user); the site has
+        selfRegistration=false. A guest-callable /auth/register route would be a way around
+        that. See backend/docs/portal/architecture-decisions.md (ADR-005).
+    -->
     <classAccesses>
         <apexClass>UIBundleLogin</apexClass>
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
         <apexClass>UIBundleForgotPassword</apexClass>
-        <enabled>true</enabled>
-    </classAccesses>
-    <classAccesses>
-        <apexClass>UIBundleRegistration</apexClass>
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>

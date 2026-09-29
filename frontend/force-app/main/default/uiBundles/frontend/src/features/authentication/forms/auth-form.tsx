@@ -32,7 +32,7 @@ interface AuthFormProps extends Omit<React.ComponentProps<"form">, "onSubmit"> {
 
 /**
  * [Dev Note] Standardized Authentication Layout:
- * Wraps the specific logic of Login/Register forms with a consistent visual frame (Card),
+ * Wraps the specific logic of the auth forms with a consistent visual frame (Card),
  * title, and error alert placement. Extends form element props for flexibility.
  * This ensures all auth-related pages look and behave similarly.
  *

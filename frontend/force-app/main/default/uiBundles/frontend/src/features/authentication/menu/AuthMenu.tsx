@@ -1,4 +1,4 @@
-import { CircleUser, LogIn, LogOut, UserPen, UserPlus } from "lucide-react";
+import { CircleUser, LogIn, LogOut, UserPen } from "lucide-react";
 import { Link } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import { ROUTES } from "../authenticationConfig";
@@ -75,12 +75,6 @@ export function AuthMenu({ trigger, guestContent, menuItems, className }: AuthMe
 							<Link to={ROUTES.LOGIN.PATH}>
 								<LogIn className="size-4" />
 								Log In
-							</Link>
-						</DropdownMenuItem>
-						<DropdownMenuItem asChild>
-							<Link to={ROUTES.REGISTER.PATH}>
-								<UserPlus className="size-4" />
-								Register
 							</Link>
 						</DropdownMenuItem>
 					</>

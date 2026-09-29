@@ -3,7 +3,6 @@ import { getAllRoutes } from "./router-utils";
 import { useEffect, useId, useRef, useState } from "react";
 import { AuthMenu } from "./features/authentication/menu/AuthMenu";
 import { Button } from "./components/ui/button";
-import CustomerWebClientChat from "./components/CustomerWebClientChat";
 
 export default function AppLayout() {
 	const [isOpen, setIsOpen] = useState(false);
@@ -119,12 +118,6 @@ export default function AppLayout() {
 			<div id="main-content" ref={outletWrapperRef}>
 				<Outlet />
 			</div>
-			<CustomerWebClientChat
-				orgId="<ORG_ID_15_OR_18_CHAR_00D...>"
-				deploymentName="<EMBEDDED_SERVICE_DEPLOYMENT_NAME>"
-				siteURL="<SITE_URL>"
-				scrt2URL="<SCRT2_URL>"
-			/>
 		</>
 	);
 }

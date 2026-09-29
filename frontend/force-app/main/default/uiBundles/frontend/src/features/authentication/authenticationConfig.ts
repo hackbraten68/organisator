@@ -2,15 +2,15 @@
  * [Dev Note] Centralized configuration for Auth routes.
  * Each route contains both the path and page title.
  * Using constants prevents typos in route paths across the application.
+ *
+ * [Dev Note] There is no REGISTER route. Portal accounts are provisioned by staff in the
+ * internal backend (Contact -> Participant__c -> portal user), never self-service.
+ * See backend/docs/portal/architecture-decisions.md (ADR-004, ADR-005).
  */
 export const ROUTES = {
 	LOGIN: {
 		PATH: "/login",
 		TITLE: "Login | MyApp",
-	},
-	REGISTER: {
-		PATH: "/register",
-		TITLE: "Create Account | MyApp",
 	},
 	FORGOT_PASSWORD: {
 		PATH: "/forgot-password",
@@ -46,16 +46,12 @@ export const API_ROUTES = {
 export const AUTH_REDIRECT_PARAM = "startUrl";
 
 /**
- * Placeholder text constants for authentication form inputs.
+ * [Dev Note] Placeholder text constants for authentication form inputs.
  */
 export const AUTH_PLACEHOLDERS = {
 	EMAIL: "e.g. name@example.com",
 	PASSWORD: "Enter your password",
-	PASSWORD_CREATE: "Create a password",
-	PASSWORD_CONFIRM: "Re-enter your password",
 	PASSWORD_NEW: "Enter new password",
 	PASSWORD_NEW_CONFIRM: "Re-enter new password",
-	FIRST_NAME: "e.g. Alex",
-	LAST_NAME: "e.g. Smith",
 	USERNAME: "e.g. asmith",
 } as const;

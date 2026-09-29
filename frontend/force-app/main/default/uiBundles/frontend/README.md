@@ -1,6 +1,10 @@
 # React External App
 
-A React template for customer-facing apps on the Salesforce platform. Includes authentication, global search, and an Experience Cloud site container. Built with React, Vite, TypeScript, and Tailwind/shadcn.
+The participant-facing portal for **Organisator**, served as an Experience Cloud site container. Today it provides the authentication stack (login, forgot/reset password, profile, session timeout) and nothing else — the participant pages are built in the phases of [`docs/portal/portal-access-plan.md`](../../../../../../backend/docs/portal/portal-access-plan.md).
+
+There is **no self-service registration**. Portal accounts are provisioned by staff in the internal backend: `Contact` → `Participant__c` → portal user, with a Salesforce welcome email for setting the first password. See [`architecture-decisions.md`](../../../../../../backend/docs/portal/architecture-decisions.md) (ADR-004, ADR-005).
+
+Built with React, Vite, TypeScript, and Tailwind/shadcn.
 
 For project-level details (metadata, deploy), see the [project README](../../../../../../README.md).
 
