@@ -107,42 +107,62 @@ Der Vergleich wertet deshalb auf beiden Seiten nur `__c`-Felder.
 
 ---
 
-## Stand 2026-09-29, Org `organiser-dev` (00D9b00000dO8XR)
+## Stand 2026-09-29 nach der Reparatur, Org `organiser-dev` (00D9b00000dO8XR)
 
 ```text
 Objekt               Repo  Org  Status
 Absence__c             11   11  ok
 Account                 0    0  ok
 Appointment__c         13   13  ok
-AuditEvent__c          22   11  FEHLT IM ORG
-AuditOutbox__c          9    3  FEHLT IM ORG
+AuditEvent__c          22   22  ok
+AuditOutbox__c          9    9  ok
 AvailabilitySlot__c     8    8  ok
 Coach_Profile__c        6    6  ok
-Learning_Path__c        6    1  FEHLT IM ORG
-Module__c               3    1  FEHLT IM ORG
+Learning_Path__c        6    6  ok
+Module__c               3    3  ok
 Participant__c          9    9  ok
-Program__c              3    2  FEHLT IM ORG
+Program__c              3    3  ok
 ```
 
-**25 von 90 Custom-Feldern fehlen im Runtime-Schema.**
+**90 von 90 Custom-Feldern im Runtime-Schema. `npm run schema:check` → Exit 0.**
 
-Bemerkenswert: `AuditEvent__c` fehlen 11 von 22 Feldern. Das Audit-Subsystem ist damit
-in einem frischen Org funktionsunfähig, obwohl `AbsenceStatusAuditTest` grün läuft
-(die Tests decken `Absence__c` und `Participant__c` ab, nicht `AuditEvent__c`).
+Ausgangslapse war 25 fehlende Felder in fünf Objekten, darunter 11 von 22 in `AuditEvent__c`
+— das Audit-Subsystem war in einem frischen Org funktionsunfähig, obwohl
+`AbsenceStatusAuditTest` grün lief (die Tests decken `Absence__c` und `Participant__c` ab,
+nicht `AuditEvent__c`).
 
-Die vollständige Anlage-Liste steht in [`schema-repair-checklist.md`](./schema-repair-checklist.md).
+Die vollständige Anlage-Liste mit Settings steht in
+[`schema-repair-checklist.md`](./schema-repair-checklist.md).
+
+## Praxis: ein neuer Org ohne manuelle Vorarbeit
+
+```bash
+sf org create scratch \
+  --definition-file config/project-scratch-def.json \
+  --alias organiser-dev --set-default --target-dev-hub test
+
+sf project deploy start --target-org organiser-dev   # nur Code, keine Custom-Felder
+node scripts/seed-sample-data.mjs --target-org organiser-dev
+npm run schema:check
+```
+
+Damit ist ein Org startklar. Kein manuelles Anlegen in Setup, sofern keine neuen
+Custom-Felder dazukommen — für die gilt weiterhin Regel 2 unten.
 
 ## Regeln für Schema-Arbeit
 
 1. **Nach jedem Deploy `npm run schema:check` laufen lassen.** Ein grüner Deploy ist kein
    Beweis.
-2. **Felder manuell in Setup anlegen**, dann `sf project retrieve`. Nur das abgerufene
-   XML ist zuverlässig deployfähig. Wer in Setup anlegt und nicht abruft, spielt das
-   Problem beim nächsten Kollegen erneut auf.
+2. **Custom-Felder niemals deployen. In Setup anlegen, dann `sf project retrieve`.** Ein
+   deploytes Feld erscheint in `FieldDefinition`, aber nie im Runtime-Schema. Belegt durch
+   Kontrollversuch E1. Gilt für neue Felder auf bestehenden Objekten wie für neue Objekte.
 3. **Nach dem Retrieve `git diff` prüfen.** Ziel ist ein leerer Diff. Jede Abweichung
    gehört bewusst ins Repo oder zurück ins Setup.
 4. **Nie `sf schema generate` benutzen** — Generierung, manuelles Anlegen in Setup, dann
    Retrieve. Siehe Finding 9 in `AGENTS.md`.
+5. **Basisdaten kommen aus dem Seed**, nicht aus Setup. `seed-sample-data.mjs` legt
+   Account, Programme, Coaches und Contacts selbst an und legt vorhandene Datensätze
+   wiederverwendend, statt zu scheitern.
 
 ---
 

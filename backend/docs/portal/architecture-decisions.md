@@ -30,6 +30,47 @@ Contact haben kann, ohne Teilnehmer zu sein.
 **Verworfen:** `Lead → Opportunity → Participant__c` als durchgehende Kette. Eine
 Opportunity ist ein Geschäftsvorgang, kein Mensch.
 
+### ADR-001A — Ein Teilnehmer mit Audit-Historie wird nicht hart gelöscht
+
+**Status:** bestätigt (2026-09-29, ursprünglich als Setup-Standard entstanden, bewusst übernommen)
+
+```text
+Contact
+  └── Participant__c
+        └── AuditEvent__c
+```
+
+`AuditEvent__c.ParticipantId__c` verwendet `deleteConstraint = Restrict`. Die bevorzugte
+Vorgehensweise ist eine Statusänderung — `Dropped`, `Graduated`, `Placed`, `Archived` —
+anstelle einer physischen Löschung.
+
+**Begründung:** Ein Audit Event beantwortet _wer, wann, was geändert hat_. `SetNull`
+entwertet genau dieses Protokoll dann, wenn es am wichtigsten wäre: beim Löschen der Person.
+Ein späteres `ParticipantId__c = null` erzeugt einen Eintrag, der niemandem mehr zugeordnet
+werden kann. Da dieses Projekt einen Activity Feed, eine Teilnehmer-Timeline, Reports und
+Nachweise baut, ist die Zuordnung Teil des Produkts, nicht Beiwerk.
+
+Damit ist die Kette an allen drei Stellen gleich behandelt: Ein Contact, ein Teilnehmer
+und ein Audit Event lassen sich nicht stillschweigend auseinanderlösen.
+
+**Verifiziert (2026-09-29, `organiser-dev`):**
+
+```text
+DELETE_PARTICIPANT = blockiert: … could not be completed because it is
+                    associated with the following audit events.: AE-000000
+EVENT_SURVIVES     = 1
+```
+
+**Folge für Werkzeuge:** Ein Aufräumlauf muss die Kette von hinten abbauen —
+AuditEvents, dann Learning-Path-Items, dann Participants, dann Contacts, dann Accounts.
+`scripts/seed-sample-data.mjs` (`--rebuild`) folgt dieser Reihenfolge.
+
+**Bekannte Lücke:** Der Seed räumt nur Events mit `CorrelationId__c LIKE 'DEV_SEED_%'` ab
+plus die Einträge aus seinem Manifest. Audit Events, die aus der App heraus entstehen, fallen
+daran vorbei. Im Dev-Org unkritisch, in einem Org mit echten Betriebsdaten wäre ein
+Teilnehmer dann nicht mehr löschbar — was genau die gewollte Wirkung ist, aber beim Aufräumen
+überraschen kann.
+
 ---
 
 ## ADR-002 — Participant__c ist die Academy-Rolle
