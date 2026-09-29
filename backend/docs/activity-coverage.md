@@ -1,6 +1,6 @@
 # Activity Coverage Dashboard
 
-**Stand:** 2026-09-28  
+**Stand:** 2026-09-29  
 **Ziel:** Vollständige Nachvollziehbarkeit aller Business-Aktionen im Activity-Stream
 
 ---
@@ -12,6 +12,7 @@
 | Participant | 5 | 5 | 0 |
 | Learning Path | 4 | 4 | 0 |
 | Session/Auth | 1 | 1 | 0 |
+| Portal Access | 4 | 0 | 4 |
 | Absence | 6 | 6 | 0 |
 | Appointment | 5 | 5 | 0 |
 | Availability | 3 | 3 | 0 |
@@ -20,7 +21,10 @@
 | Daily Check-in | 4 | 0 | 4 |
 | Time Entry | 7 | 0 | 7 |
 | System | 1 | 0 | 1 |
-| **Gesamt** | **48** | **27** | **21** |
+| **Gesamt** | **52** | **27** | **25** |
+
+Portal Access ist für Phase 3 des Portalplans eingeplant, nicht implementiert
+(`docs/portal/portal-access-plan.md`).
 
 ---
 
@@ -50,6 +54,21 @@
 | Event-Typ | Status | Audience | Technical | Correlation | Deep-Link |
 |-----------|--------|----------|-----------|-------------|-----------|
 | `authentication.created` | ✅ | restricted | ✅ | ❌ | ❌ |
+
+### Portal Access (0/4 ❌ — geplant für Phase 3)
+
+Auslöser ist die Aktion „Portalzugang aktivieren / sperren / Einladung erneut senden" im
+backend. Sie gehören zur Domäne `authentication`, weil sie an den Contact gebunden sind,
+nicht an eine fachliche Academy-Bewegung. `ParticipantId__c` wird gesetzt, damit die Events
+in der Teilnehmer-Timeline erscheinen. `visibility: staff` — ein Portalzugang ist eine
+Admin-Entscheidung, kein Selbstauskunft-Datum des Teilnehmers.
+
+| Event-Typ | Status | Audience | Technical | Correlation | Deep-Link |
+|-----------|--------|----------|-----------|-------------|-----------|
+| `participant.portal_access.granted` | ❌ | staff | ❌ | ✅ | ✅ |
+| `participant.portal_access.revoked` | ❌ | staff | ❌ | ✅ | ✅ |
+| `participant.portal_access.reset_requested` | ❌ | staff | ✅ | ✅ | ✅ |
+| `participant.portal_access.failed` | ❌ | staff | ✅ | ❌ | ❌ |
 
 ### Absence (6/6 ✅)
 
@@ -189,9 +208,10 @@ bewusster Beschluss ist etwas anderes als eine stillschweigende Folge.
 2. **Live-Check:** Termin anlegen, Verlauf prüfen
 3. **E2E-Spec** ausführen (unverifiziert seit dem Formular-Umbau)
 4. **Coach-Dashboard-Query** für `Domain__c` + `ParentId__c`
-5. **RC2-F:** Workbook/Classbook/Daily Check-in/Time Entry
-6. **RC2-G:** Feed-Relevanz feinjustieren
-7. **RC2-H:** Shepherd.js Onboarding
+5. **Portal Access** (Phase 3 von `docs/portal/portal-access-plan.md`) — 4 Events verdrahten
+6. **RC2-F:** Workbook/Classbook/Daily Check-in/Time Entry
+7. **RC2-G:** Feed-Relevanz feinjustieren
+8. **RC2-H:** Shepherd.js Onboarding
 
 ---
 
@@ -204,3 +224,4 @@ bewusster Beschluss ist etwas anderes als eine stillschweigende Folge.
 - [x] Keine Business-Mutation ohne Event (außer den noch nicht gebauten Domänen unten)
 - [ ] Activity Feed zeigt alle relevanten Nutzeraktionen
 - [ ] Events ohne Teilnehmerbezug sind über die Oberfläche erreichbar (Coach-Dashboard)
+- [ ] Portal-Aktionen erzeugen Audit-Events (Phase 3)

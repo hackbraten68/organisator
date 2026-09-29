@@ -1,0 +1,7 @@
+# Salesforce CLI caches at the repo root (the two SFDX projects ignore their own)
+.sf/
+.sfdx/
+
+# Agent tooling
+.opencode/node_modules/
+.opencode/package-lock.json

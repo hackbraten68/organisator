@@ -1,0 +1,9 @@
+{
+  "permsetAssignments": {
+    "assignments": {
+      "frontend_Guest_User_Api_Access": {
+        "assignee": "guestUser"
+      }
+    }
+  }
+}

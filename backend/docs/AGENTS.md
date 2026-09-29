@@ -1,5 +1,43 @@
 # AGENTS.md
 
+## Naming convention (binding)
+
+This repo is a Salesforce monorepo with **two** SFDX projects that deploy into the **same
+org**. The terms below are fixed. Do not use "backend" for the server side of a web app —
+there is no conventional application server in this repo.
+
+| Term | Means | Path |
+|------|-------|------|
+| **backend** | Salesforce metadata (data model, Apex, triggers) **plus** the internal backoffice React SPA | `backend/` |
+| **frontend** | The Experience Cloud site plus the participant-facing React SPA (the portal) | `frontend/` |
+| **Contact** | The real person. Master data source for name and email. | standard `Contact` |
+| **Participant__c** | That person's role in the academy: program, coach, learning path, appointments, absences | `backend/force-app/main/default/objects/Participant__c/` |
+| **Portal User** | Login identity only. Experience Cloud customer/partner user with a `ContactId`. | standard `User` |
+
+There is **no** Lead → Opportunity → Participant chain. Salesforce standards for sales are
+`Lead ──convert──▶ Contact + Account + Opportunity`. An opportunity is a business process,
+not a person. A participant is created manually by staff from a contact, after a `Closed
+Won` opportunity has been reviewed — never automatically by the stage change.
+
+### Metadata ownership
+
+Both projects deploy to org `00D9b00000d4GsiEAE` (alias `backendtest`). Each metadata type
+has exactly one owning project, so the two deploys never fight over the same file.
+
+| Owned by `backend` | Owned by `frontend` |
+|--------------------|---------------------|
+| `CustomObject` (academy objects) | `Network`, `Site`, `DigitalExperienceConfig` |
+| `ParticipantPortalAccess` (grant/revoke/reset) | `ParticipantPortalData` (`/me`, read-only) |
+| `ParticipantContactUniqueness` (trigger) | Portal profiles, permission sets, member setup |
+| `AuditEvent__c` event types | Experience Cloud templates |
+| `CustomPermission` `Manage_Participant_Portal_Access` | |
+| The internal backoffice UI Bundle | The participant UI Bundle |
+
+The portal feature is planned in `docs/portal/portal-access-plan.md`; the binding decisions
+are in `docs/portal/architecture-decisions.md`.
+
+---
+
 ## Project context
 
 This repository contains the Salesforce backend and React UI Bundle for the **Organisator** participant-management platform.
@@ -26,22 +64,25 @@ force-app/main/default/
 └── uiBundles/
 ```
 
-The planned Salesforce architecture separates the standard CRM layer from the custom academy layer.
+The Salesforce architecture separates the standard CRM layer from the custom academy layer,
+and both meet at the `Contact`:
 
 ```text
-CRM layer
-Lead
-└── Opportunity
-    └── Contact
+CRM layer (standard, sales only)
+Lead ──convert──▶ Contact + Account + Opportunity
 
 Academy layer (actual API names in the org)
-Program__c
-Participant__c
-Coach_Profile__c
-Learning_Path__c
-Project__c
-Module__c
+Contact
+└── Participant__c            (academy role; 1:1, Contact__c required)
+    ├── Program__c
+    ├── Coach_Profile__c
+    └── Learning_Path__c
+        └── Module__c
 ```
+
+Identity is a third, separate layer: an Experience Cloud user with a `ContactId`. The
+portal resolves identity as `User.ContactId → Participant__c WHERE Contact__c = :contactId`
+and never filters by a client-supplied participant id.
 
 The current implementation is Sprint 1 and focuses on:
 
@@ -52,6 +93,8 @@ Coach_Profile__c
 Learning_Path__c
 Module__c
 ```
+
+`Project__c` from older diagrams was never created and is not part of the data model.
 
 ---
 
