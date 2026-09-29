@@ -12,11 +12,11 @@ Abweichung im Code.
 
 ## 1. Ausgangslage
 
-| Bereich | Ist-Zustand |
-|---------|-------------|
-| `backend/` | Salesforce-Metadaten (Academy-Objekte, Audit, 1 Trigger) + interne Backoffice-SPA. **Keine** `@RestResource`-Klassen. Identity = ambivalente Salesforce-Session, keine eigene Anmeldung. |
-| `frontend/` | SFDX-Projekt, Experience Cloud Site + React UI Bundle. Praktisch leer: Stock-Auth aus dem Salesforce-Template (`UIBundleLogin/Registration/ForgotPassword/ChangePassword`) + eine Accounte-Suche. **Kein** Participant-/Program-/Termin-Code. |
-| Lead → Opportunity → Participant | Existiert nicht. Nur in `AGENTS.md` als Zielbild dokumentiert. |
+| Bereich                          | Ist-Zustand                                                                                                                                                                                                                                   |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `backend/`                       | Salesforce-Metadaten (Academy-Objekte, Audit, 1 Trigger) + interne Backoffice-SPA. **Keine** `@RestResource`-Klassen. Identity = ambivalente Salesforce-Session, keine eigene Anmeldung.                                                      |
+| `frontend/`                      | SFDX-Projekt, Experience Cloud Site + React UI Bundle. Praktisch leer: Stock-Auth aus dem Salesforce-Template (`UIBundleLogin/Registration/ForgotPassword/ChangePassword`) + eine Accounte-Suche. **Kein** Participant-/Program-/Termin-Code. |
+| Lead → Opportunity → Participant | Existiert nicht. Nur in `AGENTS.md` als Zielbild dokumentiert.                                                                                                                                                                                |
 
 Beide SFDX-Projekte deployen in **denselben Org** (aktuell `organiser-dev`, siehe
 `../AGENTS.md` → scratch org alias).
@@ -45,13 +45,13 @@ legt den Teilnehmer an, nachdem der Vorgang fachlich geprüft ist.
 
 ### Begriffe, die in diesem Plan eine feste Bedeutung haben
 
-| Begriff | Bedeutung |
-|---------|-----------|
-| **backend** | `backend/` — Salesforce-Metadaten (Datenmodell, Apex, Trigger) + interne Backoffice-React-SPA |
-| **frontend** | `frontend/` — Experience Cloud Site + Teilnehmer-React-SPA (das Portal) |
-| **Contact** | Die reale Person. Stammdatenquelle für Name und E-Mail. |
-| **Participant__c** | Die Rolle dieser Person in der Academy: Programm, Coach, Lernpfad, Termine, Abwesenheiten |
-| **Portal User** | Login-Identität. Experience-Cloud-Kunden-/Partner-User mit `ContactId` |
+| Begriff            | Bedeutung                                                                                     |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| **backend**        | `backend/` — Salesforce-Metadaten (Datenmodell, Apex, Trigger) + interne Backoffice-React-SPA |
+| **frontend**       | `frontend/` — Experience Cloud Site + Teilnehmer-React-SPA (das Portal)                       |
+| **Contact**        | Die reale Person. Stammdatenquelle für Name und E-Mail.                                       |
+| **Participant__c** | Die Rolle dieser Person in der Academy: Programm, Coach, Lernpfad, Termine, Abwesenheiten     |
+| **Portal User**    | Login-Identität. Experience-Cloud-Kunden-/Partner-User mit `ContactId`                        |
 
 ---
 
@@ -62,13 +62,13 @@ legt den Teilnehmer an, nachdem der Vorgang fachlich geprüft ist.
 Ziel: keine offene Selbstregistrierung, kein fremder Scope im Portal, Ownership schriftlich.
 **Erledigt am 2026-09-29.**
 
-| # | Aufgabe | Dateien | Status |
-|---|---------|---------|--------|
-| 0.1 | Naming-Konvention + Ownership-Matrix dokumentieren | `backend/docs/AGENTS.md` | ✅ |
-| 0.2 | `/register` aus den Routen entfernen, `Register.tsx` löschen | `frontend/.../src/routes.tsx`, `.../pages/Register.tsx` | ✅ |
-| 0.3 | `UIBundleRegistration` samt `-meta.xml` und Test löschen | `frontend/.../classes/UIBundleRegistration.*` | ✅ |
-| 0.4 | `UIBundleRegistration`-Zugriff aus dem Gast-Permset entfernen | `frontend/.../permissionsets/frontend_Guest_User_Api_Access.permissionset-meta.xml` | ✅ |
-| 0.5 | Portal-fremde Template-Reste entfernen | `TestChatPage`, `AccountObjectDetailPage`, `CustomerWebClientChat`, `features/search/` (54 Dateien) + verwaiste Helfer | ✅ |
+| #   | Aufgabe                                                       | Dateien                                                                                                                | Status |
+| --- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------ |
+| 0.1 | Naming-Konvention + Ownership-Matrix dokumentieren            | `backend/docs/AGENTS.md`                                                                                               | ✅     |
+| 0.2 | `/register` aus den Routen entfernen, `Register.tsx` löschen  | `frontend/.../src/routes.tsx`, `.../pages/Register.tsx`                                                                | ✅     |
+| 0.3 | `UIBundleRegistration` samt `-meta.xml` und Test löschen      | `frontend/.../classes/UIBundleRegistration.*`                                                                          | ✅     |
+| 0.4 | `UIBundleRegistration`-Zugriff aus dem Gast-Permset entfernen | `frontend/.../permissionsets/frontend_Guest_User_Api_Access.permissionset-meta.xml`                                    | ✅     |
+| 0.5 | Portal-fremde Template-Reste entfernen                        | `TestChatPage`, `AccountObjectDetailPage`, `CustomerWebClientChat`, `features/search/` (54 Dateien) + verwaiste Helfer | ✅     |
 
 Bei 0.5 mitentfernt, weil sie ohne ihren einzigen Aufrufer nicht mehr erreichbar waren:
 `src/types/chat.ts`, `src/api/account/`, `src/utils/accountFields.ts`,
@@ -122,14 +122,14 @@ nur Ladehinweis für eine gute Fehlermeldung, die maßgebliche Absicherung ist s
 
 **1.2 Neue Felder auf `Participant__c`**
 
-| Feld | Typ | Zweck |
-|------|-----|-------|
-| `Portal_Status__c` | Picklist `None` (default) / `Invited` / `Active` / `Revoked` / `Error` | Portalzugang-Status |
-| `Portal_InvitedAt__c` | DateTime | Einladung versendet |
-| `Portal_ActivatedAt__c` | DateTime | erster Portalzugriff |
-| `Portal_RevokedAt__c` | DateTime | Zugang gesperrt |
-| `Portal_LastError__c` | Text(255) | letzter Fehler der Portal-Aktion |
-| `Initial_Source_Opportunity__c` | Lookup `Opportunity`, **required: false** | optionale initiale Herkunft |
+| Feld                            | Typ                                                                    | Zweck                            |
+| ------------------------------- | ---------------------------------------------------------------------- | -------------------------------- |
+| `Portal_Status__c`              | Picklist `None` (default) / `Invited` / `Active` / `Revoked` / `Error` | Portalzugang-Status              |
+| `Portal_InvitedAt__c`           | DateTime                                                               | Einladung versendet              |
+| `Portal_ActivatedAt__c`         | DateTime                                                               | erster Portalzugriff             |
+| `Portal_RevokedAt__c`           | DateTime                                                               | Zugang gesperrt                  |
+| `Portal_LastError__c`           | Text(255)                                                              | letzter Fehler der Portal-Aktion |
+| `Initial_Source_Opportunity__c` | Lookup `Opportunity`, **required: false**                              | optionale initiale Herkunft      |
 
 Kein `Portal_GrantedAt__c` — „Einladung versendet", „User erstellt" und „erstmals
 angemeldet" sind drei verschiedene Zeitpunkte und werden nicht vermischt.
@@ -176,11 +176,11 @@ Neue `contactService.ts` + Contacts-Bereich im backend:
 
 Der Aktionsbereich folgt dem Zustand:
 
-| Zustand | Aktion |
-|---------|--------|
-| Kein `Participant__c` | „Als Teilnehmer anlegen" |
-| `Participant__c` vorhanden | „Teilnehmer öffnen" |
-| Portal User vorhanden | aktuellen Portalstatus anzeigen |
+| Zustand                    | Aktion                          |
+| -------------------------- | ------------------------------- |
+| Kein `Participant__c`      | „Als Teilnehmer anlegen"        |
+| `Participant__c` vorhanden | „Teilnehmer öffnen"             |
+| Portal User vorhanden      | aktuellen Portalstatus anzeigen |
 
 **1.5 Bestehende Daten migrieren**
 
@@ -284,10 +284,10 @@ Das backend hat heute keine `@RestResource`-Klassen — das ist neu.
 
 `backend/force-app/main/default/classes/ParticipantPortalAccess.cls`
 
-| Route | Wirkung |
-|-------|---------|
-| `POST /grant`  | Portal User anlegen → `Portal_Status__c = Invited`, `Portal_InvitedAt__c = now`, Welcome-Mail |
-| `POST /revoke` | User deaktivieren → `Portal_Status__c = Revoked`, `Portal_RevokedAt__c = now` |
+| Route          | Wirkung                                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `POST /grant`  | Portal User anlegen → `Portal_Status__c = Invited`, `Portal_InvitedAt__c = now`, Welcome-Mail                      |
+| `POST /revoke` | User deaktivieren → `Portal_Status__c = Revoked`, `Portal_RevokedAt__c = now`                                      |
 | `POST /reset`  | Passwort-Reset-Mail neu senden — **nur** Fallback für „Einladung erneut senden", „Passwort vergessen", Supportfall |
 
 **Sicherheitsregeln für diese Klasse (bindend):**
@@ -418,11 +418,11 @@ sieht diesen Datensatz nicht.
 
 Erst jetzt wird der Portalumfang aufgebaut. Reihenfolge nach Nutzerwert:
 
-| Schritt | Inhalt | Schreiboperationen |
-|---------|--------|--------------------|
-| 5.1 | Termine — Liste, Details | bestätigen, absagen, verschieben |
-| 5.2 | Abwesenheiten — Antrag, Status | beantragen, stornieren, Dokument hochladen |
-| 5.3 | Lernpfad — Fortschritt | keiner |
+| Schritt | Inhalt                         | Schreiboperationen                         |
+| ------- | ------------------------------ | ------------------------------------------ |
+| 5.1     | Termine — Liste, Details       | bestätigen, absagen, verschieben           |
+| 5.2     | Abwesenheiten — Antrag, Status | beantragen, stornieren, Dokument hochladen |
+| 5.3     | Lernpfad — Fortschritt         | keiner                                     |
 
 Jede Schreiboperation braucht:
 
@@ -438,14 +438,14 @@ eigenen Datensatz begrenzt.
 
 ### Phase 6 — Audit, E2E, Dokumentation, Aufräumen
 
-| # | Aufgabe |
-|---|---------|
-| 6.1 | Neue Event-Typen in `../activity-coverage.md` eintragen, Zähler aktualisieren |
+| #   | Aufgabe                                                                                                                                         |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| 6.1 | Neue Event-Typen in `../activity-coverage.md` eintragen, Zähler aktualisieren                                                                   |
 | 6.2 | E2E im `frontend`-Projekt: `global-setup.ts` mit `PORTAL_USERNAME` / `PORTAL_PASSWORD`, Specs für Login → `/me` → leere Datensätze; Negativtest |
-| 6.3 | `../AGENTS.md` um Naming, Ownership, Portal-Architektur und Login-Fluss ergänzen |
-| 6.4 | `Student_Test__c` löschen (Scratch-Rest) |
-| 6.5 | Schema-Drift auflösen: `../migrations/2026-09-appointment-staff-backup.csv` referenziert `Appointment__c.Staff__c`, das Feld existiert nicht |
-| 6.6 | `dist/` des UI-Bundles aus Git entfernen — **nicht** in `.forceignore`, das `dist` ist der deploybare Inhalt |
+| 6.3 | `../AGENTS.md` um Naming, Ownership, Portal-Architektur und Login-Fluss ergänzen                                                                |
+| 6.4 | `Student_Test__c` löschen (Scratch-Rest)                                                                                                        |
+| 6.5 | Schema-Drift auflösen: `../migrations/2026-09-appointment-staff-backup.csv` referenziert `Appointment__c.Staff__c`, das Feld existiert nicht    |
+| 6.6 | `dist/` des UI-Bundles aus Git entfernen — **nicht** in `.forceignore`, das `dist` ist der deploybare Inhalt                                    |
 
 ---
 

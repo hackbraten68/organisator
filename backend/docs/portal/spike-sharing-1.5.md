@@ -1,170 +1,176 @@
-# Spike 1.5 — Sharing und Lizenz für externe Portal-User
+# Spike-Protokoll: Sharing und Experience-User-Zugriff
 
 **Stand:** 2026-09-29
-**Zweck:** Vor der Portalentwicklung klären, **welcher** Mechanismus einem externen
-Portal-User Zugriff auf seinen eigenen `Participant__c` gibt.
-**Aufwand:** ein Testbenutzer, ein Test-Account, ein Test-Contact, zwei Participants.
-**Gate:** Phase 3 startet nicht, bevor dieses Protokoll ausgefüllt ist.
+**Zweck:** Nachweisen, dass ein externer Portal-User **seinen eigenen** `Participant__c` sieht
+und **nicht** den eines anderen.
 
-Hintergrund: `Participant__c` hat `externalSharingModel=Private` und `enableSharing=true`.
-Externe User sehen ohne zusätzliche Regel **gar nichts**. Der geplante Pfad
-`Participant__c.Contact__r.AccountId` ist nicht garantiert als Mapping-Quelle wählbar —
-das hängt von der tatsächlich verwendeten externen Lizenz und dem Sharing-Mechanismus ab.
-
-Ergebnis fließt nach [`architecture-decisions.md`](./architecture-decisions.md) (ADR-008)
-und [`portal-access-plan.md`](./portal-access-plan.md) (Phase 1.5 / 2.3).
-
----
-
-## Voraussetzungen
-
-- [ ] Experience-Cloud-Lizenz (Customer/Partner User) im Org vorhanden und zugewiesen
-- [ ] Portal-Profil in Setup angelegt und Lizenz zugewiesen (nicht deploybar)
-- [ ] Sharing-Regeln aus Phase 1 sind deployed (`Participant__c.Contact__c` required)
-- [ ] Ein interner User mit `Manage_Participant_Portal_Access`-Berechtigung
+> **Ergebnis Teil A (2026-09-29):** abgeschlossen — siehe
+> [`sharing-spike-ergebnis.md`](./sharing-spike-ergebnis.md).
+> **Ergebnis Teil B:** blockiert. Die externen Lizenzen sind vorhanden, aber Experience Cloud
+> ist in diesem Org nicht aktiviert (`Network` fehlt im Schema, Network-Deploy wird mit
+> _„Communities must be enabled"_ abgewiesen). Teil B ist der **Abschlussnachweis** und
+> bleibt offen, bis das geklärt ist.
+>
+> Dieser Teil des Protokolls ist deshalb **nur** der Abschlussnachweis. Er ist
+> vorbereitet, aber derzeit nicht ausführbar.
 
 ---
 
-## Schritte
+## Voraussetzungen für Teil B
 
-### 1. Test-Account
+- [ ] Experience Cloud im Org aktiviert — **aktuell offen**, siehe Ergebnisdokument
+- [ ] Experience-Cloud-Lizenz zugewiesen — **erledigt**, im Org vorhanden und ungenutzt
+      (Gold Partner 0/3, Partner Community 0/5, Customer Community Plus 0/5, …)
+- [ ] Portal-Profil angelegt und Lizenz zugewiesen — offen
+- [ ] `Participant__c.Contact__c` ist `required` — **erledigt** (Kontrollversuch E2)
+- [ ] `ParticipantContactUniqueness` ist aktiv — **erledigt**, 13 Apex-Tests grün
+
+## Vorbedingung, die man kennen muss
+
+Alle Portal-Objekte stehen auf `externalSharingModel = Private`. Ein externer User sieht
+**nichts**, solange keine Sharing-Regel greift. Der Test unten würde also im negativen Fall
+auch dann „bestehen", wenn der User gar nichts sieht — deshalb wird in Schritt 7 zusätzlich
+der **positive** Fall geprüft.
+
+---
+
+## Schritt 1 — Test-Account
 
 ```bash
-sf data create record --target-org organiser-dev \
-  --sobject Account \
+sf data create record --target-org <org> --sobject Account \
   --values "Name='SPIKE Portal Test Account'"
-
-sf data query --target-org organiser-dev \
-  --query "SELECT Id, Name FROM Account WHERE Name='SPIKE Portal Test Account'"
 ```
 
-Ergebnis: `Account-Id` notieren → `ACC_ID`
+Erwartet: `Account-Id` → `ACC_ID`
 
-### 2. Test-Contact
+## Schritt 2 — Test-Contact A und B
 
 ```bash
-sf data create record --target-org organiser-dev \
-  --sobject Contact \
-  --values "AccountId=ACC_ID FirstName=Spike LastName=Portal Email=spike.portal@example.invalid"
-
-sf data query --target-org organiser-dev \
-  --query "SELECT Id, Email, AccountId FROM Contact WHERE Email='spike.portal@example.invalid'"
+sf data create record --target-org <org> --sobject Contact \
+  --values "AccountId=ACC_ID FirstName=Spike LastName=Alpha Email=spike.alpha@example.invalid"
+sf data create record --target-org <org> --sobject Contact \
+  --values "AccountId=ACC_ID FirstName=Spike LastName=Beta Email=spike.beta@example.invalid"
 ```
 
-Ergebnis: `Contact-Id` → `CONTACT_ID`
-
-### 3. Eigener Participant
+Zwei Contacts, **am selben Account**. Der gleiche Account ist der harte Fall: Eine
+Account-basierte Sharing Regel (Ansatz A) würde beiden Nutzern dann **beide** Participants
+sehen. Deshalb gehören die Test-Contacts auf **verschiedene** Accounts, sonst kann der
+Negativtest Ansatz A nicht von einem Fehler unterscheiden.
 
 ```bash
-sf data create record --target-org organiser-dev \
-  --sobject Participant__c \
-  --values "Name='Spike Portal' Contact__c=CONTACT_ID Status__c=Onboarding"
+# Deshalb: zwei Accounts
+sf data create record --target-org <org> --sobject Account \
+  --values "Name='SPIKE Portal Test Account B'"
 ```
 
-### 4. Fremder Participant (für den Negativtest)
+Erwartet: `Contact-Id` → `CONTACT_A`, `CONTACT_B`
 
-Zweiter Contact **ohne** Portal-User, eigener Account:
+## Schritt 3 — Participants
 
 ```bash
-sf data create record --target-org organiser-dev \
-  --sobject Account \
-  --values "Name='SPIKE Fremder Account'"
-
-sf data create record --target-org organiser-dev \
-  --sobject Contact \
-  --values "AccountId=ACC2_ID FirstName=Fremd LastName=Person Email=fremd.portal@example.invalid"
-
-sf data create record --target-org organiser-dev \
-  --sobject Participant__c \
-  --values "Name='Spike Fremd' Contact__c=CONTACT2_ID Status__c=Onboarding"
+sf data create record --target-org <org> --sobject Participant__c \
+  --values "Name='Spike Alpha' Contact__c=CONTACT_A"
+sf data create record --target-org <org> --sobject Participant__c \
+  --values "Name='Spike Beta' Contact__c=CONTACT_B"
 ```
 
-### 5. Portal-User anlegen
+## Schritt 4 — OWD prüfen
 
-Über den späteren `POST /grant`-Pfad, falls Phase 3 schon steht — sonst manuell:
+Setup → Sharing → Organisationsweite Standardfreigaben. Werte für `Contact` und `Account`
+notieren.
+
+Die Werte lassen sich weder per SOQL noch per Tooling-API auslesen (`OrgSettings` ist
+nicht abfragbar) — dieser Schritt muss über Setup erfolgen.
+
+**Warum das entscheidend ist:** Ist `Contact` org-weit `Private`, braucht ein externer User
+zusätzlich zur Sharing-Regel auch Lesezugriff auf den Contact und dessen Account. Ist
+`Contact` `ReadWrite`, genügt die Regel auf `Participant__c`.
+
+## Schritt 5 — Portal-User anlegen
+
+Über den späteren `POST /grant`-Pfad, falls Phase 3 steht. Sonst manuell:
 
 ```bash
-sf data create record --target-org organiser-dev \
-  --sobject User \
-  --values "Username=spike.portal@example.invalid Email=spike.portal@example.invalid \
-LastName=Portal ContactId=CONTACT_ID ProfileId=PORTAL_PROFILE_ID"
+sf data create record --target-org <org> --sobject User \
+  --values "Username=spike.alpha@example.invalid Email=spike.alpha@example.invalid \
+LastName=Alpha ContactId=CONTACT_A ProfileId=PORTAL_PROFILE_ID"
 ```
 
-Danach den Portalset auf `/frontendvforcesite` öffnen.
+Ein zweiter User für `spike.beta@example.invalid` / `CONTACT_B`.
 
 - [ ] Login als Portal-User erfolgreich
-- [ ] Kontakt ist `spike.portal@example.invalid`, kein interner User
+- [ ] `User.ContactId` zeigt auf den richtigen Contact
+- [ ] `Portal_Status__c` steht auf `Invited`, nicht auf `Active`
 
-### 6. Sharing-Mechanismus bewerten
+## Schritt 6 — Sharing-Mechanismus konfigurieren
 
-Für jeden Kandidaten einzeln prüfen und das Ergebnis notieren.
+Nur einer, je nach Ergebnis des Abschnitts 3 im Ergebnisdokument:
 
-| # | Kandidat | Konfigurierbar? | Funktioniert? | Aufwand |
-|---|----------|-----------------|--------------|---------|
-| 6.1 | **Sharing Set** auf `Participant__c` über Contact-Account | ☐ | ☐ | |
-| 6.2 | **Sharing Rule** (Account Sharing) über `Contact__r.AccountId` | ☐ | ☐ | |
-| 6.3 | **Direktes `Account__c`-Lookup** auf `Participant__c`, aus Contact befüllt | ☐ | ☐ | |
-| 6.4 | **Apex Managed Sharing**, kontrolliert | ☐ | ☐ | |
-| 6.5 | **Ausschließlich `/me`-Endpoint**, serverseitig aufgelöst | ☐ | ☐ | |
+| Kandidat                                    | Konfigurierbar? | Funktioniert? | Aufwand |
+| ------------------------------------------- | --------------- | ------------- | ------- |
+| A) Sharing Rule, account-basiert            | ☐               | ☐             |         |
+| B) Sharing Set `Contact` ↔ `Participant__c` | ☐               | ☐             |         |
+| C) ausschließlich `/me`-Endpoint            | ☐               | ☐             |         |
 
 **Fragen, die der Spike beantworten muss:**
 
-- [ ] Welche Beziehungsfelder werden für die konkrete Lizenz tatsächlich angeboten?
+- [ ] Welche Beziehungsfelder werden für die konkrete Lizenz angeboten?
 - [ ] Ist `Contact__r.AccountId` als Mapping-Quelle wählbar?
 - [ ] Funktioniert der Zugriff über UI-API-GraphQL oder nur über Apex?
 - [ ] Was passiert ohne jede Konfiguration? (erwartet: nichts sichtbar)
 
-### 7. Positivtest
+## Schritt 7 — Positivtest
 
-Als Portal-User einloggen:
+Als Portal-User A einloggen:
 
 - [ ] Eigenen `Participant__c` sichtbar
-- [ ] `Contact.Email` lesbar
-- [ ] Programm und Coach lesbar, sofern zugewiesen
+- [ ] `Contact` lesbar
+- [ ] Programm, Coach und Termine lesbar, sofern zugewiesen
 - [ ] Nicht zugewiesene Felder verhalten sich wie erwartet (kein Datenleck)
 
-### 8. Negativtest — Pflicht
+**Dieser Schritt ist Pflicht.** Ohne ihn ist Schritt 8 aussagefrei: Ein User, der nichts
+sieht, besteht auch den Negativtest.
+
+## Schritt 8 — Negativtest
 
 - [ ] Fremder `Participant__c` **nicht** sichtbar
 - [ ] Fremder `Contact` **nicht** sichtbar
 - [ ] Direkter Aufruf der Record-URL mit der fremden Id → kein Zugriff
 - [ ] SOQL mit `Contact__c = <fremde ContactId>` → keine Datensätze
-- [ ] Apex-Endpunkt, der eine `participantId` aus dem Request übernimmt → **muss** auf
-      den eigenen Datensatz auflösen oder ablehnen
+- [ ] Apex-Endpunkt, der eine `participantId` aus dem Request übernimmt → **muss** auf den
+      eigenen Datensatz auflösen oder ablehnen
 
-> Punkt 8.5 ist der Grund für ADR-010. Wenn dieser Test fehlschlägt, ist die Autorisierung
-> kaputt und darf nicht durch Phase 4 verdeckt werden.
+> Punkt 8.5 ist der Grund für ADR-010. Schlägt er fehl, ist die Autorisierung kaputt und darf
+> nicht durch Phase 4 verdeckt werden.
 
-### 9. Aufräumen
+## Schritt 9 — Aufräumen
 
 - [ ] Portal-User deaktiviert oder gelöscht
-- [ ] Test-Contact und Test-Participants gelöscht
-- [ ] Test-Account gelöscht
+- [ ] Test-Contacts und Test-Participants gelöscht
+- [ ] Test-Accounts gelöscht
 - [ ] Temporäre Sharing-Konfiguration zurückgebaut, sofern nicht übernommen
 
 ---
 
 ## Ergebnis
 
-**Gewählter Mechanismus:** <!-- Kandidat-Nr. -->
+**Gewählter Mechanismus:** <!-- A / B / C -->
 
-**Begründung:**
-
-**Abweichungen vom Plan:**
+**Belege:**
 
 **Folge für Phase 2.3:**
 
 **Folge für Phase 4** (`/me`-Endpoint):
 
-- [ ] Spikes abgeschlossen
+- [ ] Spike abgeschlossen
 - [ ] Negativtest bestanden
-- [ ] Ergebnis in ADR-008 nachgetragen
+- [ ] Ergebnis in `sharing-spike-ergebnis.md` nachgetragen
 - [ ] Aufräumen erledigt
 
 ---
 
 ## Testergebnis
 
-| Datum | Tester | Ergebnis |
-|-------|--------|----------|
-| — | — | ⏳ |
+| Datum | Tester | Ergebnis                                 |
+| ----- | ------ | ---------------------------------------- |
+| —     | —      | ⏳ offen — blockiert an Experience Cloud |

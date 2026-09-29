@@ -798,6 +798,20 @@ After that one-off repair the normal full deploy works again. Verified: `npm run
 completed three times in a row afterwards. Treat `--ignore-conflicts` as a repair tool, not
 as part of the normal flow — mixing it into a normal round leaves the cache partial again.
 
+**Experience Cloud is not available in the `organiser-dev` scratch org (spike 1.5, 2026-09-29):**
+`Network`, `NetworkMember` and `NetworkMemberGroup` are absent from the schema, and deploying the
+frontend project's `Network` metadata fails with _"Communities must be enabled before deploying
+a Chatter Network Site"_. The external licenses themselves are present and unused (Gold
+Partner, Partner Community, Customer Community Plus, …), so this is **not** a licence
+purchase question. The scratch-def feature `"Communities"` is accepted by the CLI and still
+produces an org without a Network.
+
+Consequence: `SharingRules` metadata cannot be validated against this org either — the
+`SharingRule` element is rejected outright. Account-based sharing is therefore **not
+deployable today**. The portal's only viable path right now is a server-side `/me` endpoint
+that resolves the participant from `User.ContactId` and treats the authorisation explicitly
+(ADR-010). See `docs/portal/sharing-spike-ergebnis.md`.
+
 **Never deploy profiles (E3):** a Profile deploy cannot provision a required field and
 fails with \"Sie können kein Pflichtfeld bereitstellen\". With the default
 `rollbackOnError` that rolls back the **entire** deploy, including every custom object — a
