@@ -32,6 +32,13 @@
  *   `with sharing` and drop this note. Until then the explicit filter is the only
  *   thing standing between the caller and every other participant row, so it must
  *   not be widened.
+ *
+ * SIDE EFFECTS
+ *   None. This is a read: it must not write. In particular it does not activate a
+ *   portal invitation, so it needs no compensating DML and stays safe to call from
+ *   a refetch, a prefetch or a health check. The portal lifecycle belongs to
+ *   Portal_Status__c / Portal_ActivatedAt__c once that model exists — see
+ *   portal-access-plan.md phase 3.2.
  */
 @RestResource(urlMapping='/participant-portal')
 global without sharing class ParticipantPortalData {
@@ -56,8 +63,6 @@ global without sharing class ParticipantPortalData {
         public String expectedEndDate;
         public String contactName;
         public String contactEmail;
-        /** Confirms the caller reached their own record. */
-        public Boolean portalActive;
     }
 
     global class PortalErrorResponse {
@@ -212,7 +217,6 @@ global without sharing class ParticipantPortalData {
         view.contactEmail = contact.Email;
         view.programName = nameOf(participant.Program__c, 'Program__c');
         view.coachName = nameOf(participant.Coach_Profile__c, 'Coach_Profile__c');
-        view.portalActive = true;
         return view;
     }
 

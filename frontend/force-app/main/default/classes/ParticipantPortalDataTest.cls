@@ -50,7 +50,6 @@ public class ParticipantPortalDataTest {
         System.assertEquals('Portal Test Coach', view.coachName, 'coach name resolved');
         System.assertNotEquals(null, view.startDate, 'start date returned');
         System.assertNotEquals(null, view.expectedEndDate, 'expected end date returned');
-        System.assertEquals(true, view.portalActive, 'a resolved participant is portal active');
     }
 
     @IsTest
@@ -122,7 +121,7 @@ public class ParticipantPortalDataTest {
 
         String json = JSON.serialize(resolveForContact(alphaContactId));
 
-        // The eleven fields the portal is allowed to see.
+        // The ten fields the portal is allowed to see.
         for (String field : new List<String>{
             'participantId',
             'contactId',
@@ -133,8 +132,7 @@ public class ParticipantPortalDataTest {
             'startDate',
             'expectedEndDate',
             'contactName',
-            'contactEmail',
-            'portalActive'
+            'contactEmail'
         }) {
             System.assert(json.contains('"' + field + '"'), 'missing whitelisted field ' + field + ': ' + json);
         }
@@ -144,6 +142,13 @@ public class ParticipantPortalDataTest {
         System.assert(!json.contains('github'), 'GitHub must not leak into the portal payload');
         System.assert(!json.contains('discord'), 'Discord must not leak into the portal payload');
         System.assert(!json.contains('__c'), 'No raw sObject field names may be serialised: ' + json);
+
+        // Portal activation state is deliberately absent. This endpoint resolves
+        // identity and reads; it does not know whether an invitation was completed,
+        // so it must not claim one. A boolean here would assert a lifecycle fact
+        // that Portal_Status__c is meant to own once that field exists.
+        System.assert(!json.contains('portalActive'), 'Activation state must not be invented: ' + json);
+        System.assert(!json.contains('Portal_Status'), 'Portal lifecycle belongs to the status model: ' + json);
     }
 
     @IsTest
