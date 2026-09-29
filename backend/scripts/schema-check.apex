@@ -16,6 +16,7 @@
  * the org against the repository:
  *
  *   OBJ|<object>|<customFieldCount>
+ *   OBJ|<object>|ABSENT
  *   FIELD|<object>|<fieldApiName>|PRESENT
  *   SOQL|<object>|OK|<detail>
  *   SOQL|<object>|FAIL|<errorMessage>
@@ -54,10 +55,22 @@ Integer fieldCount = 0;
 Integer soqlFailures = 0;
 Integer newObjFailures = 0;
 Integer insertFailures = 0;
+Integer missingObjects = 0;
 
 for (Integer i = 0; i < OBJECT_NAMES.size(); i++) {
     String objectName = OBJECT_NAMES[i];
     Schema.SObjectType sobjectType = Schema.getGlobalDescribe().get(objectName);
+
+    // A deploy that was rolled back (or an object that never materialised)
+    // leaves the type absent. Report it instead of dereferencing null, which
+    // used to abort the whole probe and hide the more useful rows.
+    if (sobjectType == null) {
+        report += 'OBJ|' + objectName + '|ABSENT\n';
+        report += 'NEWOBJ|' + objectName + '|FAIL|object not present in the runtime schema\n';
+        missingObjects++;
+        continue;
+    }
+
     Map<String, Schema.SObjectField> fieldMap = sobjectType.getDescribe().fields.getMap();
 
     List<String> customFields = new List<String>();
@@ -129,6 +142,8 @@ report += 'SUMMARY|objects='
     + '|newObjFailures='
     + newObjFailures
     + '|insertFailures='
-    + insertFailures;
+    + insertFailures
+    + '|missingObjects='
+    + missingObjects;
 
 System.debug(report);
