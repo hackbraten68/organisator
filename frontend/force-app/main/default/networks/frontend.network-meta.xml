@@ -37,13 +37,17 @@
     <headlessForgotPasswordTemplate>unfiled$public/CommunityHeadlessForgotPasswordTemplate</headlessForgotPasswordTemplate>
     <headlessRegistrationTemplate>unfiled$public/CommunityHeadlessRegistrationTemplate</headlessRegistrationTemplate>
     <networkMemberGroups>
-        <!-- `admin` does not exist in hubSandbox (verified: 23 profiles, none
-             named admin). The org shipped this dangling reference from the
-             template. Customer Community Plus Login is the only external profile
-             with capacity: 40 unused seats. `Customer Community Plus User` and
-             `Trainer` both sit on the 2-seat PID_Customer_Community_Plus license,
-             which is fully consumed (2/2) by two pre-existing users. -->
-        <profile>Customer Community Plus Login User</profile>
+        <!-- Wird auf Customer Community Plus User zurueckgesetzt, nicht auf die
+             Login-Variante: Portalrollen in dieser Org existieren nur als
+             PersonAccount-Rollen mit PortalType=CustomerPortal, und die
+             benoetigen zwingend eine PortalAccountId. Die Login-Variante hat
+             zwar 40 freie Plaetze, aber keine zu ihr passende Rolle
+             ("role type must match user type" / "Invalid role assignment").
+             Dazu ist PID_Customer_Community_Plus mit 2 von 2 Plaetzen voll,
+             waehrend Customer Community Plus Login 40 frei hat. Die Bindung an
+             ein Profil, fuer das sich kein Portal-User anlegen laesst, waere
+             wertlos. -->
+        <profile>Customer Community Plus User</profile>
     </networkMemberGroups>
     <networkPageOverrides>
         <changePasswordPageOverrideSetting>Standard</changePasswordPageOverrideSetting>
