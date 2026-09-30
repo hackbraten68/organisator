@@ -1,6 +1,6 @@
 # Portal-Zugang: was deployed ist und was fehlt
 
-Stand 2026-09-30, Ziel-Org `hubSandbox`.
+Stand 2026-10-01, Ziel-Org `hubSandbox`.
 
 ## In der Org
 
@@ -10,56 +10,36 @@ Stand 2026-09-30, Ziel-Org `hubSandbox`.
 | `UIBundleLogin`, `UIBundleChangePassword`, `UIBundleAuthUtils`, `UIBundleSocialLoginConfig`, `UIBundleForgotPassword` | deployed, Active |
 | `Participant_Portal_Access` (Permission Set) | deployed, **0 Zuweisungen** |
 | `frontend_Guest_User_Api_Access` (Permission Set) | deployed |
-| `UIBundle:frontend` (das React-Portal inkl. `/me`) | deployed |
+| `UIBundle:frontend` (das React-Portal inkl. `/me`) | deployed, **noch keiner Site zugeordnet** |
+| Network `frontend` | **Live**, Pfad `/organisatorvforcesite`, Site-as-Container |
+| CustomSite `frontend` | **Active**, Pfad `/organisatorvforcesite` |
 
-## Fehlt: Network und CustomSite
+## Network und CustomSite existieren
 
-Das Portal ist damit **noch nicht erreichbar**. `hubSandbox` hat kein Network und keine
-Site mit Pfad `/organisator`.
+Network `frontend` (Live) und CustomSite `frontend` (Active) sind seit 2026-10-01 in
+der Org, Pfad `/organisatorvforcesite`. Beide referenzieren sich gegenseitig und wurden
+zusammen deployed.
 
-Die Abhängigkeitskette:
+Daneben existiert eine zweite Site `frontend2` am Pfad `/organisator` — eine
+Stock-LWR-Site **ohne** Network, ohne eigenen Guest-User. Sie ist nicht Teil des
+Portals und liefert das Standard-Communities-Login aus.
 
-```text
-SiteDotCom "frontend1"   ← kann nur Setup erzeugen
-        ↓
-Network "frontend"  +  CustomSite "frontend"   ← aufeinander angewiesen
-        ↓
-DigitalExperienceBundle "site/frontend1"  +  UIBundle "frontend"
-```
+### Site-Mitgliedschaft: der Admin-Lockout
 
-Network und CustomSite referenzieren sich gegenseitig; sie müssen zusammen deployed
-werden. Beide brauchen vorher das `SiteDotCom`.
+Eine `NetworkMemberGroup` nur auf ein externes Profil sperrt den internen
+Administrator aus: die Zeile in „Alle Sites" verliert URL und Aktionen, der Builder
+ist unerreichbar. Fix per REST-Insert einer zweiten Gruppe mit dem Profil `Admin`.
+Vollständig dokumentiert in
+[`portal/network-mitgliedschaft-lockout.md`](portal/network-mitgliedschaft-lockout.md).
 
-### Warum das nicht aus dem Repo kommt
+## Offen: UIBundle an die Site binden
 
-`siteDotComSites/` war nie im Frontend-Projekt — es steht in keiner Commit-Historie.
-Die `.site`-Datei ist eine Binärdatei, die Salesforce beim Anlegen der Site in Setup
-erzeugt:
-
-- Nur die `.site-meta.xml` zu deployen lehnt die Metadata API ab:
-  `Expected source files for type 'SiteDotCom'`
-- Die `.site` aus einem anderen Org-Portal zu kopieren geht technisch, aber die vier
-  Sites in dieser Sandbox haben **vier verschiedene** Binärdateien. Jede trägt ihre
-  eigene Konfiguration, und ein Fremd-Artifact gehört nicht in dieses Repo.
-
-### Setup-Schritte
-
-1. Setup → Digitale Erlebnisse → Alle Sites → Neue Site
-2. Name `frontend1`, Pfad `/organisator`, Site-Typ Experience Cloud
-3. Danach in Setup den Klick "Aktivieren", damit das Network `Live` wird
-
-## Danach
-
-```bash
-cd frontend
-sf project retrieve start --target-org hubSandbox --metadata SiteDotCom:frontend1
-sf project deploy start --target-org hubSandbox \
-  --metadata Network:frontend --metadata CustomSite:frontend \
-  --metadata DigitalExperienceBundle:site/frontend1 --wait 40
-```
-
-Der Retrieve holt die `.site`-Datei ins Projekt, damit der Schritt ab dann
-reproduzierbar aus dem Repo läuft statt erneut in Setup.
+`UIBundle:frontend` ist deployed, aber noch keiner Site zugeordnet. Der Pfad
+`/organisatorvforcesite` serviert derzeit das Stock-LWR-Login, nicht das React-Portal.
+Die Zuordnung passiert im Experience Builder (Site-Einstellungen), sobald der Builder
+wieder erreichbar ist. Danach muss `SITE_PATH_PREFIX` in
+`frontend/force-app/main/default/uiBundles/frontend/src/config/site.ts` auf den
+tatsächlichen Pfad zeigen (steht noch auf `/organisator`).
 
 ## Nächster Setup-Schritt: Portal-User anlegen
 
