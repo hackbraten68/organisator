@@ -17,12 +17,12 @@
             <value>
                 <fullName>CheckIn</fullName>
                 <default>false</default>
-                <label>Check-In</label>
+                <label>CheckIn</label>
             </value>
             <value>
-                <fullName>Berufsschule</fullName>
+                <fullName>Feedback</fullName>
                 <default>false</default>
-                <label>Berufsschule</label>
+                <label>Feedback</label>
             </value>
             <value>
                 <fullName>Behörde</fullName>

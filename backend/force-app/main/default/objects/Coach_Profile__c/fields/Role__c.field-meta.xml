@@ -12,19 +12,14 @@
         <valueSetDefinition>
             <sorted>false</sorted>
             <value>
-                <fullName>Lead IT Coach</fullName>
+                <fullName>AWS Coach</fullName>
                 <default>false</default>
-                <label>Lead IT Coach</label>
+                <label>AWS Coach</label>
             </value>
             <value>
                 <fullName>Kubernetes Coach</fullName>
                 <default>false</default>
                 <label>Kubernetes Coach</label>
-            </value>
-            <value>
-                <fullName>AWS Coach</fullName>
-                <default>false</default>
-                <label>AWS Coach</label>
             </value>
             <value>
                 <fullName>Staff</fullName>

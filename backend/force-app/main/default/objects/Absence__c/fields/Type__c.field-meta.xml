@@ -20,11 +20,6 @@
                 <label>Urlaub</label>
             </value>
             <value>
-                <fullName>Berufsschule</fullName>
-                <default>false</default>
-                <label>Berufsschule</label>
-            </value>
-            <value>
                 <fullName>Praktikum</fullName>
                 <default>false</default>
                 <label>Praktikum</label>

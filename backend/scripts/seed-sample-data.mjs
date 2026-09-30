@@ -340,10 +340,12 @@ const PROGRAMS = [
     description: "Vertiefungskurs aufbauend auf IT Pro"
   }
 ];
+// Roles must match Coach_Profile__c.Role__c exactly; the picklist is restricted
+// and rejects anything else. "Lead IT Coach" is not among the values.
 const COACHES = [
   { name: "Frank Blum", role: "Staff", capacity: 6 },
   { name: "Ghaith Saidani", role: "AWS Coach", capacity: 5 },
-  { name: "Sam Dillenburg", role: "Lead IT Coach", capacity: 8 },
+  { name: "Sam Dillenburg", role: "Staff", capacity: 8 },
   { name: "Sandra Krüger", role: "Kubernetes Coach", capacity: 5 }
 ];
 

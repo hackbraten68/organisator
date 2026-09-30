@@ -17,32 +17,32 @@
             <value>
                 <fullName>Finding</fullName>
                 <default>false</default>
-                <label>Terminfindung</label>
+                <label>Finding</label>
             </value>
             <value>
                 <fullName>Confirmed</fullName>
                 <default>false</default>
-                <label>Bestätigt</label>
+                <label>Confirmed</label>
             </value>
             <value>
                 <fullName>Completed</fullName>
                 <default>false</default>
-                <label>Durchgeführt</label>
+                <label>Completed</label>
             </value>
             <value>
                 <fullName>Documented</fullName>
                 <default>false</default>
-                <label>Dokumentiert</label>
+                <label>Documented</label>
             </value>
             <value>
                 <fullName>Cancelled</fullName>
                 <default>false</default>
-                <label>Abgesagt</label>
+                <label>Cancelled</label>
             </value>
             <value>
                 <fullName>NoShow</fullName>
                 <default>false</default>
-                <label>Nicht erschienen</label>
+                <label>NoShow</label>
             </value>
         </valueSetDefinition>
     </valueSet>

@@ -280,11 +280,11 @@ Values — enter **Value** and **Display Value** separately:
 
 | Value (API name) | Display Value | Default |
 | --- | --- | --- |
-| `Monday` | Montag  <- different! |  |
-| `Tuesday` | Dienstag  <- different! |  |
-| `Wednesday` | Mittwoch  <- different! |  |
-| `Thursday` | Donnerstag  <- different! |  |
-| `Friday` | Freitag  <- different! |  |
+| `Monday` | Monday |  |
+| `Tuesday` | Tuesday |  |
+| `Wednesday` | Wednesday |  |
+| `Thursday` | Thursday |  |
+| `Friday` | Friday |  |
 
 #### 2. `EndTime__c`
 
@@ -344,8 +344,8 @@ Values — enter **Value** and **Display Value** separately:
 | Value (API name) | Display Value | Default |
 | --- | --- | --- |
 | `Coaching` | Coaching |  |
-| `CheckIn` | Check-In  <- different! |  |
-| `General` | Allgemein  <- different! | yes |
+| `CheckIn` | CheckIn |  |
+| `General` | General | yes |
 
 #### 6. `ValidFrom__c`
 
@@ -506,9 +506,8 @@ Values — enter **Value** and **Display Value** separately:
 
 | Value (API name) | Display Value | Default |
 | --- | --- | --- |
-| `Lead IT Coach` | Lead IT Coach |  |
-| `Kubernetes Coach` | Kubernetes Coach |  |
 | `AWS Coach` | AWS Coach |  |
+| `Kubernetes Coach` | Kubernetes Coach |  |
 | `Staff` | Staff |  |
 
 #### 6. `Status__c`
@@ -1070,7 +1069,6 @@ Values — enter **Value** and **Display Value** separately:
 | --- | --- | --- |
 | `Krank` | Krank |  |
 | `Urlaub` | Urlaub |  |
-| `Berufsschule` | Berufsschule |  |
 | `Praktikum` | Praktikum |  |
 | `Behörde` | Behörde |  |
 | `Sonstiges` | Sonstiges |  |
@@ -1260,11 +1258,10 @@ Values — enter **Value** and **Display Value** separately:
 
 | Value (API name) | Display Value | Default |
 | --- | --- | --- |
-| `OnSite` | Vor Ort  <- different! |  |
-| `Teams` | MS Teams  <- different! |  |
-| `Phone` | Telefon  <- different! |  |
-| `Hybrid` | Hybrid |  |
-| `External` | Extern  <- different! |  |
+| `Discord` | Discord |  |
+| `Zoom` | Zoom |  |
+| `Teams` | Teams |  |
+| `External` | External |  |
 
 #### 7. `MeetingLink__c`
 
@@ -1329,12 +1326,12 @@ Values — enter **Value** and **Display Value** separately:
 | Value (API name) | Display Value | Default |
 | --- | --- | --- |
 | `Draft` | Draft | yes |
-| `Finding` | Terminfindung  <- different! |  |
-| `Confirmed` | Bestätigt  <- different! |  |
-| `Completed` | Durchgeführt  <- different! |  |
-| `Documented` | Dokumentiert  <- different! |  |
-| `Cancelled` | Abgesagt  <- different! |  |
-| `NoShow` | Nicht erschienen  <- different! |  |
+| `Finding` | Finding |  |
+| `Confirmed` | Confirmed |  |
+| `Completed` | Completed |  |
+| `Documented` | Documented |  |
+| `Cancelled` | Cancelled |  |
+| `NoShow` | NoShow |  |
 
 #### 11. `Type__c`
 
@@ -1356,8 +1353,8 @@ Values — enter **Value** and **Display Value** separately:
 | Value (API name) | Display Value | Default |
 | --- | --- | --- |
 | `Coaching` | Coaching |  |
-| `CheckIn` | Check-In  <- different! |  |
-| `Berufsschule` | Berufsschule |  |
+| `CheckIn` | CheckIn |  |
+| `Feedback` | Feedback |  |
 | `Behörde` | Behörde |  |
 | `Praktikum` | Praktikum |  |
 | `Sonstiges` | Sonstiges |  |

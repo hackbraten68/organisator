@@ -10,29 +10,24 @@
         <valueSetDefinition>
             <sorted>false</sorted>
             <value>
-                <fullName>OnSite</fullName>
+                <fullName>Discord</fullName>
                 <default>false</default>
-                <label>Vor Ort</label>
+                <label>Discord</label>
+            </value>
+            <value>
+                <fullName>Zoom</fullName>
+                <default>false</default>
+                <label>Zoom</label>
             </value>
             <value>
                 <fullName>Teams</fullName>
                 <default>false</default>
-                <label>MS Teams</label>
-            </value>
-            <value>
-                <fullName>Phone</fullName>
-                <default>false</default>
-                <label>Telefon</label>
-            </value>
-            <value>
-                <fullName>Hybrid</fullName>
-                <default>false</default>
-                <label>Hybrid</label>
+                <label>Teams</label>
             </value>
             <value>
                 <fullName>External</fullName>
                 <default>false</default>
-                <label>Extern</label>
+                <label>External</label>
             </value>
         </valueSetDefinition>
     </valueSet>

@@ -17,12 +17,12 @@
             <value>
                 <fullName>CheckIn</fullName>
                 <default>false</default>
-                <label>Check-In</label>
+                <label>CheckIn</label>
             </value>
             <value>
                 <fullName>General</fullName>
                 <default>true</default>
-                <label>Allgemein</label>
+                <label>General</label>
             </value>
         </valueSetDefinition>
     </valueSet>

@@ -12,27 +12,27 @@
             <value>
                 <fullName>Monday</fullName>
                 <default>false</default>
-                <label>Montag</label>
+                <label>Monday</label>
             </value>
             <value>
                 <fullName>Tuesday</fullName>
                 <default>false</default>
-                <label>Dienstag</label>
+                <label>Tuesday</label>
             </value>
             <value>
                 <fullName>Wednesday</fullName>
                 <default>false</default>
-                <label>Mittwoch</label>
+                <label>Wednesday</label>
             </value>
             <value>
                 <fullName>Thursday</fullName>
                 <default>false</default>
-                <label>Donnerstag</label>
+                <label>Thursday</label>
             </value>
             <value>
                 <fullName>Friday</fullName>
                 <default>false</default>
-                <label>Freitag</label>
+                <label>Friday</label>
             </value>
         </valueSetDefinition>
     </valueSet>
