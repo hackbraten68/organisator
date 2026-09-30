@@ -23,8 +23,9 @@
     <redirectToCustomDomain>false</redirectToCustomDomain>
     <referrerPolicyOriginWhenCrossOrigin>true</referrerPolicyOriginWhenCrossOrigin>
     <selfRegPage>CommunitiesSelfReg</selfRegPage>
+    <serverIsDown>SNA_DxrDo_sf_default_cdn_frontend2</serverIsDown>
     <siteAdmin>samuel.dillenburg@codingschule.de</siteAdmin>
-    <siteGuestRecordDefaultOwner>test-yjm1rdvkb6xu@example.com</siteGuestRecordDefaultOwner>
+    <siteGuestRecordDefaultOwner>samuel.dillenburg@codingschule.de</siteGuestRecordDefaultOwner>
     <siteType>ChatterNetwork</siteType>
-    <urlPathPrefix>organisator</urlPathPrefix>
+    <urlPathPrefix>organisatorvforcesite</urlPathPrefix>
 </CustomSite>
