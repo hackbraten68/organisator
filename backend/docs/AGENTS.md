@@ -854,9 +854,19 @@ sf sobject describe         9 fields, 0 of them with __c
 ```
 
 Identical to the scratch-org failure mode: three APIs report the fields, SOQL and
-`sobject describe` do not know them. There is no way around manual Setup creation. The full
-worklist for the 90 fields is in `docs/portal/setup-arbeitsliste.md`, including the
-topological order the lookups force.
+`sobject describe` do not know them. There is no way around manual Setup creation.
+
+**The worklist is generated, not maintained.** `docs/portal/setup-worklist.md` is written
+by `scripts/gen-setup-worklist.py` from `force-app/main/default/objects/`. It describes
+what to enter in each Setup form — object settings, tab, and every field — in the
+topological order the lookups force. Edit the generator or the metadata, never the
+document. Two things it deliberately surfaces that a field list does not: the
+Relationship Name required by every lookup, and the Value/Display-Value split for
+picklists where they differ. Getting the second one wrong changes the stored API name
+and breaks Apex and GraphQL at runtime.
+
+Both worklist files are in `.prettierignore`: their columns are wide enough that
+Prettier reflows the tables and drops the cells.
 
 **Full deploys need a clean source tracking after an `--ignore-conflicts` deploy (2026-09-29):**
 once a deploy has bypassed conflict detection, the project-local `.sf/` cache reports

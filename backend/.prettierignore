@@ -15,4 +15,11 @@
 force-app/main/default/objects/
 force-app/main/default/retrievestatus/
 
+# Generierte Arbeitslisten. Deren Spalten sind so breit, dass Prettier die
+# Tabellen umbricht und dabei den Inhalt verliert: "| Relationship Name |"
+# ueberlebt das Formatieren nicht, die Zelle wird zur Leerzeile.
+# Beide Dateien stammen aus scripts/gen-setup-worklist.py.
+docs/portal/setup-worklist.md
+docs/portal/setup-arbeitsliste.md
+
 coverage/
