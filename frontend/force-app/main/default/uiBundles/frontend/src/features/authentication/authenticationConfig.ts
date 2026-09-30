@@ -1,3 +1,5 @@
+import { siteUrl } from "../../config/site";
+
 /**
  * [Dev Note] Centralized configuration for Auth routes.
  * Each route contains both the path and page title.
@@ -16,10 +18,6 @@ export const ROUTES = {
 		PATH: "/forgot-password",
 		TITLE: "Recover Password | MyApp",
 	},
-	RESET_PASSWORD: {
-		PATH: "/reset-password",
-		TITLE: "Reset Password | MyApp",
-	},
 	PROFILE: {
 		PATH: "/profile",
 		TITLE: "My Profile | MyApp",
@@ -33,10 +31,14 @@ export const ROUTES = {
 /**
  * [Dev Note] Centralized configuration for API endpoints.
  * These are server-side endpoints, not client-side routes.
+ *
+ * [Dev Note] LOGOUT is consumed by AuthContext via `window.location.replace`,
+ * which — unlike `sdk.fetch` — does not resolve against the site. It therefore
+ * has to carry the site path prefix; see `src/config/site.ts`.
  */
 export const API_ROUTES = {
 	// W-21253864: Logout URL integration is not currently supported
-	LOGOUT: "/secur/logout.jsp",
+	LOGOUT: siteUrl("/secur/logout.jsp"),
 } as const;
 
 /**

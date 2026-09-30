@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Access tier for portal members (participants).
+
+    Deliberately minimal. `ParticipantPortalData` runs `without sharing` and
+    never calls Security.stripInaccessible, so field-level security is not
+    enforced for it — the permission set therefore does NOT need object or field
+    permissions for `/me` to work. Apex class access is the only hard
+    requirement, and without it the endpoint answers 403/404 for a logged-in
+    member.
+
+    Consequence worth keeping in mind: the single server-side filter
+    `Participant__c WHERE Contact__c = :contactId` is what keeps participants
+    apart. It is not reinforced by sharing rules or FLS. See ADR-012 and
+    backend/docs/portal/portal-access-plan.md — phase 1.5 is still open.
+
+    Not granted here:
+    - UIBundleLogin, UIBundleForgotPassword, UIBundleSocialLoginConfig — those
+      are called by anonymous visitors and live in
+      frontend_Guest_User_Api_Access.
+    - No object permissions: a member gets no CRUD on any custom object. The
+      portal reads through Apex, not through UI API.
+-->
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>Participant Portal Access</label>
+    <description>Grants portal members access to their own portal data. No custom object access; participants reach their data exclusively through the read-only Apex endpoint.</description>
+
+    <userPermissions>
+        <enabled>true</enabled>
+        <name>ApiEnabled</name>
+    </userPermissions>
+
+    <classAccesses>
+        <apexClass>ParticipantPortalData</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+
+    <!-- Routed at /change-password and called by a signed-in member, not by a
+         guest, so the guest permission set does not cover it. -->
+    <classAccesses>
+        <apexClass>UIBundleChangePassword</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+</PermissionSet>

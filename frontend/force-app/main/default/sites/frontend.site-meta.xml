@@ -23,7 +23,7 @@
     <redirectToCustomDomain>false</redirectToCustomDomain>
     <referrerPolicyOriginWhenCrossOrigin>true</referrerPolicyOriginWhenCrossOrigin>
     <selfRegPage>CommunitiesSelfReg</selfRegPage>
-    <siteAdmin>test-yjm1rdvkb6xu@example.com</siteAdmin>
+    <siteAdmin>samuel.dillenburg@codingschule.de</siteAdmin>
     <siteGuestRecordDefaultOwner>test-yjm1rdvkb6xu@example.com</siteGuestRecordDefaultOwner>
     <siteType>ChatterNetwork</siteType>
     <urlPathPrefix>organisator</urlPathPrefix>

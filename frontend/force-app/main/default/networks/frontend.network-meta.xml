@@ -6,7 +6,7 @@
     <communityRoles/>
     <disablePvtPagesForPwdResetInLWR>false</disablePvtPagesForPwdResetInLWR>
     <disableReputationRecordConversations>true</disableReputationRecordConversations>
-    <emailSenderAddress>samuel.dillenburg@codingschule.de.invalid</emailSenderAddress>
+    <emailSenderAddress>samuel.dillenburg@codingschule.de</emailSenderAddress>
     <emailSenderName>organisator</emailSenderName>
     <embeddedLoginEnabled>false</embeddedLoginEnabled>
     <enableApexCDNCaching>true</enableApexCDNCaching>
@@ -36,7 +36,10 @@
     <headlessForgotPasswordTemplate>unfiled$public/CommunityHeadlessForgotPasswordTemplate</headlessForgotPasswordTemplate>
     <headlessRegistrationTemplate>unfiled$public/CommunityHeadlessRegistrationTemplate</headlessRegistrationTemplate>
     <networkMemberGroups>
-        <profile>admin</profile>
+        <!-- `admin` does not exist in the target org, the deploy failed on it.
+             The portal profile is the standard customer community profile:
+             UserType PowerCustomerSuccess, 40 unused login seats. -->
+        <profile>Customer Community Plus User</profile>
     </networkMemberGroups>
     <networkPageOverrides>
         <changePasswordPageOverrideSetting>Standard</changePasswordPageOverrideSetting>

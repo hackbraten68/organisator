@@ -3,7 +3,6 @@ import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import Login from "./features/authentication/pages/Login";
 import ForgotPassword from "./features/authentication/pages/ForgotPassword";
-import ResetPassword from "./features/authentication/pages/ResetPassword";
 import Profile from "./features/authentication/pages/Profile";
 import ChangePassword from "./features/authentication/pages/ChangePassword";
 import PrivateRoute from "./features/authentication/layouts/privateRouteLayout";
@@ -16,11 +15,6 @@ export const routes: RouteObject[] = [
     element: <AuthAppLayout />,
     children: [
       {
-        index: true,
-        element: <Home />,
-        handle: { showInNavigation: true, label: "Home" }
-      },
-      {
         path: ROUTES.LOGIN.PATH,
         element: <Login />,
         handle: { showInNavigation: false, label: "Login", title: ROUTES.LOGIN.TITLE }
@@ -31,13 +25,13 @@ export const routes: RouteObject[] = [
         handle: { showInNavigation: false, title: ROUTES.FORGOT_PASSWORD.TITLE }
       },
       {
-        path: ROUTES.RESET_PASSWORD.PATH,
-        element: <ResetPassword />,
-        handle: { showInNavigation: false, title: ROUTES.RESET_PASSWORD.TITLE }
-      },
-      {
         element: <PrivateRoute />,
         children: [
+          {
+            index: true,
+            element: <Home />,
+            handle: { showInNavigation: true, label: "Mein Konto" }
+          },
           {
             path: ROUTES.PROFILE.PATH,
             element: <Profile />,
@@ -46,7 +40,7 @@ export const routes: RouteObject[] = [
           {
             path: ROUTES.CHANGE_PASSWORD.PATH,
             element: <ChangePassword />,
-            handle: { showInNavigation: false, title: ROUTES.CHANGE_PASSWORD.TITLE }
+            handle: { showInNavigation: false, label: "Change Password", title: ROUTES.CHANGE_PASSWORD.TITLE }
           }
         ]
       },
