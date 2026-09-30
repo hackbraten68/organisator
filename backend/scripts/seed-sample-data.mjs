@@ -142,7 +142,7 @@ const CREATE_PROGRAM = `mutation SeedCreateProgram(
   } }) { Record { Id } } }
 }`;
 const CREATE_COACH = `mutation SeedCreateCoach(
-  $name: String!, $role: Picklist, $capacity: Double, $status: Picklist
+  $name: String!, $role: Picklist, $capacity: Double, $status: Boolean
 ) {
   uiapi { Coach_Profile__cCreate(input: { Coach_Profile__c: {
     Name: $name, Role__c: $role, Capacity__c: $capacity, Status__c: $status
@@ -227,7 +227,9 @@ async function ensureCoaches() {
       name: coach.name,
       role: coach.role,
       capacity: coach.capacity,
-      status: "Active"
+      // Status__c on Coach_Profile__c is a Checkbox, not a Picklist. A coach is
+      // active as long as the record exists; there is no state to choose.
+      status: true
     });
     result[coach.name] = created.uiapi.Coach_Profile__cCreate.Record.Id;
   }
