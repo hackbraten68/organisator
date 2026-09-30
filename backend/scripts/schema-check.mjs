@@ -63,8 +63,16 @@ const { org: TARGET_ORG } = resolveTargetOrgOrThrow({
 /**
  * `sf apex run` prints the script, then a log block. The debug payload is the
  * last log block and arrives as real, separate lines with the pipes HTML
- * escaped as `&#124;`. Apex also lower-cases field API names, so every name is
- * compared case-insensitively.
+ * escaped as `&#124;`.
+ *
+ * Names are kept TWICE on purpose:
+ *   - lowercased, for the existence check. SOQL and Apex describe are both
+ *     case-insensitive, so `DayOfWeek__c` and `DayofWeek__c` are the same field
+ *     there and must not show as drift.
+ *   - verbatim, for the case check. uiapi GraphQL is case-SENSITIVE and rejects
+ *     a field whose spelling differs, with a ValidationError that looks like the
+ *     field does not exist. A case-only rename is therefore a real defect that
+ *     must not pass, and it cannot be fixed later — API names are immutable.
  */
 function probeRuntimeSchema() {
   let raw;
@@ -93,6 +101,7 @@ function probeRuntimeSchema() {
 
   const TAGS = ["OBJ", "FIELD", "SOQL", "NEWOBJ", "INSERT", "SUMMARY"];
   const fieldsByObject = new Map();
+  const exactByObject = new Map();
   const checks = [];
   let seenPayload = false;
 
@@ -107,12 +116,17 @@ function probeRuntimeSchema() {
 
     if (parts[0] === "OBJ") {
       // Seed the entry so objects with no custom fields still get a row.
-      if (!fieldsByObject.has(parts[1]))
+      if (!fieldsByObject.has(parts[1])) {
         fieldsByObject.set(parts[1], new Set());
+        exactByObject.set(parts[1], new Set());
+      }
     } else if (parts[0] === "FIELD" && parts[3] === "PRESENT") {
-      if (!fieldsByObject.has(parts[1]))
+      if (!fieldsByObject.has(parts[1])) {
         fieldsByObject.set(parts[1], new Set());
+        exactByObject.set(parts[1], new Set());
+      }
       fieldsByObject.get(parts[1]).add(parts[2].toLowerCase());
+      exactByObject.get(parts[1]).add(parts[2]);
     } else {
       checks.push(parts.join("|"));
     }
@@ -124,7 +138,7 @@ function probeRuntimeSchema() {
         clean.slice(-1000)
     );
   }
-  return { fieldsByObject, checks };
+  return { fieldsByObject, exactByObject, checks };
 }
 
 const strip = (text) =>
@@ -140,16 +154,28 @@ const strip = (text) =>
  * Only `__c` fields are collected. objects/Account/ carries 31 *standard*
  * Salesforce fields that were retrieved into source for reference; those are
  * correctly absent from the custom-field schema and must not count as drift.
+ *
+ * `fields` is lower-cased for the existence check, `exact` keeps the spelling
+ * for the case check. See probeRuntimeSchema() for why both are needed.
+ *
+ * `owned` is false when the fields directory exists but declares no custom
+ * fields. That marks a standard object we carry only for reference — the repo
+ * has no stake in it, and a shared sandbox accumulates fields from other
+ * projects on it. A MISSING directory is different and stays a problem: that
+ * means the object vanished from source by accident.
  */
 function repoFieldsFor(objectName) {
   const dir = path.join(OBJECTS_DIR, objectName, "fields");
   if (!existsSync(dir))
     return {
       fields: new Set(),
+      exact: new Set(),
+      owned: false,
       problems: [`object ${objectName} not in source`]
     };
 
   const fields = new Set();
+  const exact = new Set();
   const problems = [];
   for (const file of readdirSync(dir).filter((f) =>
     f.endsWith(".field-meta.xml")
@@ -162,8 +188,9 @@ function repoFieldsFor(objectName) {
       problems.push(`${fromName}: <fullName> says ${fromFullName}`);
     }
     fields.add(fromName.toLowerCase());
+    exact.add(fromName);
   }
-  return { fields, problems };
+  return { fields, exact, owned: exact.size > 0, problems };
 }
 
 function readFileSafe(file) {
@@ -183,9 +210,21 @@ function readFileSafe(file) {
  * compiled into the runtime schema. The Tooling API tells them apart, so the
  * report can say which one it is instead of only "missing".
  *
- * Returns a Set of lower-cased custom field API names known to the Tooling API.
+ * The Tooling API is ALSO the only source of the org's true field spelling.
+ * Apex's `Schema.Describe.fields.getMap()` keys are always lower-case — that is
+ * why `containsKey('DayOfWeek__c')` and `containsKey('DayofWeek__c')` both hit —
+ * so the Apex probe cannot be used for a case comparison at all. FieldDefinition
+ * returns QualifiedApiName as spelled.
+ *
+ * Returns `{ lower, exact }`, or null when the Tooling API is unavailable.
+ * Callers must degrade rather than guess: a case check run against a lower-cased
+ * source would report every field as wrong.
  */
+const toolingCache = new Map();
+
 function toolingFieldsFor(objectName) {
+  if (toolingCache.has(objectName)) return toolingCache.get(objectName);
+
   const query =
     "SELECT QualifiedApiName FROM FieldDefinition " +
     `WHERE EntityDefinition.QualifiedApiName='${objectName}' AND QualifiedApiName LIKE '%__c'`;
@@ -210,42 +249,118 @@ function toolingFieldsFor(objectName) {
       }
     );
   } catch {
+    toolingCache.set(objectName, null);
     return null; // Tooling API unavailable; degrade to runtime-only comparison.
   }
 
+  let result = null;
   try {
     const records = JSON.parse(raw).result?.records ?? [];
-    return new Set(records.map((r) => r.QualifiedApiName.toLowerCase()));
+    const exact = new Set(records.map((r) => r.QualifiedApiName));
+    result = { lower: new Set([...exact].map((n) => n.toLowerCase())), exact };
   } catch {
-    return null;
+    result = null;
+  }
+  toolingCache.set(objectName, result);
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Case comparison
+// ---------------------------------------------------------------------------
+/**
+ * Finds repo fields whose spelling differs from the org's, ignoring case.
+ *
+ * Pure and side-effect free so it can be unit tested: I cannot create a
+ * wrong-cased field in Setup to produce this case for real, and a check that is
+ * only ever green because the situation does not currently exist is not a check.
+ *
+ * Existence has already been established by the caller (a field only lands here
+ * when it matched case-insensitively), so this returns the spelling difference
+ * rather than "missing".
+ *
+ * @param {Set<string>} repoExact  API names as spelled in the repo
+ * @param {Set<string>} orgExact   API names as spelled in the org
+ * @returns {Array<{repo: string, org: string}>}
+ */
+export function findCaseMismatches(repoExact, orgExact) {
+  const orgByLower = new Map();
+  for (const name of orgExact) orgByLower.set(name.toLowerCase(), name);
+  const mismatches = [];
+  for (const name of repoExact) {
+    const orgName = orgByLower.get(name.toLowerCase());
+    if (orgName !== undefined && orgName !== name) {
+      mismatches.push({ repo: name, org: orgName });
+    }
+  }
+  return mismatches.sort((a, b) => a.repo.localeCompare(b.repo));
+}
+
+// ---------------------------------------------------------------------------
+// Entry point
+// ---------------------------------------------------------------------------
+/**
+ * Only probe when run as a script. The test imports this module for its pure
+ * helpers, and importing it must not fire the whole healthcheck — that is
+ * several org round-trips and it would make a unit test depend on the org.
+ */
+function isMain() {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  return path.resolve(entry) === path.resolve(fileURLToPath(import.meta.url));
+}
+
+if (isMain()) {
+  try {
+    report();
+  } catch (err) {
+    console.error(`\nHealthcheck abgebrochen: ${err.message}\n`);
+    process.exit(2);
   }
 }
 
-// ---------------------------------------------------------------------------
-// Report
-// ---------------------------------------------------------------------------
-try {
-  report();
-} catch (err) {
-  console.error(`\nHealthcheck abgebrochen: ${err.message}\n`);
-  process.exit(2);
-}
-
 function report() {
-  const { fieldsByObject, checks } = probeRuntimeSchema();
+  const { fieldsByObject, exactByObject, checks } = probeRuntimeSchema();
 
   const objectNames = [...fieldsByObject.keys()].sort();
   const rows = [];
+  const skipped = [];
   let drift = 0;
 
   for (const objectName of objectNames) {
     const runtime = fieldsByObject.get(objectName);
-    const { fields: repo, problems } = repoFieldsFor(objectName);
+    const {
+      fields: repo,
+      exact: repoExact,
+      owned,
+      problems
+    } = repoFieldsFor(objectName);
     const tooling = toolingFieldsFor(objectName);
+    const toolingLower = tooling?.lower ?? null;
+
+    // An object the repo declares with no custom fields is not ours to verify.
+    // A shared sandbox collects fields from other projects on standard objects
+    // like Account, and those are not drift. Recorded rather than hidden: a check
+    // that silently drops what it ignores is a check you stop trusting.
+    if (!owned && problems.length === 0) {
+      skipped.push({ objectName, runtime: runtime.size });
+      continue;
+    }
 
     const missing = [...repo].filter((f) => !runtime.has(f)).sort();
     const extra = [...runtime].filter((f) => !repo.has(f)).sort();
-    if (missing.length || extra.length || problems.length) drift++;
+    // Only compare against the org's true spelling. Without the Tooling API
+    // there is none to compare against, and guessing would flag all 90 fields.
+    const caseMismatches = tooling?.exact
+      ? findCaseMismatches(repoExact, tooling.exact)
+      : [];
+    if (
+      missing.length ||
+      extra.length ||
+      problems.length ||
+      caseMismatches.length
+    )
+      drift++;
 
     rows.push({
       objectName,
@@ -253,8 +368,9 @@ function report() {
       runtime: runtime.size,
       missing,
       extra,
+      caseMismatches,
       problems,
-      tooling
+      toolingLower
     });
   }
 
@@ -270,6 +386,7 @@ function report() {
     const clean =
       row.missing.length === 0 &&
       row.extra.length === 0 &&
+      row.caseMismatches.length === 0 &&
       row.problems.length === 0;
     const status = clean
       ? "ok"
@@ -282,14 +399,24 @@ function report() {
     for (const field of row.missing) {
       // "Geist" = in der Metadatenschicht vorhanden, aber nie ins Runtime-Schema
       // kompiliert. "Fehlt ueberall" = gar nicht erst angelegt worden.
-      const ghost = row.tooling?.has(field) ? "Geistfeld" : "fehlt ueberall";
+      const ghost = row.toolingLower?.has(field)
+        ? "Geistfeld"
+        : "fehlt ueberall";
       console.log(`${" ".repeat(nameWidth)}    - ${field}  [${ghost}]`);
     }
     for (const field of row.extra)
       console.log(`${" ".repeat(nameWidth)}    + ${field} (nur im Org)`);
+    for (const { repo, org } of row.caseMismatches)
+      console.log(
+        `${" ".repeat(nameWidth)}    ! ${repo}  [Org schreibt: ${org}]`
+      );
     for (const problem of row.problems)
       console.log(`${" ".repeat(nameWidth)}    ! ${problem}`);
   }
+  for (const { objectName, runtime } of skipped)
+    console.log(
+      `${objectName.padEnd(nameWidth)}  ${"übersprungen".padEnd(6)}  ${String(runtime).padStart(3)}  Repo deklariert 0 Custom-Felder — Felder im Org stammen aus fremden Projekten`
+    );
   console.log(rule);
 
   const summary = checks.find((c) => c.startsWith("SUMMARY|"));

@@ -142,6 +142,16 @@ removed from source and from the org on 2026-09-29. `objects/Account/` holds 31
 retrieved _standard_ Salesforce fields for reference; they carry no `__c` suffix and
 are not part of the custom schema.
 
+The repo declares **no** custom field on `Account`, which is why `schema:check` reports
+it as _übersprungen_ rather than as drift. That is a rule, not a special case: any
+object whose `fields/` directory exists but declares zero `__c` fields is outside this
+project's scope. `hubSandbox` is shared, and other projects land custom fields on
+standard objects there — currently `adresschoice__c`, `maps__assignmentrule__c`,
+`schulform__c` and `typeform__typeform_form_mapping__c`. Enumerating those four would
+break again on the next foreign change; ignoring the whole object does not. A
+**missing** `fields/` directory stays a hard problem, so deleting an object's fields by
+accident is still caught.
+
 `Program__c` fields:
 
 ```text
@@ -819,6 +829,30 @@ org are listed in `docs/schema-repair-checklist.md`.
 
 **Rule:** a field is only operational once `sf sobject describe` returns it _and_
 `sf data query` accepts it. Deployment success is not evidence.
+
+**Case is a separate property, and it is checked separately (2026-09-30).** Existence
+alone does not prove a field name is right. Salesforce is tolerant of case where it is
+not helpful to be strict, and strict where it matters:
+
+| Context                                     | `DayOfWeek__c` vs `DayofWeek__c`                                                                        |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| SOQL                                        | same field, either spelling works                                                                       |
+| Apex `Schema.getDescribe().fields.getMap()` | same field — the map keys are **lower-case**, and `containsKey` is case-insensitive                     |
+| **uiapi GraphQL**                           | **ValidationError: FieldUndefined** — GraphQL is case-sensitive and reads as if the field did not exist |
+
+API names are immutable, so the only remedy is delete and recreate. `schema:check`
+compares case-insensitively for existence **and** case-sensitively for spelling; a
+difference counts as drift and exits 1. The spelling comes from the Tooling API
+(`FieldDefinition.QualifiedApiName`), not from the Apex probe — the probe's keys are
+lower-cased and would report all 90 fields as wrong. Covered by
+`npm run test:schema`.
+
+**What `schema:check` does NOT cover:** field _attributes_ other than existence —
+`required`, `unique`, `externalId` and `deleteConstraint` are not compared. `required`
+and `unique` were verified by hand for all 90 fields on 2026-09-30 and match. The five
+`deleteConstraint: Restrict` lookups were verified by attempting a delete, because
+`sf sobject describe` does not report the attribute at all. Treat this as a known gap,
+not as coverage.
 
 **Consequence for field creation (proved by control test E1 on 2026-09-29):** a custom
 field created through `sf project deploy start` appears in `FieldDefinition` but never in
