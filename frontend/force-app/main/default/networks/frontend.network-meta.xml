@@ -36,19 +36,17 @@
     <gatherCustomerSentimentData>false</gatherCustomerSentimentData>
     <headlessForgotPasswordTemplate>unfiled$public/CommunityHeadlessForgotPasswordTemplate</headlessForgotPasswordTemplate>
     <headlessRegistrationTemplate>unfiled$public/CommunityHeadlessRegistrationTemplate</headlessRegistrationTemplate>
-    <networkMemberGroups>
-        <!-- Wird auf Customer Community Plus User zurueckgesetzt, nicht auf die
-             Login-Variante: Portalrollen in dieser Org existieren nur als
-             PersonAccount-Rollen mit PortalType=CustomerPortal, und die
-             benoetigen zwingend eine PortalAccountId. Die Login-Variante hat
-             zwar 40 freie Plaetze, aber keine zu ihr passende Rolle
-             ("role type must match user type" / "Invalid role assignment").
-             Dazu ist PID_Customer_Community_Plus mit 2 von 2 Plaetzen voll,
-             waehrend Customer Community Plus Login 40 frei hat. Die Bindung an
-             ein Profil, fuer das sich kein Portal-User anlegen laesst, waere
-             wertlos. -->
-        <profile>Customer Community Plus User</profile>
-    </networkMemberGroups>
+    <!-- KEINE networkMemberGroups.
+         Eine explizite Gruppe auf ein externes Profil nimmt dem internen
+         Administrator die implizite Site-Mitgliedschaft: die URL der Site
+         verschwindet aus All Sites, "Erweitert" laesst sich nicht oeffnen und
+         der Experience Builder ist unerreichbar. Genau das ist mit diesem
+         Netzwerk passiert, seit die Gruppe gesetzt wurde.
+
+         NetworkMember ist per Metadata API nicht anlegbar (create=False), die
+         Mitgliedschaft kann also nur in Setup gepflegt werden. Ohne Gruppe
+         gilt wieder die implizite Mitgliedschaft, der Builder ist erreichbar
+         und Portalnutzer werden ueber Setup einzeln eingetragen. -->
     <networkPageOverrides>
         <changePasswordPageOverrideSetting>Standard</changePasswordPageOverrideSetting>
         <forgotPasswordPageOverrideSetting>Designer</forgotPasswordPageOverrideSetting>
