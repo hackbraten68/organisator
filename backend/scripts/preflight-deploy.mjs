@@ -60,6 +60,52 @@ const BLOCKING = {
   CustomProfile: "alias for Profile in some sources"
 };
 
+/**
+ * Rules that only apply to ONE project.
+ *
+ * Experience Cloud belongs to the `frontend` project (AGENTS.md ownership), and
+ * `frontend/scripts/org-setup.mjs` reuses this module against its own tree with
+ * `projectRoot: "frontend"`. A flat BLOCKING table would therefore block the
+ * frontend's legitimate Network/Site/bundle deploy, so these live behind a
+ * project key.
+ *
+ * The `backend` entry covers a retrieve without an explicit member list: it
+ * drags the stock Communities template set into the backend tree. Because that
+ * project deploys with a bare `sf project deploy start`, the residue goes live
+ * on the next deploy and re-opens the self-registration surface that Phase 0
+ * and ADR-005 removed.
+ */
+const BLOCKING_BY_PROJECT = {
+  backend: {
+    Network: "owned by the frontend project; deploys a second Experience Cloud network",
+    Site: "owned by the frontend project; deploys a second site",
+    CustomSite: "same as Site",
+    DigitalExperienceBundle: "owned by the frontend project",
+    ExperienceBundle: "alias for DigitalExperienceBundle in some sources",
+    DigitalExperienceConfig: "owned by the frontend project",
+    NetworkBranding: "owned by the frontend project",
+    CustomIndex: "owned by the frontend project",
+    CustomAudience: "owned by the frontend project",
+    NavigationMenu: "owned by the frontend project",
+    AppMenu: "owned by the frontend project",
+    SiteProfile: "owned by the frontend project",
+
+    // This project ships a UI bundle, not Visualforce. Any ApexPage in the tree
+    // came from the Communities template (`CommunitiesSelfReg.page`,
+    // `SiteRegisterConfirm.page`, `MicrobatchSelfReg.page`, ...).
+    ApexPage: "stock Visualforce from the Communities template; no VF in this app"
+  }
+};
+
+/**
+ * The effective rule set for a project.
+ * @param {string} projectRoot project directory name, e.g. "backend"
+ * @returns {Record<string, string>} type -> reason
+ */
+export function blockingRulesFor(projectRoot) {
+  return { ...BLOCKING, ...(BLOCKING_BY_PROJECT[projectRoot] ?? {}) };
+}
+
 /** Types worth printing so a human can see what a deploy would carry. */
 const NOTABLE = new Set([
   "Profile",
@@ -109,7 +155,17 @@ const METADATA_SUFFIXES = [
   [".resource-meta.xml", "StaticResource"],
   [".resource", "StaticResource"],
   [".labels-meta.xml", "Labels"],
-  [".tab-meta.xml", "CustomTab"]
+  [".tab-meta.xml", "CustomTab"],
+  [".network-meta.xml", "Network"],
+  [".site-meta.xml", "Site"],
+  [".digitalExperienceBundle-meta.xml", "DigitalExperienceBundle"],
+  [".digitalExperienceConfig-meta.xml", "DigitalExperienceConfig"],
+  [".networkBranding-meta.xml", "NetworkBranding"],
+  [".customindex-meta.xml", "CustomIndex"],
+  [".audience-meta.xml", "CustomAudience"],
+  [".navigationMenu-meta.xml", "NavigationMenu"],
+  [".appMenu-meta.xml", "AppMenu"],
+  [".siteProfile-meta.xml", "SiteProfile"]
 ];
 
 const SKIP_DIRS = new Set([
@@ -125,9 +181,12 @@ const SKIP_DIRS = new Set([
 /**
  * Walks the metadata tree and returns the file counts per type.
  * @param {string} sourceDir absolute path to force-app/main/default
+ * @param {Record<string, string>} [blocking] type -> reason; defaults to the
+ *   project-independent rule set only. Callers that know the project should use
+ *   {@link blockingRulesFor}.
  * @returns {{counts: Record<string, number>, blocking: Array<{type: string, file: string}>}}
  */
-export function scanSourceDir(sourceDir = DEFAULT_DIR) {
+export function scanSourceDir(sourceDir = DEFAULT_DIR, blockingRules = BLOCKING) {
   const counts = Object.create(null);
   const blocking = [];
 
@@ -153,11 +212,11 @@ export function scanSourceDir(sourceDir = DEFAULT_DIR) {
       for (const [suffix, type] of METADATA_SUFFIXES) {
         if (!entry.name.endsWith(suffix)) continue;
         counts[type] = (counts[type] ?? 0) + 1;
-        if (BLOCKING[type]) {
+        if (blockingRules[type]) {
           blocking.push({
             type,
             file: full.replace(`${sourceDir}/`, ""),
-            reason: BLOCKING[type]
+            reason: blockingRules[type]
           });
         }
         break;
@@ -178,7 +237,7 @@ export function preflightDeploy(opts = {}) {
   const sourceDir = opts.sourceDir ?? DEFAULT_DIR;
   const projectRoot =
     opts.projectRoot ?? basename(resolve(sourceDir, "..", "..", ".."));
-  const { counts, blocking } = scanSourceDir(sourceDir);
+  const { counts, blocking } = scanSourceDir(sourceDir, blockingRulesFor(projectRoot));
 
   if (blocking.length > 0) {
     const lines = blocking.map(

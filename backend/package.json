@@ -15,6 +15,8 @@
     "test": "npm run test:unit",
     "test:coverage": "npm run test",
     "test:schema": "node --test scripts/schema-check.test.mjs",
+    "test:preflight": "node --test scripts/preflight-deploy.test.mjs",
+    "test:scripts": "npm run test:schema && npm run test:preflight",
     "test:unit": "sfdx-lwc-jest -- --passWithNoTests",
     "test:unit:watch": "sfdx-lwc-jest --watch",
     "test:unit:debug": "sfdx-lwc-jest --debug",

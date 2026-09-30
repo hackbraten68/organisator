@@ -22,5 +22,40 @@ package.xml
 # LWC Jest
 **/__tests__/**
 
+# Experience Cloud belongs to the `frontend` project (AGENTS.md metadata
+# ownership). A retrieve without an explicit member list pulls the stock
+# Communities template set into this project: a second Network/Site, ~46 VF
+# pages and the self-registration controllers that Phase 0 / ADR-005
+# deliberately removed. Because both projects deploy with a bare
+# `sf project deploy start`, that residue goes live on the next backend
+# deploy and contradicts `selfRegistration=false`.
+**/networks/**
+**/sites/**
+**/digitalExperienceConfigs/**
+**/digitalExperiences/**
+**/networkBranding/**
+**/experiences/**
+**/audience/**
+**/experienceBundle/**
+**/pages/**
+**/aura/**
+**/components/**
+**/customindex/**
+**/navigationMenus/**
+**/appMenus/**
+**/siteProfile/**
+**/sharingSites/**
+**/managedContent/****
+
+# Foreign managed-package metadata (Partner Marketing `prm_*`, MDF). Owned by
+# the package, not by this project; deploying it makes us responsible for it.
+**/reportTypes/prm_*
+**/reportTypes/MDF_*
+**/reports/prm_*
+**/dashboards/prm_*
+**/dashboards/cmc_*
+**/staticresources/SiteSamples*
+**/objects/prm_*
+
 node_modules/
 .DS_Store
