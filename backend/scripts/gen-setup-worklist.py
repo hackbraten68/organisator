@@ -154,6 +154,13 @@ def object_block(obj, oroot, fields):
     out.append('> The API name is generated from the Label. After saving, Object Manager must '
                f'show the API name `{obj}`. If it differs, the object cannot be renamed — '
                'delete it and redo.')
+    out.append('>')
+    out.append(f'> **Verify:** the repository sets `externalSharingModel` to '
+               f'`{txt(oroot, "externalSharingModel") or "not set"}` on this object. It is not '
+               'offered in the new-object form in current releases, so treat it as something '
+               'to confirm afterwards, not something to click now. For the portal this matters: '
+               'a non-private value would let external users see the object through a sharing '
+               'rule without one. Check in Object Manager after creating all ten objects.')
     out.append('')
 
     out.append('### Step 2 — Create the tab')

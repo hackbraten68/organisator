@@ -61,6 +61,8 @@ sein Zielfeld existiert. Die vier Wurzelobjekte sind unabhaengig.
 | Allow in Chatter Groups | unchecked |
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `AuditOutbox__c`. If it differs, the object cannot be renamed — delete it and redo.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
 
 ### Step 2 — Create the tab
 
@@ -240,6 +242,8 @@ Values — enter **Value** and **Display Value** separately:
 | Allow in Chatter Groups | unchecked |
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `AvailabilitySlot__c`. If it differs, the object cannot be renamed — delete it and redo.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
 
 ### Step 2 — Create the tab
 
@@ -408,6 +412,8 @@ Values — enter **Value** and **Display Value** separately:
 | Allow in Chatter Groups | unchecked |
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `Coach_Profile__c`. If it differs, the object cannot be renamed — delete it and redo.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
 
 ### Step 2 — Create the tab
 
@@ -541,6 +547,8 @@ Values — enter **Value** and **Display Value** separately:
 | Allow in Chatter Groups | unchecked |
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `Program__c`. If it differs, the object cannot be renamed — delete it and redo.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
 
 ### Step 2 — Create the tab
 
@@ -634,6 +642,8 @@ Values — enter **Value** and **Display Value** separately:
 | Allow in Chatter Groups | unchecked |
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `Module__c`. If it differs, the object cannot be renamed — delete it and redo.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
 
 ### Step 2 — Create the tab
 
@@ -723,6 +733,8 @@ Values — enter **Value** and **Display Value** separately:
 | Allow in Chatter Groups | unchecked |
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `Participant__c`. If it differs, the object cannot be renamed — delete it and redo.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
 
 ### Step 2 — Create the tab
 
@@ -908,6 +920,8 @@ Values — enter **Value** and **Display Value** separately:
 | Allow in Chatter Groups | unchecked |
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `Absence__c`. If it differs, the object cannot be renamed — delete it and redo.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
 
 ### Step 2 — Create the tab
 
@@ -1137,6 +1151,8 @@ Values — enter **Value** and **Display Value** separately:
 | Allow in Chatter Groups | unchecked |
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `Appointment__c`. If it differs, the object cannot be renamed — delete it and redo.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
 
 ### Step 2 — Create the tab
 
@@ -1406,6 +1422,8 @@ Values — enter **Value** and **Display Value** separately:
 | Allow in Chatter Groups | unchecked |
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `AuditEvent__c`. If it differs, the object cannot be renamed — delete it and redo.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
 
 ### Step 2 — Create the tab
 
@@ -1850,6 +1868,8 @@ Values — enter **Value** and **Display Value** separately:
 | Allow in Chatter Groups | unchecked |
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `Learning_Path__c`. If it differs, the object cannot be renamed — delete it and redo.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
 
 ### Step 2 — Create the tab
 
