@@ -19,7 +19,7 @@ private class ParticipantPortalSharingServiceTest {
     // RowCause of the shares this service manages. 'Manual' rather than a
     // dedicated sharing reason, because no Apex Sharing Reason can be created
     // in this sandbox — see PORTAL_ROW_CAUSE in the service.
-    private static final String PORTAL_REASON = 'Manual';
+    private static final String PORTAL_REASON = 'Portal_Access__c';
 
     /**
      * Asserts on the service's decision instead of on the share rows.
@@ -148,25 +148,37 @@ private class ParticipantPortalSharingServiceTest {
             ParentId = rowId,
             UserOrGroupId = userId,
             AccessLevel = ParticipantPortalSharingService.PORTAL_ACCESS_LEVEL,
-            RowCause = Schema.Participant__Share.RowCause.Manual
+            RowCause = Schema.Participant__Share.RowCause.Portal_Access__c
         );
     }
 
-    private static Map<Id, Map<Id, Participant__Share>> heldFor(
-        Participant__Share a,
-        Participant__Share b
-    ) {
+    private static Map<Id, Map<Id, Participant__Share>> heldFor(List<Participant__Share> shares) {
         Map<Id, Map<Id, Participant__Share>> byRow = new Map<Id, Map<Id, Participant__Share>>();
-        for (Participant__Share share : new List<Participant__Share>{ a, b }) {
-            if (share == null) {
-                continue;
-            }
+        for (Participant__Share share : shares) {
             if (!byRow.containsKey(share.ParentId)) {
                 byRow.put(share.ParentId, new Map<Id, Participant__Share>());
             }
             byRow.get(share.ParentId).put(share.UserOrGroupId, share);
         }
         return byRow;
+    }
+
+    private static Map<Id, Map<Id, Participant__Share>> heldFor(Participant__Share a) {
+        List<Participant__Share> shares = new List<Participant__Share>();
+        if (a != null) {
+            shares.add(a);
+        }
+        return heldFor(shares);
+    }
+
+    /** A share under some other reason — an administrator's, not the portal's. */
+    private static Participant__Share foreignShare(Id rowId, Id userId) {
+        return new Participant__Share(
+            ParentId = rowId,
+            UserOrGroupId = userId,
+            AccessLevel = ParticipantPortalSharingService.PORTAL_ACCESS_LEVEL,
+            RowCause = Schema.Participant__Share.RowCause.Manual
+        );
     }
 
     @IsTest
@@ -176,7 +188,6 @@ private class ParticipantPortalSharingServiceTest {
         Test.startTest();
         ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
             new List<Participant__c>{ participant },
-            new Map<Id, Id>(),
             new Map<Id, Map<Id, Participant__Share>>()
         );
         Test.stopTest();
@@ -202,8 +213,7 @@ private class ParticipantPortalSharingServiceTest {
         Test.startTest();
         ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
             new List<Participant__c>{ participant },
-            new Map<Id, Id>(),
-            heldFor(heldShare(participant.Id, userOne()), null)
+            heldFor(heldShare(participant.Id, userOne()))
         );
         Test.stopTest();
 
@@ -218,8 +228,7 @@ private class ParticipantPortalSharingServiceTest {
         Test.startTest();
         ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
             new List<Participant__c>{ participant },
-            new Map<Id, Id>{ participant.Id => userOne() },
-            heldFor(heldShare(participant.Id, userOne()), null)
+            heldFor(heldShare(participant.Id, userOne()))
         );
         Test.stopTest();
 
@@ -236,8 +245,7 @@ private class ParticipantPortalSharingServiceTest {
         Test.startTest();
         ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
             new List<Participant__c>{ participant },
-            new Map<Id, Id>{ participant.Id => userOne() },
-            heldFor(heldShare(participant.Id, userOne()), null)
+            heldFor(heldShare(participant.Id, userOne()))
         );
         Test.stopTest();
 
@@ -247,55 +255,43 @@ private class ParticipantPortalSharingServiceTest {
     }
 
     @IsTest
-    static void anotherUsersManualShareSurvivesTheReleaseTargetChanging() {
-        // What RowCause.Manual cannot decide by itself: an administrator who also
-        // granted somebody else access must not have that grant revoked when the
-        // portal's own release target moves on.
+    static void aShareUnderAnotherReasonIsNeverRemoved() {
+        // The separation the Portal_Access__c reason exists for. An administrator
+        // who also granted somebody else access must not have that grant revoked
+        // when the portal's own release target moves on — not even when that
+        // administrator granted it to the very user the portal releases to.
+        //
+        // Under RowCause.Manual this case was indistinguishable from ours; it is
+        // only decidable now because the reasons differ.
         Id thirdUserId = makeUser('Three');
         Participant__c participant = row('ThirdParty', userTwo());
 
         Test.startTest();
         ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
             new List<Participant__c>{ participant },
-            new Map<Id, Id>{ participant.Id => userOne() },
-            heldFor(
-                heldShare(participant.Id, thirdUserId),
-                heldShare(participant.Id, userOne())
-            )
+            // Only our own share is visible to the service; the administrator's
+            // share is not in the collection at all, because the query filters on
+            // PORTAL_ROW_CAUSE.
+            heldFor(heldShare(participant.Id, userOne()))
         );
         Test.stopTest();
 
-        Integer removedThirdParty = 0;
-        for (Participant__Share share : plan.remove) {
-            if (share.UserOrGroupId == thirdUserId) {
-                removedThirdParty++;
-            }
-        }
-        System.assertEquals(0, removedThirdParty, 'an unrelated user\'s share is not ours to remove');
+        System.assertEquals(1, plan.remove.size(), 'only the portal\'s own share is removed');
         System.assertEquals(
-            1,
-            plan.keptAsAmbiguous.size(),
-            'and must be reported instead of dropped silently'
+            userOne(),
+            plan.remove[0].UserOrGroupId,
+            'and it is the one carrying our reason'
         );
-        System.assertEquals(thirdUserId, plan.keptAsAmbiguous[0].UserOrGroupId);
-    }
-
-    @IsTest
-    static void aShareWithoutAUsablePreviousValueIsKeptNotDeleted() {
-        // A full reconcile cannot attribute an orphan, so it adds and refuses to
-        // delete. Revoking access silently would be the worse failure.
-        Participant__c participant = row('OrphanKept', null);
-
-        Test.startTest();
-        ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
-            new List<Participant__c>{ participant },
-            null,
-            heldFor(heldShare(participant.Id, userOne()), null)
+        System.assertEquals(
+            Schema.Participant__Share.RowCause.Portal_Access__c,
+            plan.remove[0].RowCause,
+            'the removed share must be ours'
         );
-        Test.stopTest();
-
-        System.assertEquals(0, plan.remove.size(), 'without a previous value nothing may be removed');
-        System.assertEquals(1, plan.keptAsAmbiguous.size(), 'it must be reported instead');
+        System.assertNotEquals(
+            thirdUserId,
+            plan.remove[0].UserOrGroupId,
+            'an administrator\'s grant is untouched'
+        );
     }
 
     @IsTest
@@ -308,7 +304,6 @@ private class ParticipantPortalSharingServiceTest {
         Test.startTest();
         ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
             participants,
-            new Map<Id, Id>(),
             new Map<Id, Map<Id, Participant__Share>>()
         );
         Test.stopTest();
@@ -330,8 +325,7 @@ private class ParticipantPortalSharingServiceTest {
         // unchanged target the plan must be empty either way.
         ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
             new List<Participant__c>{ participant },
-            new Map<Id, Id>{ participant.Id => userOne() },
-            heldFor(heldShare(participant.Id, userOne()), null)
+            heldFor(heldShare(participant.Id, userOne()))
         );
         Test.stopTest();
 
@@ -349,7 +343,6 @@ private class ParticipantPortalSharingServiceTest {
         Test.startTest();
         ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
             new List<Participant__c>{ a, b },
-            new Map<Id, Id>(),
             new Map<Id, Map<Id, Participant__Share>>()
         );
         Test.stopTest();
@@ -365,6 +358,28 @@ private class ParticipantPortalSharingServiceTest {
         }
         System.assertEquals(1, forOne, 'user one is released on their own row only');
         System.assertEquals(1, forTwo, 'user two is released on their own row only');
+    }
+
+    @IsTest
+    static void aClearedTargetMakesAnOrphanedShareRemovable() {
+        // With a dedicated reason, synchroniseAll() can finally clean up: an
+        // orphaned share is identifiable because it carries our reason and no
+        // longer matches Portal_User__c. Under RowCause.Manual this was
+        // impossible — the share could not be attributed, so it had to be left.
+        Participant__c participant = row('Orphaned', null);
+
+        Test.startTest();
+        // What synchroniseAll() does for such a row: it passes the row plus the
+        // share it still holds, and the plan removes it.
+        ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
+            new List<Participant__c>{ participant },
+            heldFor(heldShare(participant.Id, userOne()))
+        );
+        Test.stopTest();
+
+        System.assertEquals(1, plan.remove.size(), 'a share without a release target is removed');
+        System.assertEquals(userOne(), plan.remove[0].UserOrGroupId);
+        System.assertEquals(0, plan.grant.size(), 'and nothing is granted in its place');
     }
 
     @IsTest

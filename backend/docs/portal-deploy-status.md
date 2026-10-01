@@ -177,29 +177,59 @@ existiert. Der Share ist damit das Gate, nicht der serverseitige Filter.
 Der 403 ist gewollt: der Caller ist ein legitimer, angemeldeter Portal-User — die
 ehrliche Antwort ist „nicht für dich freigegeben", nicht „existiert nicht".
 
-### Apex Sharing Reason: nicht anlegbar, durch Identitätsprüfung ersetzt
+### Apex Sharing Reason `Portal_Access__c`
 
-`ApexSharingReason` steht nicht in der Registry des `@salesforce/cli` und lässt sich
-deshalb weder deployen noch retrieven. Der Menüpunkt unter Setup → Object Manager →
-Participant → Apex Sharing Reasons ist in dieser Org nicht vorhanden. `Participant__Share`
-selbst ist vollständig funktionsfähig — `queryable`, `createable`, die Felder `Id`,
-`ParentId`, `UserOrGroupId`, `AccessLevel`, `RowCause` sind da — es fehlt nur der eigene
-Grund.
+**Der Eintrag existiert nur in Salesforce Classic, nicht in Lightning.** In Lightning →
+Object Manager → Participant fehlt er vollständig, was leicht als Org-Defekt fehlgedeutet
+wird. Der Weg:
 
-`ParticipantPortalSharingService` nutzt deshalb `RowCause.Manual` und erkennt die eigenen
-Shares an ihrer Identität statt am RowCause: Eine Share gehört dem Portal, wenn ihr
-`UserOrGroupId` dem vorherigen oder dem aktuellen `Portal_User__c` der Row entspricht. Der
-Trigger liefert den vorherigen Wert aus `Trigger.oldMap`.
+```text
+Setup → Switch to Salesforce Classic → Build → Create → Objects
+→ Participant (Objektnamen anklicken) → Related List "Apex Sharing Reasons" → New
+  Label: Portal Access
+  Name:  Portal_Access
+```
 
-**Was das kostet:** Eine manuelle Freigabe eines Administrators an eine *dritte* Person
-wird nie angefasst. Eine manuelle Freigabe an *denselben* User wie das Portal kann aber
-nicht unterschieden werden und würde beim Wechsel des Release-Ziels mit entfernt. Ein
-eigener Sharing Reason würde das auflösen; `PORTAL_ROW_CAUSE` ist die einzige Stelle, die
-dann zu ändern wäre, `isOurs()` bliebe schlicht überflüssig.
+`ApexSharingReason` fehlt zudem in der Registry des `@salesforce/cli`, der Grund ist also
+nicht deploybar. Nach dem Anlegen ist er in Apex referenzierbar:
 
-`synchroniseAll()` ist deshalb **nur additiv**: ohne vorherigen Wert kann eine verwaiste
-Share nicht zugeordnet werden, und stilles Entziehen von Zugriff ist der schlimmere
-Fehler. Solche Shares werden geloggt statt gelöscht.
+```text
+Schema.Participant__Share.RowCause.Portal_Access__c
+```
+
+Damit trennt der RowCause die Portal-Shares sauber von allen anderen Freigaben auf
+`Participant__c`. Vorher (`RowCause.Manual`) musste der Service die eigenen Shares über die
+Identität erkennen — der User, auf den die Row freigegeben ist — was eine Admin-Freigabe an
+dieselbe Person nicht von einer Portal-Freigabe unterscheiden konnte. Mit eigenem Grund ist
+das nicht mehr nötig: `isOurs()`, `keptAsAmbiguous` und der `previousPortalUsers`-Parameter
+sind ersatzlos entfallen.
+
+**Nachgewiesen live.** Eine manuelle Admin-Freigabe (`Manual`) und die Portal-Freigabe
+(`Portal_Access__c`) zeigten auf **denselben** Portal-User derselben Row. Nach dem Umhängen
+des Release-Ziels:
+
+| UserOrGroupId | RowCause | nach dem Wechsel |
+|---|---|---|
+| `0059X00000qeMkQQAU` | `Portal_Access__c` | durch die neue ersetzt |
+| `0059X00000qeMkQQAU` | `Manual` | **unverändert erhalten** |
+
+Unter `Manual` wären beide Rows nicht unterscheidbar gewesen.
+
+`RowCause` ist kein schreibbares Feld (`Field is not writeable: Participant__Share.RowCause`),
+Shares lassen sich also nicht in-place umstellen. Nach dem Wechsel des Grundes einmal
+`synchroniseAll()` ausführen: es löscht die Shares des alten Grundes und legt sie neu an.
+
+### `synchroniseAll()` ist vollständig, nicht nur additiv
+
+Mit eigenem Grund kann der Abgleich auch verwaiste Shares entfernen — eine Row, deren
+`Portal_User__c` geleert wurde, ohne dass der Trigger lief. Vorher war das unmöglich, weil
+eine verwaiste Share keinem Portal-User zugeordnet werden konnte und stilles Entziehen als
+das größere Risiko galt. Der Trigger deckt den Einzelzeilenfall ab, `synchroniseAll()` alles
+Übrige: aus Setup oder Data Loader importierte Rows, ein Release-Ziel, das bei inaktivem
+Trigger geändert wurde, und Shares aus einer früheren RowCause-Generation.
+
+Berührt weiterhin ausschließlich Shares mit `PORTAL_ROW_CAUSE`. Eine manuelle
+Admin-Freigabe wird von einem Reconcile nicht entfernt.
 
 ### Live-Nachweis der Automatik
 
@@ -207,13 +237,14 @@ Fehler. Solche Shares werden geloggt statt gelöscht.
 
 | Aktion | Ergebnis |
 |---|---|
-| `Portal_User__c` auf einen Portal-User setzen | Read-Share automatisch angelegt |
-| Release von Mehmet auf Probe-User umhängen | alte Share entfernt, neue angelegt, nur eine bleibt |
+| `Portal_User__c` auf einen Portal-User setzen | Read-Share mit `Portal_Access__c` angelegt |
+| Release von Mehmet auf Probe-User umhängen | alte Share ersetzt, neue angelegt, nur eine bleibt |
+| Admin-`Manual`-Share an denselben User | **unverändert erhalten** |
 | Mehmet nach der Umhängung | **403 `PORTAL_ACCESS_NOT_GRANTED`** |
 | `Portal_User__c` auf `null` | Share entfernt, 0 Rows |
 | Mehmet ohne Freigabe | **403 `PORTAL_ACCESS_NOT_GRANTED`** |
-| `synchroniseAll()` | fehlende Share ergänzt, bestehende unverändert |
-| zurücksetzen | beide User wieder 200 mit eigener Row |
+| `synchroniseAll()` nach RowCause-Wechsel | alte Shares ersetzt, `Portal_Access__c` |
+| Endstand | beide User 200 mit eigener Row, ohne Session 401 |
 
 Eine Share an einen **internen** User schlägt fehl:
 

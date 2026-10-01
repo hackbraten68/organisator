@@ -386,14 +386,21 @@ Two independent layers guard `/me`:
 2. **Identity filter** — `resolveForPortalUser()` additionally asserts
    `Portal_User__c = UserInfo.getUserId()`, else **403 `PORTAL_ACCESS_NOT_GRANTED`**.
 
-Two things to know before changing this:
+Three things to know before changing this:
 
-- **`RowCause` is `Manual`, not a custom sharing reason.** No Apex Sharing Reason can be
-  created in this sandbox, so the service attributes its shares by identity instead: a
-  share is ours if its `UserOrGroupId` matches the row's previous or current
-  `Portal_User__c`. An administrator's share to a third user is never touched; one to the
-  *same* user cannot be told apart. `PORTAL_ROW_CAUSE` is the only thing to change once a
-  real reason exists.
+- **The RowCause is `Portal_Access__c`, an Apex Sharing Reason, and it exists only in
+  Salesforce Classic.** In Lightning → Object Manager → Participant the entry is missing
+  entirely, which reads like an org defect but is not. Create it via
+  `Setup → Switch to Salesforce Classic → Build → Create → Objects → Participant →
+  Apex Sharing Reasons → New`, Label `Portal Access`, Name `Portal_Access`.
+  It is what separates the portal's shares from an administrator's: with it, a `Manual`
+  share on the same row pointing at the same user is left alone even when the release
+  target changes. That case was indistinguishable before the reason existed.
+  `ApexSharingReason` is not in the `@salesforce/cli` registry, so it is a manual step and
+  `PORTAL_ROW_CAUSE` in the service is the one place to change.
+- **`RowCause` is not a writable field** (`Field is not writeable:
+  Participant__Share.RowCause`), so shares cannot be converted when the reason changes.
+  Delete the old ones and run `ParticipantPortalSharingService.synchroniseAll()`.
 - **A share to an *internal* user fails** with
   `FIELD_INTEGRITY_EXCEPTION: trivial share level Read, for organization with default level Edit`.
   `sharingModel = ReadWrite` means the internal default is Edit, so Read is trivial there.

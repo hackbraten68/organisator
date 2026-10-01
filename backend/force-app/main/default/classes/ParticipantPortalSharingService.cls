@@ -17,13 +17,15 @@
  * WHAT IT GUARANTEES
  *   For the given participants it makes the set of Portal_Access__c shares
  *   match Participant__c.Portal_User__c exactly:
- *     - Portal_User__c set    -> exactly one Read share for that user
- *     - Portal_User__c changed-> the old user's share is removed
- *     - Portal_User__c cleared-> the share is removed
- *     - unchanged             -> nothing happens
+ *     - Portal_User__c set     -> exactly one Read share for that user
+ *     - Portal_User__c changed -> the old user's share is removed
+ *     - Portal_User__c cleared -> the share is removed
+ *     - unchanged              -> nothing happens
  *
- *   It never touches shares of other row causes, so manual or other automated
- *   sharing on this object is left alone.
+ *   It never touches shares of other row causes, so an administrator's manual
+ *   grant or a sharing rule on this object is left alone. That separation is
+ *   what the dedicated Portal_Access__c reason exists for; see
+ *   PORTAL_ROW_CAUSE.
  *
  * FAIL-CLOSED
  *   A share that cannot be granted aborts the transaction. Partial access is
@@ -44,27 +46,27 @@ public without sharing class ParticipantPortalSharingService {
     /**
      * RowCause used for every share this service manages.
      *
-     * The obvious choice would be a dedicated Apex Sharing Reason
-     * (`Portal_Access__c`), which would make attribution trivial: the service
-     * would simply filter on it. That is not available in this sandbox. The type
-     * is missing from the @salesforce/cli registry, so it can be neither
-     * deployed nor retrieved, and Setup does not offer the menu entry for it.
-     * `Participant__Share` itself works — it is queryable, createable, and rows
-     * inserted through it are effective — so only the label is unavailable.
+     * A dedicated Apex Sharing Reason makes attribution trivial: this service
+     * only ever touches shares carrying this reason, and every other share on
+     * Participant__c — an administrator's manual grant, a sharing rule, a
+     * territory rule — is by construction none of its business.
      *
-     * The cost is real and worth stating: with `Manual` the RowCause no longer
-     * distinguishes our shares, so a share is recognised as ours by identity
-     * instead — its `UserOrGroupId` must equal the row's previous or current
-     * `Portal_User__c`. An administrator's manual share to some third user is
-     * therefore never touched, but an administrator's manual share to the *same*
-     * user the portal manages cannot be told apart from ours and would be
-     * removed when the release target changes.
+     * The reason lives at
      *
-     * Change this constant back to a real sharing reason as soon as one can be
-     * created; the identity check in isOurs() then becomes redundant but stays
-     * harmless.
+     *   Setup → (Switch to Salesforce Classic) → Build → Create → Objects →
+     *   Participant → Apex Sharing Reasons → New
+     *
+     * It is absent from the Lightning Object Manager, which is why a search there
+     * comes up empty, and `ApexSharingReason` is missing from the @salesforce/cli
+     * registry, so it can be neither deployed nor retrieved — it is a manual step.
+     *
+     * RowCause is not a writable field (`Field is not writeable:
+     * Participant__Share.RowCause`), so shares created under an earlier reason
+     * cannot be migrated in place. Run synchroniseAll() after changing this
+     * constant: it deletes shares under the old reason and re-grants under the
+     * new one.
      */
-    public static final String PORTAL_ROW_CAUSE = 'Manual';
+    public static final String PORTAL_ROW_CAUSE = 'Portal_Access__c';
 
     /** The access level every portal share is granted at. */
     public static final String PORTAL_ACCESS_LEVEL = 'Read';
@@ -84,12 +86,10 @@ public without sharing class ParticipantPortalSharingService {
      * without touching the database.
      */
     public class SharePlan {
-        /** Shares whose target is no longer the released user, and ours to remove. */
+        /** Shares to remove: they carry our reason but no longer match the target. */
         public List<Participant__Share> remove = new List<Participant__Share>();
         /** Shares to create, at PORTAL_ACCESS_LEVEL. */
         public List<Participant__Share> grant = new List<Participant__Share>();
-        /** Shares that could not be attributed to the portal and were left alone. */
-        public List<Participant__Share> keptAsAmbiguous = new List<Participant__Share>();
     }
 
     /**
@@ -97,30 +97,13 @@ public without sharing class ParticipantPortalSharingService {
      * their Portal_User__c.
      *
      * @param participants rows to reconcile. Ids that do not exist are ignored.
-     * @param previousPortalUsers the Portal_User__c value each row had before
-     *        the change, keyed by row id. This is what identifies a share as
-     *        ours once RowCause carries no distinguishing value — see
-     *        PORTAL_ROW_CAUSE. Pass null for a full reconcile, which then may
-     *        only add shares, never remove an ambiguous one.
      */
-    public static void synchronise(
-        List<Participant__c> participants,
-        Map<Id, Id> previousPortalUsers
-    ) {
+    public static void synchronise(List<Participant__c> participants) {
         if (participants == null || participants.isEmpty()) {
             return;
         }
 
-        SharePlan plan = planFor(participants, previousPortalUsers);
-
-        for (Participant__Share share : plan.keptAsAmbiguous) {
-            System.debug(
-                LoggingLevel.WARN,
-                'ParticipantPortalSharingService kept a share it cannot attribute to the portal '
-                    + '(row ' + share.ParentId + ', user ' + share.UserOrGroupId
-                    + '). Set Portal_User__c to the same user to adopt it, or remove it by hand.'
-            );
-        }
+        SharePlan plan = planFor(participants);
 
         report('removed', Database.delete(plan.remove, false));
         report('granted', Database.insert(plan.grant, false));
@@ -130,54 +113,32 @@ public without sharing class ParticipantPortalSharingService {
      * Works out which shares should exist for the given participants. No DML.
      *
      * @param participants rows to reconcile. Rows without an Id are ignored.
-     * @param previousPortalUsers the Portal_User__c value each row had before
-     *        the change, keyed by row id. This is what identifies a share as
-     *        ours once RowCause carries no distinguishing value. Pass null for a
-     *        full reconcile, which then only ever grants.
      */
-    public static SharePlan planFor(
-        List<Participant__c> participants,
-        Map<Id, Id> previousPortalUsers
-    ) {
-        SharePlan plan = new SharePlan();
-        if (participants == null || participants.isEmpty()) {
-            return plan;
-        }
-
-        Map<Id, Id> desired = new Map<Id, Id>();
+    public static SharePlan planFor(List<Participant__c> participants) {
         Set<Id> rowIds = new Set<Id>();
         for (Participant__c participant : participants) {
-            if (participant.Id == null) {
-                continue;
-            }
-            rowIds.add(participant.Id);
-            if (participant.Portal_User__c != null) {
-                desired.put(participant.Id, participant.Portal_User__c);
+            if (participant.Id != null) {
+                rowIds.add(participant.Id);
             }
         }
         if (rowIds.isEmpty()) {
-            return plan;
+            return new SharePlan();
         }
 
-        Map<String, Participant__Share> byKey = new Map<String, Participant__Share>();
+        Map<Id, Map<Id, Participant__Share>> byRow = new Map<Id, Map<Id, Participant__Share>>();
         for (Participant__Share share : [
             SELECT Id, ParentId, UserOrGroupId
             FROM Participant__Share
             WHERE ParentId IN :rowIds
                 AND RowCause = :PORTAL_ROW_CAUSE
         ]) {
-            byKey.put(key(share.ParentId, share.UserOrGroupId), share);
-        }
-
-        Map<Id, Map<Id, Participant__Share>> byRow = new Map<Id, Map<Id, Participant__Share>>();
-        for (Participant__Share share : byKey.values()) {
             if (!byRow.containsKey(share.ParentId)) {
                 byRow.put(share.ParentId, new Map<Id, Participant__Share>());
             }
             byRow.get(share.ParentId).put(share.UserOrGroupId, share);
         }
 
-        return planFor(participants, previousPortalUsers, byRow);
+        return planFor(participants, byRow);
     }
 
     /**
@@ -189,13 +150,12 @@ public without sharing class ParticipantPortalSharingService {
      * 'Edit' included. Passing the current state in keeps the logic under test
      * without forcing the tests to manufacture rows the platform will not accept.
      *
-     * @param existingShares the shares currently held for these rows, keyed by
-     *        row id and then by user or group id. Rows absent from it are treated
-     *        as having no share.
+     * @param existingShares the portal shares currently held for these rows, keyed
+     *        by row id and then by user or group id. Rows absent from it are
+     *        treated as having no share.
      */
     public static SharePlan planFor(
         List<Participant__c> participants,
-        Map<Id, Id> previousPortalUsers,
         Map<Id, Map<Id, Participant__Share>> existingShares
     ) {
         SharePlan plan = new SharePlan();
@@ -203,19 +163,11 @@ public without sharing class ParticipantPortalSharingService {
             return plan;
         }
 
-        Map<Id, Id> desired = new Map<Id, Id>();
-        Set<Id> rowIds = new Set<Id>();
+        Map<Id, Participant__c> participantsById = new Map<Id, Participant__c>();
         for (Participant__c participant : participants) {
-            if (participant.Id == null) {
-                continue;
+            if (participant.Id != null) {
+                participantsById.put(participant.Id, participant);
             }
-            rowIds.add(participant.Id);
-            if (participant.Portal_User__c != null) {
-                desired.put(participant.Id, participant.Portal_User__c);
-            }
-        }
-        if (rowIds.isEmpty()) {
-            return plan;
         }
 
         Map<String, Participant__Share> existing = new Map<String, Participant__Share>();
@@ -225,17 +177,17 @@ public without sharing class ParticipantPortalSharingService {
             }
         }
 
-        // A share is ours to remove only if it points at the user we released
-        // the row to — the previous one (supplied by the trigger) or the current
-        // one. Anything else is somebody else's manual share and stays untouched.
+        // Everything in `existing` already carries PORTAL_ROW_CAUSE, so there is
+        // nothing else to check: a share that no longer points at the row's
+        // release target is ours to remove. Shares under any other reason were
+        // never in this collection and cannot be touched.
         for (Participant__Share share : existing.values()) {
-            if (desired.get(share.ParentId) == share.UserOrGroupId) {
+            Participant__c participant = participantsById.get(share.ParentId);
+            if (participant == null) {
                 continue;
             }
-            if (isOurs(share, previousPortalUsers)) {
+            if (participant.Portal_User__c != share.UserOrGroupId) {
                 plan.remove.add(share);
-            } else {
-                plan.keptAsAmbiguous.add(share);
             }
         }
 
@@ -250,7 +202,7 @@ public without sharing class ParticipantPortalSharingService {
                         ParentId = participant.Id,
                         UserOrGroupId = portalUserId,
                         AccessLevel = PORTAL_ACCESS_LEVEL,
-                        RowCause = Schema.Participant__Share.RowCause.Manual
+                        RowCause = Schema.Participant__Share.RowCause.Portal_Access__c
                     )
                 );
             }
@@ -259,37 +211,48 @@ public without sharing class ParticipantPortalSharingService {
         return plan;
     }
 
-    /** True when this share points at the user the row was released to before. */
-    private static Boolean isOurs(Participant__Share share, Map<Id, Id> previousPortalUsers) {
-        if (previousPortalUsers == null) {
-            return false;
-        }
-        return previousPortalUsers.get(share.ParentId) == share.UserOrGroupId;
-    }
-
-    /** Convenience for callers that have no previous state to offer. */
-    public static void synchronise(List<Participant__c> participants) {
-        synchronise(participants, null);
-    }
-
-/**
-     * Reconciles every participant that is linked to a portal user.
+    /**
+     * Brings every portal share in the org into line with Portal_User__c.
      *
-     * Additive only. A row whose Portal_User__c was cleared out of band keeps its
-     * share here, because there is no previous value to attribute it by and a
-     * wrong deletion would revoke access somebody may depend on. The trigger
-     * covers the normal clearing path; this entry point exists to *add* shares
-     * for rows that were populated before the trigger existed, or whose portal
-     * user was set while it was inactive. It logs what it cannot classify.
+     * Complete, in both directions: rows that gained a portal user get a share,
+     * rows whose release target was cleared lose theirs. The trigger handles the
+     * single-row case; this entry point is for everything the trigger could not
+     * see — rows imported through Setup or the data loader, a target changed
+     * while the trigger was inactive, and shares left behind when
+     * PORTAL_ROW_CAUSE was changed (RowCause cannot be updated, so shares created
+     * under an earlier reason have to be replaced rather than converted).
+     *
+     * Only shares carrying PORTAL_ROW_CAUSE are considered, so an administrator's
+     * manual grant on a participant is never removed by a reconcile.
      */
     public static void synchroniseAll() {
-        synchronise(
-            [
-                SELECT Id, Portal_User__c
-                FROM Participant__c
-                WHERE Portal_User__c != null
-            ]
-        );
+        // Two queries rather than `Portal_User__c != null OR Id IN (...)`: Apex
+        // does not allow a semi-join sub-select combined with OR.
+        Set<Id> releasedRows = new Set<Id>();
+        for (Participant__Share share : [
+            SELECT ParentId
+            FROM Participant__Share
+            WHERE RowCause = :PORTAL_ROW_CAUSE
+        ]) {
+            releasedRows.add(share.ParentId);
+        }
+
+        List<Participant__c> participants = [
+            SELECT Id, Portal_User__c
+            FROM Participant__c
+            WHERE Portal_User__c != null
+        ];
+        for (Participant__c participant : [
+            SELECT Id, Portal_User__c
+            FROM Participant__c
+            WHERE Id IN :releasedRows
+        ]) {
+            if (participant.Portal_User__c == null) {
+                participants.add(participant);
+            }
+        }
+
+        synchronise(participants);
     }
 
     private static String key(Id parentId, Id userOrGroupId) {
