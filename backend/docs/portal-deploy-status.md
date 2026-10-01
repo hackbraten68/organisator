@@ -233,3 +233,28 @@ abläuft, während curl das alte Cookie weiter mitsendet.
 **Für den Abnahmetest:** Logout im echten Browser prüfen (geschützte Route muss wieder
 den Login verlangen), nicht per `curl` mit Cookie-Jar. Wer es per API prüfen will, muss
 das Cookie-Set nach dem Logout neu aufbauen, statt das alte weiterzureichen.
+
+### Local Dev: Vite-Proxy nicht funktionsfähig (Stand 2026-10-01)
+
+```text
+GET  http://localhost:5173/                                      -> 200 (App-Shell laeuft)
+POST http://localhost:5173/services/apexrest/auth/login         -> 401 UNAUTHORIZED_EXCEPTION
+```
+
+`VITE ready`, die App laeuft, aber der Salesforce-Proxy kann keine Org-Session
+herstellen. Ursache ist derselbe abgelaufene OAuth-Token wie beim Metadata-Weg:
+`sf org display` meldet `Connected`, der Token ist aber nicht mehr gueltig
+(REST 401, Refresh `invalid_grant: expired access/refresh token`). `sf config get
+target-org --global` liefert `hubSandbox`, ist also nicht die Ursache.
+
+Fuer den lokalen Dev-Betrieb ist deshalb ein Browser-Login noetig:
+
+```text
+sf org login web --alias hubSandbox --set-default
+```
+
+Ergaenzende Einschraenkung, unabhaengig davon: der Dev-Proxy laeuft mit der Session von
+**samuel.dillenburg**, also einem internen Admin ohne `ContactId`. `/me` antwortet dort
+korrekterweise mit `NO_CONTACT_IDENTITY` — das ist kein Fehler, sondern das erwartete
+Verhalten. Lokal sieht man die App mit Samuel; die Teilnehmeransicht ist nur live oder
+mit einer Portal-User-Session sichtbar.
