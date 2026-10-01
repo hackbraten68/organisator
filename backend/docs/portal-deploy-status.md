@@ -345,6 +345,77 @@ abläuft, während curl das alte Cookie weiter mitsendet.
 den Login verlangen), nicht per `curl` mit Cookie-Jar. Wer es per API prüfen will, muss
 das Cookie-Set nach dem Logout neu aufbauen, statt das alte weiterzureichen.
 
+### Setup-Elemente, die es nur in Salesforce Classic gibt
+
+Ein Teil der Experience-Cloud-Konfiguration ist in **Lightning nicht erreichbar**, sondern
+nur nach einem Wechsel der gesamten Oberfläche. In Lightning fehlt der Menüpunkt
+vollständig, was leicht als Org-Defekt fehlgedeutet wird — diesen Fehlschluss haben wir
+gemacht und daraus fast eine zweite Fehlersuche gebaut.
+
+Wechsel oben rechts im Profilmenü:
+
+```text
+Setup → Switch to Salesforce Classic
+```
+
+Es genügt **nicht**, eine Classic-Unterseite in Lightning zu öffnen; die Oberfläche muss
+wirklich wechseln.
+
+#### Apex Sharing Reasons (Bestand, angelegt)
+
+```text
+Classic → Setup → Build → Create → Objects
+        → Participant (Objektnamen anklicken, nicht „Edit")
+        → Related List „Apex Sharing Reasons" → New
+            Label: Portal Access
+            Name:  Portal_Access
+```
+
+`ApexSharingReason` fehlt in der Registry des `@salesforce/cli`, der Grund ist also nicht
+deploybar. Nötige Berechtigung ist *Author Apex*; *Modify All Data* betrifft nur das
+Anlegen der Share-Datensätze selbst, nicht das Definieren des Grundes.
+
+Nach dem Anlegen ist er in Apex referenzierbar und nach einem Deploy der
+`ParticipantPortalSharingService` in Gebrauch — siehe [Abschnitt Apex Sharing
+Reason](#apex-sharing-reason-portal_access__c).
+
+#### Login-Seite der Site (offen, Stand 2026-10-01)
+
+`/organisatorv1/login` liefert aktuell **Salesfaces eigenes Login-Formular**, nicht das
+React-Bundle. Der Live-DOM belegt es:
+
+```html
+<input type="email" name="username" id="username" autocomplete="username">
+<img alt="Log In with a Different Username" src="/img/clear.png">
+```
+
+Dazu kommen 38 Input-Elemente auf der Seite und `LoginHint.clearExistingIdentity()` — das
+ist die Standard-Authentifizierungsseite der Site.
+
+**Folge:** Unser Bundle wird dort nie geladen. Der Timeout-Fix in `AuthContext` (siehe
+`frontend/AGENTS.md`) ist im Gast-Fall derzeit wirkungslos, und ein Gast sieht ein
+Formular, dessen Submit-Button nicht bedienbar ist.
+
+Nicht in Setup geändert, weil die Ursache erst belegt sein sollte. Zu prüfen und ggf. zu
+korrigieren:
+
+```text
+Setup → Digital Experiences → Sites → Organisator → Login-/Anmeldeseite
+```
+
+Für eine Site mit eigenem React-Login muss dort die Seite des Experience Cloud Builders
+hinterlegt sein. Nach der Umstellung ist das Bundle unter `/organisatorv1/login` wirksam
+und erst dann lässt sich beurteilen, ob der Timeout-Fix ausreicht oder ein
+Auth-Problem bleibt.
+
+Belegt ist bis hierher durch den Altcode-Vergleich:
+
+| Zustand | Login-Button |
+|---|---|
+| Altcode, statischer Harness | aktiv (der Harness kann den Fall nicht abbilden) |
+| Altcode, Live-Site | **deaktiviert, dauerhaft** |
+| Timeout-Fix, Live-Site | aktiv — sobald das Bundle geladen wird |
+
 ### Local Dev: Vite-Proxy nicht funktionsfähig (Stand 2026-10-01)
 
 ```text
@@ -369,3 +440,26 @@ Ergaenzende Einschraenkung, unabhaengig davon: der Dev-Proxy laeuft mit der Sess
 korrekterweise mit `NO_CONTACT_IDENTITY` — das ist kein Fehler, sondern das erwartete
 Verhalten. Lokal sieht man die App mit Samuel; die Teilnehmeransicht ist nur live oder
 mit einer Portal-User-Session sichtbar.
+
+### Nicht in Setup geändert, weil die Ursache erst belegt war
+
+Das war der teuerste Umweg dieser Sitzung, deshalb als Methode festgehalten: Bevor eine
+Konfigurationsänderung vorgeschlagen wird, **erst den Altcode gegen dieselbe Assertion laufen
+lassen**. Ein Test, der mit und ohne Fix grün ist, beweist nichts.
+
+Hier ergab sich:
+
+| Beobachtung | Aussage |
+|---|---|
+| Fix gebaut, statische Suite grün | noch kein Beweis |
+| `dist/` war vom 1. Oktober, `npm run build` lief nicht mit | die Suite testete ein altes Bundle |
+| nach Rebuild, **Altcode** gegen die neue Assertion: grün | die Route-Interception griff nicht, der Test war wertlos |
+| **Altcode** gegen die Live-Site: `toBeEnabled` Timeout nach 15s | der Fehler reproduziert sich |
+| DOM zeigt `name="username"`, `/img/clear.png` | es ist nicht unser Bundle |
+
+Ohne den Altcode-Vergleich hätten wir die Login-Seite der Site nie untersucht und den
+Timeout-Fix für die Ursache gehalten.
+
+**Konsequenz für Tests:** eine neue Assertion gilt erst als Beleg, wenn sie mit dem
+gestashten Altcode fehlschlägt. Bei Live-Verhalten ist der statische Harness prinzipiell
+unbrauchbar — er liefert für Gastpfade immer die „schnelle Fehler"-Variante.

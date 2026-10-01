@@ -267,6 +267,26 @@ open steps and the Apex restrictions involved.
 
 ---
 
+## A green suite that proves nothing
+
+Before believing a test, check that it fails without the fix. Two cases from this project
+where that was not true:
+
+- **`dist/` is not rebuilt by the Playwright run.** `playwright.config.ts` serves the existing
+  `dist/` with `npx serve dist --single`. Editing `src/` and running the suite tests the old
+  bundle. Run `npm run build` first. The suite was green against a build from weeks earlier.
+- **The static harness cannot reproduce a guest failure.** Served statically,
+  `services/data/.../ui-api/session/csrf` answers with `index.html`, the SDK throws at once,
+  `loading` is set to `false`, and the login button is enabled **with and without** the
+  timeout fix. The same assertion against the live site times out without the fix. Guest
+  behaviour needs `npx playwright test --config=playwright.live.config.ts`.
+
+`playwright.config.ts` ignores `live-guest.spec.ts`; `playwright.live.config.ts` runs only
+that file, against `PORTAL_URL` (default: the sandbox site). Both suites must be run
+separately.
+
+---
+
 ## Test commands
 
 Run the bundle suites from the bundle directory, not the project root:
@@ -369,6 +389,21 @@ Two things that will mislead you when testing with `curl`:
 - **Experience Cloud sessions do not work against `/services/data/...`**, so the spike's
   planned negative test (a SOQL read as a portal user) cannot be run that way. Test
   through `/me` with real portal sessions instead.
+- **Some Setup sections exist only in Salesforce Classic.** Apex Sharing Reasons is the one
+  we hit: it is absent from Lightning Object Manager entirely, so a search there comes up
+  empty and reads as an org defect. Switch the whole UI (`Setup → Switch to Salesforce
+  Classic`), then `Build → Create → Objects`. Needed right now for the site's login page,
+  see below.
+- **`/organisatorv1/login` serves Experience Cloud's own login page, not this bundle.**
+  The DOM gives it away: `name="username"`, `/img/clear.png`,
+  `LoginHint.clearExistingIdentity()`, 38 inputs. Until the site's login page points back at
+  the builder page, nothing in this bundle affects what a guest sees. Check the DOM before
+  debugging React for anything login-shaped.
+- **The guest CSRF endpoint answers `403 API_DISABLED_FOR_ORG`** — Chatter Connect is off
+  for the guest profile. The platform SDK fetches a CSRF token before every protected
+  request, and this rejection never surfaces as a settled promise, which is why
+  `AuthContext` needs `withTimeout`. A guest cannot reach GraphQL either:
+  `POST /organisatorv1/sf/api/graphql` answers `401` with a 5-byte empty body.
 
 ---
 
