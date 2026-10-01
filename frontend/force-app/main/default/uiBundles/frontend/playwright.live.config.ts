@@ -20,9 +20,10 @@ import { defineConfig, devices } from '@playwright/test';
  * an endpoint the guest cannot reach. Any wait on it must therefore be bounded.
  *
  * Run with:
- *   npx playwright test --project=live-guest
+ *   npx playwright test --config=playwright.live.config.ts
  *
- * Credentials come from the environment; the suite skips without them.
+ * Credentials come from the environment; the sign-in case skips without them:
+ *   PORTAL_USER=<username> PORTAL_PASSWORD=<password> npx playwright test --config=playwright.live.config.ts
  */
 export default defineConfig({
   // Only the live suite. The shell suite in app.spec.ts needs the static
@@ -34,9 +35,12 @@ export default defineConfig({
   workers: 1,
   reporter: [['list']],
   use: {
-    baseURL:
-      process.env.PORTAL_URL ??
-      'https://techandteach--devhub.sandbox.my.site.com/organisatorv1',
+    // Host only, no path. Playwright resolves page.goto('/x') against the URL
+    // *origin*, discarding any path in baseURL — with '/organisatorv1' here the
+    // suite silently ran against /login on the site root, which 301s to
+    // AnmeldungsPortal, a completely different site. Every spec below therefore
+    // spells out the full site path instead of relying on baseURL.
+    baseURL: process.env.PORTAL_HOST ?? 'https://techandteach--devhub.sandbox.my.site.com',
     trace: 'on-first-retry',
   },
   projects: [

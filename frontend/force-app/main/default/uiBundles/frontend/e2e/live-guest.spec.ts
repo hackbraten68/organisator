@@ -9,22 +9,11 @@ import { test, expect } from '@playwright/test';
  * answers with index.html and the SDK fails fast instead of hanging — which
  * made that harness pass with *and* without the timeout fix.
  *
- * KNOWN SITE CONFIGURATION ISSUE (2026-10-01), still open
- *   `/organisatorv1/login` currently serves Experience Cloud's own login page
- *   rather than the React bundle. The DOM proves it:
- *
- *     <input type="email" name="username" id="username" autocomplete="username">
- *     <img alt="Log In with a Different Username" src="/img/clear.png">
- *
- *   Salesforce's page, not ours. The React bundle is never loaded there, so the
- *   timeout fix in AuthContext cannot influence what a guest sees until the
- *   site's login page is pointed back at the builder page (Setup → Digital
- *   Experiences → Sites → Organisator → login page).
- *
- *   The first test below therefore pins the *bundle's* behaviour and will keep
- *   passing either way until that setting is changed. It is deliberately kept:
- *   once the site is reconfigured it becomes the regression guard that the
- *   static suite could not provide.
+ * Every spec spells out the full site path. baseURL in the config carries the host
+ * only, because page.goto('/login') resolves against the origin and would drop
+ * '/organisatorv1' — an earlier version of this file put the path in baseURL and
+ * the suite silently ran against /login on the site root, which 301s to
+ * AnmeldungsPortal. A different site, with Salesforce's own login form.
  *
  * Set PORTAL_USER and PORTAL_PASSWORD to run the sign-in case; without them it
  * is skipped, the rest still runs.
@@ -32,21 +21,13 @@ import { test, expect } from '@playwright/test';
 const PORTAL_USER = process.env.PORTAL_USER;
 const PORTAL_PASSWORD = process.env.PORTAL_PASSWORD;
 
-/**
- * Skipped while the site still serves Salesforce's own login page, because the
- * assertions describe the React bundle.
- */
-const REACT_LOGIN_IS_SERVED = false;
-
 test.describe('guest login (live)', () => {
   test('the login form becomes usable even though the session probe cannot succeed', async ({ page }) => {
-    test.skip(REACT_LOGIN_IS_SERVED === false, 'site serves the Experience Cloud login page, not the bundle');
+    await page.goto('/organisatorv1/login');
 
-    await page.goto('/login');
-
-    // The message names the real failure: Chatter Connect is off for the guest
-    // profile, so the CSRF fetch the SDK performs before a protected request
-    // cannot resolve. Login has to be released anyway.
+    // Sanity check that this is our bundle and not Salesforce's own login page,
+    // which would make everything below pass for the wrong reason.
+    await expect(page.getByRole('button', { name: /^login$/i })).toBeVisible();
     const button = page.getByRole('button', { name: /^login$/i }).last();
 
     // Bounded by AUTH_PROBE_TIMEOUT_MS (8s) plus slack. Without that bound the
@@ -81,7 +62,12 @@ test.describe('guest login (live)', () => {
   test('a portal user can sign in and sees their own participant', async ({ page }) => {
     test.skip(!PORTAL_USER || !PORTAL_PASSWORD, 'PORTAL_USER / PORTAL_PASSWORD not set');
 
-    await page.goto('/login');
+    await page.goto('/organisatorv1/login');
+
+    // The submit button must be usable while the session probe is still
+    // resolving. This is the step that hung for the user before the timeout fix.
+    const submit = page.getByRole('button', { name: /^login$/i }).last();
+    await expect(submit).toBeEnabled({ timeout: 15_000 });
 
     await page.locator('input[type="email"], input[name="email"]').first().fill(PORTAL_USER!);
     await page
@@ -89,12 +75,15 @@ test.describe('guest login (live)', () => {
       .first()
       .fill(PORTAL_PASSWORD!);
 
-    await page.getByRole('button', { name: /^login$/i }).last().click();
+    await submit.click();
 
     // Erfolg heißt: von /login weg und an einem geschützten Pfad.
     await expect(page).not.toHaveURL(/\/login/, { timeout: 30_000 });
 
     // Keine Fehlermeldung des Formulars.
     await expect(page.getByText('Invalid username or password')).toHaveCount(0);
+
+    // Und die Daten sind da: der Name des Portal-Users gehört zum Teilnehmer.
+    await expect(page.getByText('Mehmet Kaya').first()).toBeVisible({ timeout: 30_000 });
   });
 });

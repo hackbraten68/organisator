@@ -379,42 +379,47 @@ Nach dem Anlegen ist er in Apex referenzierbar und nach einem Deploy der
 `ParticipantPortalSharingService` in Gebrauch — siehe [Abschnitt Apex Sharing
 Reason](#apex-sharing-reason-portal_access__c).
 
-#### Login-Seite der Site (offen, Stand 2026-10-01)
+#### Login-Site: das React-Login wird ausgeliefert (geklärt 2026-10-01)
 
-`/organisatorv1/login` liefert aktuell **Salesfaces eigenes Login-Formular**, nicht das
-React-Bundle. Der Live-DOM belegt es:
+**Die Site ist richtig konfiguriert.** `/organisatorv1/login` liefert das React-Bundle:
 
 ```html
-<input type="email" name="username" id="username" autocomplete="username">
-<img alt="Log In with a Different Username" src="/img/clear.png">
+<base href="/organisatorv1/">  …  assets/index-BFfkKz_H.js
 ```
 
-Dazu kommen 38 Input-Elemente auf der Seite und `LoginHint.clearExistingIdentity()` — das
-ist die Standard-Authentifizierungsseite der Site.
+Ein zwischenzeitlicher Befund, die Site liefere Salesfaces eigenes Login-Formular, war
+**falsch** und beruhte auf einem Fehler im Test, nicht in der Konfiguration. Ursache:
+`playwright.live.config.ts` trug den Site-Pfad in `baseURL`, und `page.goto('/login')` ist
+pfadwurzelrelativ — Playwright hat den Pfad verworfen und gegen `/login` auf dem
+Site-Root getestet. Das ist per `301` auf **`AnmeldungsPortal`** gegangen, eine völlig
+andere Site. Dort wurde das Standard-Formular gefunden (`name="username"`,
+`/img/clear.png`, `LoginHint.clearExistingIdentity()`) und fälschlich dieser Site
+zugeschrieben.
 
-**Folge:** Unser Bundle wird dort nie geladen. Der Timeout-Fix in `AuthContext` (siehe
-`frontend/AGENTS.md`) ist im Gast-Fall derzeit wirkungslos, und ein Gast sieht ein
-Formular, dessen Submit-Button nicht bedienbar ist.
+Korrigiert in `playwright.live.config.ts`: `baseURL` trägt nur den Host, jede Spec schreibt
+den vollen Site-Pfad (`/organisatorv1/login`).
 
-Nicht in Setup geändert, weil die Ursache erst belegt sein sollte. Zu prüfen und ggf. zu
-korrigieren:
+#### Gast-Login gegen die Live-Site (geklärt 2026-10-01)
 
-```text
-Setup → Digital Experiences → Sites → Organisator → Login-/Anmeldeseite
-```
+Der Gast-Login funktioniert. Live verifiziert über echte Browser-Sessions und als
+Playwright-Test gegen die Site:
 
-Für eine Site mit eigenem React-Login muss dort die Seite des Experience Cloud Builders
-hinterlegt sein. Nach der Umstellung ist das Bundle unter `/organisatorv1/login` wirksam
-und erst dann lässt sich beurteilen, ob der Timeout-Fix ausreicht oder ein
-Auth-Problem bleibt.
-
-Belegt ist bis hierher durch den Altcode-Vergleich:
-
-| Zustand | Login-Button |
+| Prüfung | Ergebnis |
 |---|---|
-| Altcode, statischer Harness | aktiv (der Harness kann den Fall nicht abbilden) |
-| Altcode, Live-Site | **deaktiviert, dauerhaft** |
-| Timeout-Fix, Live-Site | aktiv — sobald das Bundle geladen wird |
+| Gast sieht `/login` | Submit wird **nach ~1,3 s** bedienbar |
+| Gast ruft `/me` | `401`, `NO_CONTACT_IDENTITY`, alle Teilnehmerfelder `null` |
+| Portal-User meldet sich an | Weiterleitung aus `/login`, Teilnehmerdaten sichtbar |
+
+Gemessen mit `PORTAL_USER` / `PORTAL_PASSWORD`; `playwright.live.config.ts`. Ohne diese
+Variablen überspringt nur der Anmeldetest, die Gastprüfungen laufen immer.
+
+Der Submit-Button ist während der Session-Prüfung kurz gesperrt — das ist die
+Session-Prüfung, nicht ein Fehler. `AuthContext` hat dafür inzwischen eine Obergrenze von
+`AUTH_PROBE_TIMEOUT_MS` (8 s), damit eine nicht aufgelöste Prüfung den Gast nicht
+aussperrt. **Diese Grenze hat den gemessenen Fall aber nicht verursacht und ihre Notwendigkeit
+ist nicht belegt**: derselbe Test besteht auch mit dem Altcode. Sie ist ein
+Robustheitsnetz gegen ein Promise, das hängen bliebe, und der Gast-403 auf dem
+CSRF-Endpunkt ist der naheliegende Auslöser dafür, dass überhaupt eine Grenze nötig ist.
 
 ### Local Dev: Vite-Proxy nicht funktionsfähig (Stand 2026-10-01)
 
@@ -441,25 +446,28 @@ korrekterweise mit `NO_CONTACT_IDENTITY` — das ist kein Fehler, sondern das er
 Verhalten. Lokal sieht man die App mit Samuel; die Teilnehmeransicht ist nur live oder
 mit einer Portal-User-Session sichtbar.
 
-### Nicht in Setup geändert, weil die Ursache erst belegt war
+### Bevor eine Konfigurationsänderung vorgeschlagen wird
 
-Das war der teuerste Umweg dieser Sitzung, deshalb als Methode festgehalten: Bevor eine
-Konfigurationsänderung vorgeschlagen wird, **erst den Altcode gegen dieselbe Assertion laufen
-lassen**. Ein Test, der mit und ohne Fix grün ist, beweist nichts.
+Zwei Fehler, die hier je einen Tag gekostet haben. Beide waren Fehler im Messaufbau,
+nicht in der Anwendung:
 
-Hier ergab sich:
+**1. Der Test lief gegen die falsche Site.** `playwright.live.config.ts` trug den
+Site-Pfad in `baseURL`, `page.goto('/login')` ist pfadwurzelrelativ. Ergebnis: der Test
+lief gegen `/login` auf dem Root → `301` → `AnmeldungsPortal`, eine andere Site mit
+Salesfaces Standard-Login. Daraus wurde die falsche Diagnose, die Site liefere nicht unser
+Bundle. **Regel:** bevor ein Befund eine Konfiguration ändert, den tatsächlichen
+Request-URL aus dem Test heraus protokollieren (`page.on('request')`), nicht aus dem
+Konfigurationswert ableiten.
 
-| Beobachtung | Aussage |
-|---|---|
-| Fix gebaut, statische Suite grün | noch kein Beweis |
-| `dist/` war vom 1. Oktober, `npm run build` lief nicht mit | die Suite testete ein altes Bundle |
-| nach Rebuild, **Altcode** gegen die neue Assertion: grün | die Route-Interception griff nicht, der Test war wertlos |
-| **Altcode** gegen die Live-Site: `toBeEnabled` Timeout nach 15s | der Fehler reproduziert sich |
-| DOM zeigt `name="username"`, `/img/clear.png` | es ist nicht unser Bundle |
+**2. `dist/` wird von Playwright nicht neu gebaut.** `playwright.config.ts` serviert das
+vorhandene `dist/` mit `npx serve dist --single`. Ein Testlauf nach einer `src/`-Änderung
+prüft das alte Bundle — hier eines vom 1. Oktober. **Regel:** vor jedem Testlauf
+`npm run build`.
 
-Ohne den Altcode-Vergleich hätten wir die Login-Seite der Site nie untersucht und den
-Timeout-Fix für die Ursache gehalten.
+Und die Regel, die sich bewährt hat: **eine Assertion gilt erst als Beleg, wenn sie mit
+dem gestashten Altcode fehlschlägt.** Eine grüne Suite beweist zunächst gar nichts. Hier
+hat sie sogar das Gegenteil belegt: der Timeout-Fix in `AuthContext` besteht die
+Live-Tests auch ohne ihn, und die Sperre des Submit-Buttons dauert real rund 1,3 s. Der
+Fix ist damit als Notwendigkeit **nicht** belegt — er bleibt als Robustheitsnetz gegen
+ein hängendes Promise, aber er war nicht die Ursache des gemeldeten Problems.
 
-**Konsequenz für Tests:** eine neue Assertion gilt erst als Beleg, wenn sie mit dem
-gestashten Altcode fehlschlägt. Bei Live-Verhalten ist der statische Harness prinzipiell
-unbrauchbar — er liefert für Gastpfade immer die „schnelle Fehler"-Variante.

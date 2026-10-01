@@ -281,9 +281,30 @@ where that was not true:
   timeout fix. The same assertion against the live site times out without the fix. Guest
   behaviour needs `npx playwright test --config=playwright.live.config.ts`.
 
+### Running the live suite
+
+```bash
+cd frontend/force-app/main/default/uiBundles/frontend
+npm run build                       # the live spec needs dist/ for the shell suite anyway
+PORTAL_USER=<username> PORTAL_PASSWORD=<password> \
+  npx playwright test --config=playwright.live.config.ts
+```
+
 `playwright.config.ts` ignores `live-guest.spec.ts`; `playwright.live.config.ts` runs only
-that file, against `PORTAL_URL` (default: the sandbox site). Both suites must be run
-separately.
+that file. Both suites are run separately, and the live one needs network plus the org.
+
+**`baseURL` carries the host only, never the site path.** `page.goto('/login')` resolves
+against the URL *origin* and discards any path in `baseURL`. With
+`baseURL: '.../organisatorv1'` the suite ran against `/login` on the site root, which 301s
+to `AnmeldungsPortal` — a different site entirely, serving Salesforce's own login form.
+Every spec in the live suite spells out `/organisatorv1/...` instead.
+
+### A test that passes without the fix
+
+The login-button test passes with and without `AUTH_PROBE_TIMEOUT_MS`: the submit button
+is released after ~1.3 s in both cases. The bound is insurance against a promise that
+never settles, not a fix for an observed failure — and the tests say so. Keep it that way
+rather than claiming it solves something the measurements do not support.
 
 ---
 
@@ -394,16 +415,13 @@ Two things that will mislead you when testing with `curl`:
   empty and reads as an org defect. Switch the whole UI (`Setup → Switch to Salesforce
   Classic`), then `Build → Create → Objects`. Needed right now for the site's login page,
   see below.
-- **`/organisatorv1/login` serves Experience Cloud's own login page, not this bundle.**
-  The DOM gives it away: `name="username"`, `/img/clear.png`,
-  `LoginHint.clearExistingIdentity()`, 38 inputs. Until the site's login page points back at
-  the builder page, nothing in this bundle affects what a guest sees. Check the DOM before
-  debugging React for anything login-shaped.
 - **The guest CSRF endpoint answers `403 API_DISABLED_FOR_ORG`** — Chatter Connect is off
   for the guest profile. The platform SDK fetches a CSRF token before every protected
-  request, and this rejection never surfaces as a settled promise, which is why
-  `AuthContext` needs `withTimeout`. A guest cannot reach GraphQL either:
-  `POST /organisatorv1/sf/api/graphql` answers `401` with a 5-byte empty body.
+  request, so a guest pays for that before anything else. A guest cannot reach GraphQL
+  either: `POST /organisatorv1/sf/api/graphql` answers `401` with a 5-byte empty body.
+  This is why `AuthContext` bounds the probe with `AUTH_PROBE_TIMEOUT_MS`. Note the bound
+  is a safety net, not a fix for an observed hang: the submit button is released after
+  ~1.3 s on the live site, with or without it.
 
 ---
 
