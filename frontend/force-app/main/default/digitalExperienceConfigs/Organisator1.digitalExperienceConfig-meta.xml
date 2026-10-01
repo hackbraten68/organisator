@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <DigitalExperienceConfig xmlns="http://soap.sforce.com/2006/04/metadata">
-    <label>frontend</label>
+    <label>Organisator</label>
     <site>
-        <urlPathPrefix>organisator</urlPathPrefix>
+        <urlPathPrefix>organisatorv1</urlPathPrefix>
     </site>
-    <space>site/frontend1</space>
+    <space>site/Organisator1</space>
 </DigitalExperienceConfig>

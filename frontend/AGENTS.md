@@ -1,0 +1,282 @@
+# AGENTS.md — `frontend` project
+
+This file records **verified** findings about the Experience Cloud site in this repo. Every
+command here was executed against `hubSandbox` and its output was checked. Claims that
+could not be verified are marked as such.
+
+The site is live at:
+
+```text
+https://techandteach--devhub.sandbox.my.site.com/organisatorv1
+```
+
+---
+
+## What this project owns
+
+Per `backend/docs/AGENTS.md`, `frontend` owns `Network`, `CustomSite`,
+`DigitalExperienceConfig`, portal profiles/permission sets, Experience Cloud templates,
+and the participant UI Bundle. Both projects deploy into the **same org**.
+
+---
+
+## The three-component URL architecture (read this before touching any URL)
+
+An Experience Cloud site is three metadata components using **two different URLs**:
+
+| Component | Metadata type | URL | Purpose |
+|---|---|---|---|
+| Picasso site | `DigitalExperienceConfig` + `DigitalExperienceBundle` | `organisatorv1` | primary, customer-facing pages |
+| ChatterNetwork site | `Network` + `CustomSite` | `organisatorv1vforcesite` | legacy auth endpoints |
+
+Rules:
+
+- `Network.urlPathPrefix` and `CustomSite.urlPathPrefix` **must be identical**. Salesforce
+  distinguishes the secondary URL by appending `vforcesite` to the primary.
+- The primary URL lives in the `DigitalExperienceConfig`, **not** in the `Network`. Reading
+  `Network` to find the site path is wrong and cost real debugging time here.
+- `Network.picassoSite` must be `{siteName}1` — the Picasso site — **not** `{siteName}`.
+- `Network.site` must be `{siteName}` — the ChatterNetwork site.
+
+The live mapping, verified by retrieve:
+
+```text
+Network Organisator:     <site>Organisator</site>
+                         <picassoSite>Organisator1</picassoSite>
+                         <urlPathPrefix>organisatorv1vforcesite</urlPathPrefix>
+CustomSite Organisator:  <urlPathPrefix>organisatorv1vforcesite</urlPathPrefix>
+DEC Organisator1:        <urlPathPrefix>organisatorv1</urlPathPrefix>
+                         <space>site/Organisator1</space>
+```
+
+---
+
+## Creating a React (UI Bundle) site — the working procedure
+
+Verified 2026-10-01 for `Organisator`. Templates follow
+`forcedotcom/sf-skills/skills/experience-ui-bundle-site-generate`.
+
+### Files to author
+
+```text
+networks/{siteName}.network-meta.xml
+sites/{siteName}.site-meta.xml
+digitalExperienceConfigs/{siteName}1.digitalExperienceConfig-meta.xml
+digitalExperiences/site/{siteName}1/{siteName}1.digitalExperience-meta.xml
+digitalExperiences/site/{siteName}1/sfdc_cms__site/{siteName}1/{_meta.json,content.json}
+```
+
+`{siteName}` is UpperCamelCase; the Picasso site is always `{siteName}1`. In this org the
+metadata name and the URL are independent — the site is `Organisator` while its URL is
+`organisatorv1`.
+
+The content record that makes it a React site:
+
+```json
+{
+  "type": "sfdc_cms__site",
+  "title": "{siteName}",
+  "urlName": "{siteUrlPathPrefix}",
+  "contentBody": {
+    "authenticationType": "AUTHENTICATED_WITH_PUBLIC_ACCESS_ENABLED",
+    "appContainer": true,
+    "appSpace": ""
+  }
+}
+```
+
+### Deploy in one call, all five types together
+
+```bash
+cd frontend
+sf project deploy start \
+  --target-org <alias> \
+  --source-dir force-app/main/default/networks/Organisator.network-meta.xml \
+  --source-dir force-app/main/default/sites/Organisator.site-meta.xml \
+  --source-dir force-app/main/default/digitalExperienceConfigs/Organisator1.digitalExperienceConfig-meta.xml \
+  --source-dir force-app/main/default/digitalExperiences/site/Organisator1
+```
+
+Then publish:
+
+```bash
+sf community publish --name Organisator --target-org <alias>
+```
+
+### Why one call is mandatory
+
+The cross-references (`Network.site`, `Network.picassoSite`, `DEC.space`) are validated
+against the **existing org state**, not against the components in the same deploy. Deploying
+them in stages produces cascading failures that look like unrelated errors:
+
+| Split deploy | Error |
+|---|---|
+| DEC first | `In field: Network - no Network named portal found` |
+| CustomSite first | `In field: Name - no Network named portal found` |
+| Network alone | `In field: Site - no CustomSite named portal found` |
+| Network with `picassoSite={siteName}` | `PicassoSite portal is not of type ChatterNetworkPicasso` |
+
+Note that `Network` + `CustomSite` *together* does resolve their mutual reference, but adding
+`DigitalExperienceConfig`/`DigitalExperienceBundle` is where the whole set must be atomic.
+
+---
+
+## `appContainer` is read-only — `appSpace` is not
+
+This is the single most important constraint and it dictates a two-phase deploy.
+
+An **existing** LWR site cannot be converted into a React container:
+
+```text
+Der Wert für die Eigenschaft "$.appContainer" ist schreibgeschützt
+und kann nicht geändert werden.
+```
+
+So a React site must be created net-new. `appSpace` must be empty at creation and set
+afterwards — deploying it too early fails validation with
+`We couldn't find the <namespace>__<name> UIBundle`.
+
+```text
+phase 1:  appSpace: ""          -> site + workspace created
+phase 2:  appSpace: "c__frontend" -> binding applied (verified writable on a fresh site)
+```
+
+Phase 2 is a separate `--source-dir` deploy of the same `sfdc_cms__site` folder. Note that
+`appContainer` read-only does **not** extend to `appSpace`; that was verified by deploying.
+
+Namespace: `sfdx-project.json` has `"namespace": ""`, so the binding is `c__{devName}`.
+`UiBundle:frontend` -> `c__frontend`.
+
+---
+
+## `sfdc_cms__languageSettings` is not deployable here
+
+The official template emits it and says "always". On this org/API version it fails with a
+platform error regardless of workspace state:
+
+```text
+DigitalExperience  site/Organisator1.sfdc_cms__languageSettings/languages
+An unexpected error occurred. Please include this ErrorId if you contact support:
+453620757-1174626 (1183319229)
+```
+
+Earlier this surfaced as `NullPointerException: ... "value.isAuthoringOnly" is null`.
+The Salesforce reference calls the type *"authoring-only ... until the platform runtime
+change lands"*. It is omitted from source deliberately. For a single-locale site it is not
+needed. Do not "fix" this by retrying — the error is not an ordering problem.
+
+---
+
+## `SITE_PATH_PREFIX` and its source of truth
+
+`src/config/site.ts` hardcodes the site prefix because `sdk.fetch` resolves against the site
+but a raw `fetch()` or `window.location` does not — without it, `SessionTimeServlet` and
+`logout.jsp` 404 on the My Domain root.
+
+```text
+frontend/force-app/main/default/uiBundles/frontend/src/config/site.ts
+```
+
+`site.test.ts` asserts the constant against
+`digitalExperienceConfigs/Organisator1.digitalExperienceConfig-meta.xml`. **Not** the
+Network — see the URL section above. If you change the site path, change the DEC, the
+constant, and rebuild; then re-run both test suites.
+
+---
+
+## Verifying the site actually serves the bundle
+
+`curl` the **primary** URL. Checking the `...vforcesite` URL instead is the classic false
+negative here — that URL legitimately serves the stock login on legacy sites.
+
+```bash
+curl -sS -L -o /tmp/portal.html -w "final=%{url_effective}\nstatus=%{http_code}\n" \
+  "https://techandteach--devhub.sandbox.my.site.com/organisatorv1"
+
+grep -oE 'assets/index-[A-Za-z0-9_-]+\.(js|css)' /tmp/portal.html
+```
+
+A correct response contains `<base href="/organisatorv1/">`, a
+`SFDC_ENV` block with `"appName": "frontend"`, and an asset hash matching the local
+`dist/`. Then confirm the asset itself returns 200:
+
+```bash
+curl -sS -o /dev/null -w "%{http_code} %{size_download}\n" \
+  "https://techandteach--devhub.sandbox.my.site.com/organisatorv1/assets/index-<hash>.js"
+```
+
+---
+
+## Site inventory in `hubSandbox`
+
+| Site | URL | State |
+|---|---|---|
+| `Organisator` / `Organisator1` | `/organisatorv1` | **the React portal** |
+| `frontend` | `/organisatorvforcesite` | legacy; `picassoSite=frontend2`, delegates to `/organisator` |
+| `frontend2` | `/organisator` | stock LWR, Picasso site, no Network |
+| `portal` | `/portal` | dead end from a failed binding attempt |
+
+`Site` is not deletable (`Site.delete=False`) — only archivable in Setup. `portal` is
+leftover and should be archived. `frontend`/`frontend2` can go once nobody shares old links:
+`/organisatorvforcesite` still redirects to `/organisator/login`.
+
+---
+
+## Network member groups
+
+A `NetworkMemberGroup` covering only an external profile locks the internal admin out: the
+row in *All Sites* loses its URL and actions and the Experience Builder is unreachable. The
+Network needs both:
+
+```xml
+<networkMemberGroups>
+    <profile>admin</profile>
+    <profile>customer community plus user</profile>
+</networkMemberGroups>
+```
+
+The official `sf-skills` template ships `admin` only. Adding the external profile is a
+deliberate deviation — omitting it locks out every portal user.
+
+Constraints:
+
+- `NetworkMemberGroup` is not deletable and rejects Apex DML
+  (`DML operation Update not allowed`). Membership can only be set via REST/Data Loader.
+- The org stores the profile names lower-cased. Both spellings deploy; the localized names
+  (`Systemadministrator`) do not.
+- Keep the explanatory comment block in `networks/frontend.network-meta.xml`. An org
+  retrieve deletes it, and it is the only record of why both entries exist.
+
+---
+
+## Testing the portal as an actual participant
+
+`/me` resolves identity as `User.ContactId -> Contact -> Participant__c`. **The internal
+admin has no `ContactId`**, so logging in as the admin renders the app shell plus
+
+```text
+Daten konnten nicht geladen werden. Bitte versuche es später noch einmal.
+```
+
+That is the correct behaviour, not a defect. Seeing it confirms the bundle loads and the
+frontend calls the API — it only means there is no participant behind that login.
+
+To see the real thing you need a `User` on an external profile whose `ContactId` points at a
+contact that has a `Participant__c` row. See `backend/docs/portal-deploy-status.md` for the
+open steps and the Apex restrictions involved.
+
+---
+
+## Test commands
+
+Run the bundle suites from the bundle directory, not the project root:
+
+```bash
+cd frontend/force-app/main/default/uiBundles/frontend
+npx vitest run
+npx playwright test
+```
+
+The same trap exists in `backend`: `npm test` in `backend/` runs `sfdx-lwc-jest` (Jest) but
+the tests are Vitest and fail to load. Use
+`cd backend/force-app/main/default/uiBundles/backend && npx vitest run` (247 tests).

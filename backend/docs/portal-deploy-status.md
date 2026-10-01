@@ -10,36 +10,93 @@ Stand 2026-10-01, Ziel-Org `hubSandbox`.
 | `UIBundleLogin`, `UIBundleChangePassword`, `UIBundleAuthUtils`, `UIBundleSocialLoginConfig`, `UIBundleForgotPassword` | deployed, Active |
 | `Participant_Portal_Access` (Permission Set) | deployed, **0 Zuweisungen** |
 | `frontend_Guest_User_Api_Access` (Permission Set) | deployed |
-| `UIBundle:frontend` (das React-Portal inkl. `/me`) | deployed, **noch keiner Site zugeordnet** |
-| Network `frontend` | **Live**, Pfad `/organisatorvforcesite`, Site-as-Container |
-| CustomSite `frontend` | **Active**, Pfad `/organisatorvforcesite` |
+| `UIBundle:frontend` (das React-Portal inkl. `/me`) | deployed, Active, **an Site `Organisator` gebunden** |
+| Network `Organisator` | **Live**, Pfad `/organisatorv1vforcesite`, Site-as-Container |
+| CustomSite `Organisator` (ChatterNetwork) | **Active**, Pfad `/organisatorv1vforcesite` |
+| CustomSite `Organisator1` (Picasso) | **Active**, Pfad `/organisatorv1` |
+| DigitalExperienceConfig `Organisator1` | deployed, `appContainer: true`, `appSpace: c__frontend` |
 
-## Network und CustomSite existieren
+## Das React-Portal ist live
 
-Network `frontend` (Live) und CustomSite `frontend` (Active) sind seit 2026-10-01 in
-der Org, Pfad `/organisatorvforcesite`. Beide referenzieren sich gegenseitig und wurden
-zusammen deployed.
+```text
+https://techandteach--devhub.sandbox.my.site.com/organisatorv1
+```
 
-Daneben existiert eine zweite Site `frontend2` am Pfad `/organisator` — eine
-Stock-LWR-Site **ohne** Network, ohne eigenen Guest-User. Sie ist nicht Teil des
-Portals und liefert das Standard-Communities-Login aus.
+Verifiziert per `curl -L`: HTTP 200, `<base href="/organisatorv1/">`, `SFDC_ENV`
+mit `appName: "frontend"`, und die ausgelieferte Asset-Hash
+(`assets/index-C58SXKK7.js`) entspricht dem lokalen Build. Die Site ist published
+(`sf community publish --name Organisator`, Network-ID `0DB9X000000sWKgWAM`).
+
+`SITE_PATH_PREFIX` in `frontend/force-app/main/default/uiBundles/frontend/src/config/site.ts`
+steht auf `/organisatorv1`; der Sync-Test `site.test.ts` prüft das gegen
+`digitalExperienceConfigs/Organisator1.digitalExperienceConfig-meta.xml` — **nicht** gegen
+das Network. Die Primär-URL steht im DEC, das Network trägt die sekundäre
+`...vforcesite`-URL für die Legacy-Auth-Endpunkte. Beide URLs sind verschieden und
+müssen es bleiben.
+
+## Warum eine neue Site nötig war
+
+`appContainer` ist auf einer bestehenden Site **schreibgeschützt**. Ein bereits
+existierendes Stock-LWR-Workspace (`frontend2`, Pfad `/organisator`) lässt sich daher
+nicht in einen React-Container umwandeln:
+
+```text
+Der Wert für die Eigenschaft "$.appContainer" ist schreibgeschützt
+und kann nicht geändert werden.
+```
+
+Damit war Net-New die einzige CLI-Möglichkeit. `appSpace` ist im Gegensatz zu
+`appContainer` schreibbar und wird als **zweites** Deploy gesetzt — vorher schlägt die
+Validierung fehl mit `We couldn't find the c__frontend UIBundle`.
+
+### Drei Fehlerquellen, jeweils einmal pro Versuch
+
+| Fehler | Ursache |
+|---|---|
+| `no Network named portal found` | Network und CustomSite getrennt deployed |
+| `PicassoSite portal is not of type ChatterNetworkPicasso` | `picassoSite` muss `{siteName}1` sein, nicht `{siteName}` |
+| `Sie können die Site mit dem Namen ... nicht bereitstellen` | Namenskollision mit bestehender Site |
+
+Die Cross-References (`Network.site`, `Network.picassoSite`, `DEC.space`) prüfen gegen
+den **bestehenden** Org-Zustand, nicht gegen die Komponenten desselben Deploys. Alle
+fünf Typen müssen deshalb in **einem** Aufruf liegen, sonst schlägt die Validierung der
+übrigen fehl.
+
+### Zwei Abweichungen von den offiziellen `sf-skills`-Templates
+
+1. `<networkMemberGroups>` enthält zusätzlich `customer community plus user`. Das
+   Template hat nur `admin` — das würde alle Portal-User aussperren, also genau den
+   Lockout aus [`portal/network-mitgliedschaft-lockout.md`](portal/network-mitgliedschaft-lockout.md).
+2. `sfdc_cms__languageSettings` ist **nicht** deployed. Der Content-Typ bricht mit einem
+   Plattformfehler ab (`ErrorId 453620757-1174626`, `NullPointerException` auf
+   `isAuthoringOnly`) — unabhängig vom Workspace-Zustand, also kein Ordering-Problem.
+   Für eine einsprachige Site entbehrlich. Die Salesforce-Referenz nennt den Typ selbst
+   „authoring-only … until the platform runtime change lands".
+
+## Die alten Sites
+
+Drei Sites liegen noch in der Org und sind **nicht** mehr das Portal:
+
+| Site | Pfad | Zustand |
+|---|---|---|
+| `Organisator` | `/organisatorv1` | **das React-Portal** |
+| `frontend` | `/organisatorvforcesite` | delegiert per `<picassoSite>frontend2</picassoSite>` nach `/organisator`, liefert dort Stock-LWR. Login-/Session-Altlast. |
+| `frontend2` | `/organisator` | Stock-LWR, Picasso-Site ohne eigenes Network. |
+| `portal` | `/portal` | **Müll aus einem fehlgeschlagenen Binding-Versuch**, nicht mehr benutzt. |
+
+`portal` lässt sich nicht löschen (`Site.delete=False`). **Offen: in Setup archivieren.**
+
+`frontend` und `frontend2` können erst archiviert werden, wenn niemand mehr alte Links
+teilt — `/organisatorvforcesite` leitet heute mit zwei Redirects auf
+`/organisator/login` weiter.
 
 ### Site-Mitgliedschaft: der Admin-Lockout
 
 Eine `NetworkMemberGroup` nur auf ein externes Profil sperrt den internen
 Administrator aus: die Zeile in „Alle Sites" verliert URL und Aktionen, der Builder
-ist unerreichbar. Fix per REST-Insert einer zweiten Gruppe mit dem Profil `Admin`.
+ist unerreichbar. Fix per REST-Insert einer zweiten Gruppe mit dem Profil `admin`.
 Vollständig dokumentiert in
 [`portal/network-mitgliedschaft-lockout.md`](portal/network-mitgliedschaft-lockout.md).
-
-## Offen: UIBundle an die Site binden
-
-`UIBundle:frontend` ist deployed, aber noch keiner Site zugeordnet. Der Pfad
-`/organisatorvforcesite` serviert derzeit das Stock-LWR-Login, nicht das React-Portal.
-Die Zuordnung passiert im Experience Builder (Site-Einstellungen), sobald der Builder
-wieder erreichbar ist. Danach muss `SITE_PATH_PREFIX` in
-`frontend/force-app/main/default/uiBundles/frontend/src/config/site.ts` auf den
-tatsächlichen Pfad zeigen (steht noch auf `/organisator`).
 
 ## Nächster Setup-Schritt: Portal-User anlegen
 

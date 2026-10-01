@@ -3,12 +3,9 @@
     <allowInternalUserLogin>false</allowInternalUserLogin>
     <allowMembersToFlag>false</allowMembersToFlag>
     <changePasswordTemplate>unfiled$public/CommunityChangePasswordEmailTemplate</changePasswordTemplate>
-    <communityRoles/>
-    <description>Codingschule Teilnehmer Portal</description>
-    <disablePvtPagesForPwdResetInLWR>false</disablePvtPagesForPwdResetInLWR>
     <disableReputationRecordConversations>true</disableReputationRecordConversations>
     <emailSenderAddress>samuel.dillenburg@codingschule.de</emailSenderAddress>
-    <emailSenderName>frontend1</emailSenderName>
+    <emailSenderName>Organisator</emailSenderName>
     <embeddedLoginEnabled>false</embeddedLoginEnabled>
     <enableApexCDNCaching>true</enableApexCDNCaching>
     <enableCustomVFErrorPageOverrides>false</enableCustomVFErrorPageOverrides>
@@ -36,39 +33,9 @@
     <gatherCustomerSentimentData>false</gatherCustomerSentimentData>
     <headlessForgotPasswordTemplate>unfiled$public/CommunityHeadlessForgotPasswordTemplate</headlessForgotPasswordTemplate>
     <headlessRegistrationTemplate>unfiled$public/CommunityHeadlessRegistrationTemplate</headlessRegistrationTemplate>
-    <!-- Zwei Gruppen, beide noetig.
-
-         Systemadministrator: ohne ein internes Profil als Mitglied verliert der
-         Administrator die Zugehoerigkeit. Folge war eine tote Zeile in All
-         Sites: keine URL, "Erweitert" nicht klickbar, Experience Builder nicht
-         erreichbar. Bei 10 von 11 Sites dieser Org war Samuel Mitglied, nur bei
-         dieser nicht - genau die Zeile war tot.
-
-         Customer Community Plus User: nimmt kuenftig Portalnutzer automatisch
-         auf. Die Gruppe allein genuegt aber nicht, sie muss um das interne
-         Profil ergaenzt werden.
-
-         Die Profile werden hier kleingeschrieben gefuehrt, weil die Org sie so
-         normalisiert zurueckgibt. Beide Schreibweisen deployen, die
-         lokalisierten Namen ("Systemadministrator") nicht.
-
-         Hinweis: bestehende Gruppen kann ein Metadata-Deploy nicht entfernen
-         (nicht deletable), und ein frischer Insert via Apex scheitert an
-         "DML operation Update not allowed". Netzwerk-Mitgliedschaft laesst sich
-         deshalb nur per REST-API/Data Loader setzen, nicht aus dem Deployment
-         heraus. Beide Zeilen wurden per REST eingefuegt und sind hier nur
-         dokumentiert, damit der Zustand nachvollziehbar bleibt.
-
-         Hinweis: Diese Site ist die ALTE Site. Sie rendert ueber
-         <picassoSite>frontend2</picassoSite> nach /organisator und liefert
-         dort Stock-LWR statt des React-Bundles. Das React-Portal laeuft
-         seit dem 2026-10-01 auf Organisator / organisatorv1
-         (UiBundle:frontend). Diese Site hier ist nur noch die
-         Login-/Session-Altlast und sollte archiviert werden, sobald niemand
-         mehr alte Links darauf teilt. -->
     <networkMemberGroups>
-        <profile>customer community plus user</profile>
         <profile>admin</profile>
+        <profile>customer community plus user</profile>
     </networkMemberGroups>
     <networkPageOverrides>
         <changePasswordPageOverrideSetting>Standard</changePasswordPageOverrideSetting>
@@ -77,17 +44,17 @@
         <loginPageOverrideSetting>Designer</loginPageOverrideSetting>
         <selfRegProfilePageOverrideSetting>Designer</selfRegProfilePageOverrideSetting>
     </networkPageOverrides>
-    <picassoSite>frontend2</picassoSite>
-    <secondaryEmailSenderEnabled>false</secondaryEmailSenderEnabled>
+    <newSenderAddress>samuel.dillenburg@codingschule.de</newSenderAddress>
+    <picassoSite>Organisator1</picassoSite>
     <selfRegistration>false</selfRegistration>
     <sendWelcomeEmail>true</sendWelcomeEmail>
-    <site>frontend</site>
+    <site>Organisator</site>
     <siteArchiveStatus>NotArchived</siteArchiveStatus>
     <status>Live</status>
     <tabs>
         <defaultTab>home</defaultTab>
         <standardTab>Chatter</standardTab>
     </tabs>
-    <urlPathPrefix>organisatorvforcesite</urlPathPrefix>
+    <urlPathPrefix>organisatorv1vforcesite</urlPathPrefix>
     <welcomeTemplate>unfiled$public/CommunityWelcomeEmailTemplate</welcomeTemplate>
 </Network>
