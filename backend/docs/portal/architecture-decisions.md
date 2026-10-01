@@ -308,6 +308,14 @@ aktueller User → User.ContactId → Participant__c
 Salesforce empfiehlt für externe User, nur unbedingt benötigte Apex-Klassen freizugeben
 und möglichst das deklarative Sicherheitsmodell zu verwenden.
 
+**Erledigt am 2026-10-01.** `ParticipantPortalData` läuft jetzt `with sharing` und prüft
+zusätzlich `Portal_User__c = UserInfo.getUserId()` (sonst `403
+PORTAL_ACCESS_NOT_GRANTED`). System Mode wird weder für die Autorisierung noch für den
+Zugriff auf fremde Rows benutzt — die Freigabe liegt in den `Participant__Share`-Zeilen,
+die `ParticipantPortalSharingService` verwaltet. Damit ist auch die Empfehlung aus dieser
+ADR („deklaratives Sicherheitsmodell") umgesetzt, allerdings über Managed Sharing statt über
+eine Rule, weil die Rule-Variante in dieser Org nicht trägt (ADR-012).
+
 ---
 
 ## Anhang — Opportunity ist keine 1:1-Herkunft
@@ -437,9 +445,40 @@ wird oder ersetzt wird.
 
 Diese Entscheidung nimmt ADR-012 nicht vorweg.
 
+### Erledigt am 2026-10-01
+
+Die Rückkehrbedingung ist eingetreten und die Entscheidung ist gefallen:
+
+- Experience-Cloud-Site steht, beide Portal-User sind angelegt und eingerichtet.
+- Die OWD-Werte sind dokumentiert (`sharingModel=ReadWrite`,
+  `externalSharingModel=Private`, `enableSharing=true`).
+- Positiver und negativer Zugriffstest sind **beide** gelaufen, über echte Portal-Sessions:
+  User A sieht nur Participant A, User B nur Participant B, beide auf demselben Account.
+
+**A ist widerlegt, B ist ungeprüft, C wurde um eine Sharing-Ebene ergänzt.**
+
+A ist widerlegt, weil eine Criteria-Based Sharing Rule in dieser Org `$User.UserRecord.Id`
+und `$User.Id` zwar speichert und anzeigt, aber nicht ausgewertet — beide Varianten
+wurden gemessen und liefern für jeden Portal-User `NO_PARTICIPANT`. Eine statische
+User-ID funktioniert, ist aber kein Mechanismus.
+
+Statt B zu prüfen, ist die Autorisierung aus dem Apex-Code in die Datensatzfreigabe
+gewandert: `ParticipantPortalData` läuft jetzt `with sharing`, und
+`ParticipantPortalSharingService` legt je `Participant__c` mit `Portal_User__c` eine
+`Portal_Access__c`-Read-Share auf genau diesen Portal-User an. Isolation ist damit pro
+User statt pro Account — der Punkt, an dem Ansatz A gescheitert wäre.
+
+B bleibt offen. Ein Sharing Set wäre prüfbar, bringt aber nichts, was die Share-Zeilen
+nicht bereits leisten, und würde eine zweite Autorisierungsquelle eröffnen statt eine
+entfernen. Als Entscheidung vorgemerkt, nicht als offene Blockade.
+
 ### Folgen
 
-- `with sharing` bleibt die dokumentierte Rückbaurichtung, sobald A oder B verifiziert ist.
-- Der `/me`-Vertrag kann bestehen bleiben, unabhängig vom Ergebnis der Mechanismus-Entscheidung.
-- Ein Fehlschlag des Portal-User-Verifikationstests ist eine **Aussage über die Autorisierung**,
-  nicht über den Test. Zu prüfen wäre dann `without sharing` unter realer externer Identität.
+- `with sharing` ist gesetzt, die dokumentierte Rückbaurichtung ist damit eingelöst. Der
+  Identity-Filter in `resolveForPortalUser()` bleibt als zweite, unabhängige Schicht.
+- Der `/me`-Vertrag besteht unverändert fort.
+- Der Portal-User-Verifikationstest ist grün; er war die Bedingung, an der vorher die
+  Autorisierung hing.
+- Die Gruppenpflege (`Portal_Participants`) ist mit dem Sharing Reason überflüssig
+  geworden und wurde entfernt. Offen bleibt nur, **neue** Portal-User anzulegen — eine
+  Tätigkeit, kein Mechanismus.

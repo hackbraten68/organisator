@@ -8,7 +8,7 @@ Stand 2026-10-01, Ziel-Org `hubSandbox`.
 |---|---|
 | `ParticipantPortalData` (+ `PortalIdentityException`) | deployed, Active |
 | `UIBundleLogin`, `UIBundleChangePassword`, `UIBundleAuthUtils`, `UIBundleSocialLoginConfig`, `UIBundleForgotPassword` | deployed, Active |
-| `Participant_Portal_Access` (Permission Set) | deployed, **0 Zuweisungen** |
+| `Participant_Portal_Access` (Permission Set) | deployed, zugewiesen an 2 Portal-User |
 | `frontend_Guest_User_Api_Access` (Permission Set) | deployed |
 | `UIBundle:frontend` (das React-Portal inkl. `/me`) | deployed, Active, **an Site `Organisator` gebunden** |
 | Network `Organisator` | **Live**, Pfad `/organisatorv1vforcesite`, Site-as-Container |
@@ -98,31 +98,74 @@ ist unerreichbar. Fix per REST-Insert einer zweiten Gruppe mit dem Profil `admin
 Vollständig dokumentiert in
 [`portal/network-mitgliedschaft-lockout.md`](portal/network-mitgliedschaft-lockout.md).
 
-## Nächster Setup-Schritt: Portal-User anlegen
+## Portal-Testuser: Bestand
+
+Es liegen zwei Portal-User mit `ContactId` und `Participant__c`-Zeile vor:
+
+| Rolle | User | Contact | `Participant__c` | Zweck |
+|---|---|---|---|---|
+| Primärer Testuser | `mehmet.kaya.portal@codingschule.de.devhub` (`0059X00000rOHULQA4`) | `0039X000023sDyWQAU` | `a0s9X00000boVT9QAM` „Mehmet Kaya" | Hauptpfad des UAT |
+| Zweiter Testuser | `probe.mixeddml2.1790159877908@example.invalid` (`0059X00000qeMkQQAU`) | `0039X000021stNjQAI` | `a0s9X00000bqpfRQAQ` „Probe MixedDml2" | **Negativtest** |
+
+Beide haben das Passwort gesetzt, `Participant_Portal_Access` zugewiesen, ein gesetztes
+`Portal_User__c` und eine `Portal_Access__c`-Read-Share. Der zweite User existierte
+ursprünglich als Wegwerf-Artefakt eines Mixed-DML-Probes und wurde für den Negativtest
+wiederverwendet — als Contact und Participant, nicht als User, also ohne etwas Neues
+anzulegen.
+
+**Damit ist der Negativtest ausgeführt und bestanden**, siehe
+[Abschnitt Autorisierung](#autorisierung-with-sharing--apex-managed-sharing-stand-2026-10-01):
+User A sieht nur Participant A, beide User teilen sich denselben Account
+(`0019X00002OOmgDQAT`), die Isolation ist also nachweislich pro User und nicht zufällig
+pro Account. Der Probe-User ist damit kein Wegwerf mehr, sondern Teil des UAT-Sets und
+**nicht löschen**.
+
+Die alte Anleitung zur Erstellung eines Portal-Users ist damit überholt. Neu anlegen ist
+nur nötig, wenn ein weiterer Identitätspfad geprüft werden soll.
+
+### Reservierte UAT-Daten ohne Portal-User
+
+Ein zweites, vollständiges Testset liegt bereit, wird aber nicht vom Portal genutzt, weil
+die Lizenzklasse voll ist:
+
+```text
+Account    0019X00002OdEKcQAN  "SPIKE Portal Test Account B"
+Contact    0039X0000244DE7QAM  "Spike Beta"   (auf dem Account)
+Participant a0s9X00000bqpabQAA "Spike Beta"   Status Active, Portal_User__c leer
+```
+
+Es gibt **keinen** User dazu — die Anlage schlug mit fehl in der Lizenzklasse fehl
+(`LICENSE_LIMIT_EXCEEDED: Customer Community Plus`), und zwar auch nicht mit dem Profil
+`Trainer`, das dieselbe Lizenzklasse belegt. Belegung aktuell:
+
+| User | Profil | Aktiv |
+|---|---|---|
+| `lena.student@thehub.test.devhub` | Customer Community Plus User | nein |
+| `probe.mixeddml2.1790159877908@example.invalid` | Customer Community Plus User | ja |
+| `mehmet.kaya.portal@codingschule.de.devhub` | Customer Community Plus User | ja |
+
+Der Satz ist der vorbereitete zweite **echte** Portal-User für die Browservalidierung, falls
+die Isolation später mit zwei getrennten Accounts statt zweier User auf demselben Account
+geprüft werden soll. Bis dahin bewusst stehen lassen: er kostet nichts, und ein später
+neu aufgebauter Satz wäre Arbeit ohne Erkenntnis. **Löschen erst**, wenn entweder eine
+Lizenz ohnehin gebraucht wird oder die Browservalidierung abgeschlossen ist.
+
+### Erzeugen eines weiteren Portal-Users, falls doch nötig
 
 1. Toggle prüfen — Setup → Digitale Erlebnisse → Einstellungen →
    *Aus Standard-externen Profilen die Selbstregistrierung, Benutzererstellung und
    die Anmeldung erlauben*. Ohne ihn scheitert das Setzen von `User.ContactId` mit
    `FIELD_INTEGRITY_EXCEPTION`.
-2. Contact und `Participant__c` anlegen, klar als Test gekennzeichnet.
-3. Portal-User auf diesen Contact, Passwort per API setzen.
-   `emailSenderAddress` war `...@codingschule.de.invalid` und ist auf
-   `samuel.dillenburg@codingschule.de` korrigiert, aber ob der Versand in der Sandbox
-   freigeschaltet ist, ist ungetestet. ADR-005 (Willkommens-Mail) bleibt ungetestet.
-4. `Participant_Portal_Access` zuweisen.
-
-## Der eigentliche Test
-
-Ein Testteilnehmer loggt sich ein und sieht Name, Status und Programm. Der
-schwierigere Teil ist der **Negativtest**: mit einem zweiten Portal-User prüfen, dass
-dieser die Daten des ersten nicht sieht.
-
-`ParticipantPortalData` läuft `without sharing`, weil `Participant__c` extern `Private`
-ist und `with sharing` für externe Nutzer nichts zurückgäbe. Damit ist der Filter
-`Participant__c WHERE Contact__c = :contactId` das Einzige zwischen dem Aufrufer und
-allen anderen Teilnehmerzeilen — es gibt keine Sharing Rules, keine FLS, keine zweite
-Absicherung. Dieser Pfad ist noch nie gegen eine echte externe Identität gelaufen.
----
+2. Contact und `Participant__c` anlegen, klar als Test gekennzeichnet. `Contact__c` ist
+   auf `Participant__c` Pflicht.
+3. Portal-User auf diesen Contact anlegen, Passwort setzen. In der Sandbox geht das
+   nicht per Setup-Route („nur zurücksetzen") und auch nicht per SOAP — die OAuth-Tokens
+   waren abgelaufen. **Beliebter Weg: `System.setPassword(userId, pw)` per Execute
+   Anonymous.** `Participant__c` bekommt `Portal_User__c = <User-Id>`; der Trigger legt
+   die Share an. Getrennte Apex-Läufe verwenden, sonst `MIXED_DML_OPERATION`
+   (Setup-Objekt `GroupMember` nach Non-Setup-Objekt `Participant__c`).
+4. `Participant_Portal_Access` zuweisen — ohne das gibt der Endpoint `403 FORBIDDEN`
+   statt Daten, siehe [Abschnitt Live-Nachweis](#live-nachweis-der-automatik).
 
 ## Autorisierung: `with sharing` + Apex Managed Sharing (Stand 2026-10-01)
 
@@ -147,7 +190,17 @@ aber literal — die Regel findet keine Row, jeder Portal-User bekommt `NO_PARTI
 Das ist kein Maskenproblem, sondern Verhalten; beide Varianten sind live gemessen.
 
 Damit ist der Ansatz aus ADR-012 (A: deklarative Rule, B: Sharing Set) in dieser Org
-nicht umsetzbar. Gewählt: **C bleibt, aber mit deklarativer Freigabe pro User.**
+nicht umsetzbar. Gewählt: **C bleibt, die Autorisierung wandert aus dem Apex-Code in die
+Datensatzfreigabe** — Ansatz C nach dem Wortlaut der ADR („prozedural autorisierter
+Endpoint") wird damit um eine Sharing-Ebene ergänzt, die es vorher nicht gab. ADR-012
+nennt dieses Zielbild ausdrücklich als möglich:
+
+```text
+C bleibt + deklaratives Sharing kommt als zusätzliche Schutzschicht dazu
+C bleibt + Klasse wechselt nach erfolgreichem Spike auf with sharing
+```
+
+Beides ist umgesetzt.
 
 ### Lösung: direkte `Participant__Share`-Zeilen
 
