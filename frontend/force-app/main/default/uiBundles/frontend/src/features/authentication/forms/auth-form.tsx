@@ -52,20 +52,33 @@ export function AuthForm({
 	footer,
 	...props
 }: AuthFormProps) {
-	const form = useFormContext();
-	const { isAuthenticated, loading } = useAuth();
+const form = useFormContext();
+	const { isAuthenticated, loading, authProbeFailed } = useAuth();
 	const generatedId = useId();
 	const id = providedId ?? generatedId;
 
 	const showAuthAlert = showAlreadyLoggedIn && isAuthenticated;
+
+	// `loading` is the session probe, not the form's own submission state. It may
+	// briefly disable the button to avoid a double action while the current
+	// session is still being resolved, but it is bounded by AUTH_PROBE_TIMEOUT_MS
+	// and must never leave the visitor stuck: on this org the guest gets 401 from
+	// the GraphQL probe, so this path is the normal one for an anonymous visitor
+	// and cannot be allowed to disable login indefinitely.
 	const isSubmitDisabled = submit.disabled || showAuthAlert || loading;
 
 	return (
 		<CardLayout title={title} description={description}>
 			<div className="space-y-6">
-				{/* [Dev Note] Auth status alert for authenticated users on public pages */}
+				{/* [Dev Note]: Auth status alert for authenticated users on public pages */}
 				{showAuthAlert && <StatusAlert variant="info">You are already logged in.</StatusAlert>}
-				{/* [Dev Note] Global form error alert (e.g. "Invalid Credentials") */}
+				{/* Non-blocking: login still works when the session check fails */}
+				{authProbeFailed && (
+					<StatusAlert variant="info">
+						Your existing session could not be checked. You can still sign in.
+					</StatusAlert>
+				)}
+				{/* [Dev Note]: Global form error alert (e.g. "Invalid Credentials") */}
 				{error && <StatusAlert variant="error">{error}</StatusAlert>}
 				{success && <StatusAlert variant="success">{success}</StatusAlert>}
 

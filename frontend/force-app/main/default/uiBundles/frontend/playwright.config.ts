@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 const E2E_PORT = 5175;
 
 export default defineConfig({
+  // The live-guest suite needs the real org (see playwright.live.config.ts);
+  // against `serve dist` it proves nothing.
+  testIgnore: /live-guest\.spec\.ts$/,
   testDir: './e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
