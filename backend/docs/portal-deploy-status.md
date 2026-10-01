@@ -215,3 +215,21 @@ REST-Daten-API ungültig (`INVALID_SESSION_ID: This session is not valid for use
 the REST API`). Auch der LWR-Proxy unter `/organisatorv1/sf/api/services/data` leitet
 nur `services/apexrest` weiter. Der Nachweis wird deshalb über `/me` mit echten
 Portal-Sessions geführt, nach dem `with sharing`-Wechsel also über den Endpoint selbst.
+
+### Logout: Server-Seite invalidiert, Cookie-Jar im Test irreführend
+
+`GET /sfsites/s/logout?site=Organisator` (302, danach `/organisatorv1/login`) invalidiert
+die serverseitige Session. Über `AuthSession` geprüft: die `ChatterNetworks`-Sessions des
+Portal-Users haben `LastModifiedDate == CreatedDate` und `IsCurrent = false`.
+
+Ein `curl`-Test mit Cookie-Jar meldet danach fälschlich weiterhin `200`. Grund ist das
+Testsetup, nicht das Verhalten: Experience-Cloud-Sessions sind **nicht** über
+`Authorization: Bearer <sid>` prüfbar — die REST-API weist sie mit
+`INVALID_SESSION_ID: This session is not valid for use with the REST API` ab, man bekommt
+also immer `NO_CONTACT_IDENTITY` und damit ein falsches „Logout hat gewirkt". Der sid ist
+zudem an den `TempChatterNetworks`-Session-Typ gebunden, den Salesforce erst serverseitig
+abläuft, während curl das alte Cookie weiter mitsendet.
+
+**Für den Abnahmetest:** Logout im echten Browser prüfen (geschützte Route muss wieder
+den Login verlangen), nicht per `curl` mit Cookie-Jar. Wer es per API prüfen will, muss
+das Cookie-Set nach dem Logout neu aufbauen, statt das alte weiterzureichen.
