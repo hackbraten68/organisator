@@ -6,10 +6,10 @@
  *   No parameters, deliberately — see "Authorisation".
  *
  * RESPONSE STYLE
- *   Uses the static responseBody/responseStatus fields rather than
- *   RestContext.response.response. On this org the RestResponse body property is
- *   not exposed to Apex, so that form does not compile. RestContext is still fine
- *   for headers inside the @HttpGet method.
+ *   getMe() returns the view (or an error) and lets Salesforce serialise it to
+ *   application/json. RestContext.response.response is not available on this
+ *   org's API version, so an explicit body write is not an option. The status
+ *   code is still set through RestContext for the error branches.
  *
  * IDENTITY
  *   Resolved server-side, never from the request:
@@ -20,18 +20,27 @@
  *   or contact id. The only reachable row is the caller's own (ADR-003, ADR-010).
  *
  * AUTHORISATION — read this before changing the sharing model
- *   This class runs `without sharing` on purpose. Participant__c has
- *   externalSharingModel = Private, so `with sharing` returns nothing for an
- *   external portal user and the portal could not start at all. The authorisation
- *   is NOT "system mode sees everything"; it is the single-row filter above, which
- *   the query enforces and the tests cover — including that a second user resolves
- *   to their own record and never to somebody else's.
+ *   This class runs `with sharing`. That is only safe because
+ *   ParticipantPortalSharingService releases exactly one Participant__c row per
+ *   portal user (via the Portal_Access__c sharing reason), so the query below
+ *   cannot see any other participant even though the org enforces record
+ *   sharing and FLS for Apex.
  *
- *   Once account-based sharing (Approach A) or a sharing set (Approach B) is live
- *   and the spike's positive and negative tests have passed, change this to
- *   `with sharing` and drop this note. Until then the explicit filter is the only
- *   thing standing between the caller and every other participant row, so it must
- *   not be widened.
+ *   Two independent layers, deliberately not collapsed into one:
+ *   1. Record-level sharing — the caller can only ever read the one row that
+ *      was explicitly released to them.
+ *   2. The identity filter — resolveForPortalUser() additionally asserts
+ *      `Portal_User__c = UserInfo.getUserId()` before serving anything.
+ *
+ *   Why not a declarative Criteria-Based Sharing Rule: this org accepts
+ *   `$User.UserRecord.Id` and `$User.Id` as the criterion value but does not
+ *   evaluate them — both were stored and displayed as literals, so the rule
+ *   matched nothing (see portal-deploy-status.md). Managed sharing is the
+ *   supported way to express "this row belongs to exactly this portal user".
+ *
+ *   Do NOT widen this. Removing `with sharing`, the single-row filter, or the
+ *   Portal_User__c assertion would put every participant row one careless query
+ *   away. ADR-003, ADR-010, ADR-012.
  *
  * SIDE EFFECTS
  *   None. This is a read: it must not write. In particular it does not activate a
@@ -40,11 +49,9 @@
  *   Portal_Status__c / Portal_ActivatedAt__c once that model exists — see
  *   portal-access-plan.md phase 3.2.
  */
-@RestResource(urlMapping='/participant-portal')
-global without sharing class ParticipantPortalData {
-    /** The response body. Salesforce serves this as application/json. */
-    global static String responseBody;
-    /** The HTTP status for this request. */
+@RestResource(urlMapping='/participant-portal/*')
+global with sharing class ParticipantPortalData {
+    /** The HTTP status the endpoint answers with; kept for symmetry with the view. */
     global static Integer responseStatus = 200;
 
     /**
@@ -75,32 +82,62 @@ global without sharing class ParticipantPortalData {
         }
     }
 
+    /**
+     * The HTTP boundary shape.
+     *
+     * An @HttpGet method cannot return Object, so success and failure cannot be
+     * two different types. MeResponse carries the participant fields flat — the
+     * shape the UI reads — and the stable error code/message on top. The UI
+     * branches on the HTTP status, so code/message are simply null on success.
+     */
+    global class MeResponse {
+        public String participantId;
+        public String contactId;
+        public String participantName;
+        public String participantStatus;
+        public String programName;
+        public String coachName;
+        public String startDate;
+        public String expectedEndDate;
+        public String contactName;
+        public String contactEmail;
+        public String code;
+        public String message;
+
+        global MeResponse(ParticipantView view) {
+            this.participantId = view.participantId;
+            this.contactId = view.contactId;
+            this.participantName = view.participantName;
+            this.participantStatus = view.participantStatus;
+            this.programName = view.programName;
+            this.coachName = view.coachName;
+            this.startDate = view.startDate;
+            this.expectedEndDate = view.expectedEndDate;
+            this.contactName = view.contactName;
+            this.contactEmail = view.contactEmail;
+        }
+
+        global MeResponse(String code, String message) {
+            this.code = code;
+            this.message = message;
+        }
+    }
+
     @HttpGet
-    global static void getMe() {
+    global static MeResponse getMe() {
         // Personal portal data: never let a shared cache hold it.
         RestContext.response.addHeader('Cache-Control', 'no-store, private');
 
         try {
-            respond(200, JSON.serialize(resolve()));
+            return new MeResponse(resolve());
         } catch (PortalIdentityException error) {
-            respond(
-                error.getStatusCode(),
-                JSON.serialize(new PortalErrorResponse(error.getCode(), error.getMessage()))
-            );
+            RestContext.response.statusCode = error.getStatusCode();
+            return new MeResponse(error.getCode(), error.getMessage());
         } catch (Exception error) {
             // Never surface the raw exception: it would leak field names and IDs.
-            respond(
-                500,
-                JSON.serialize(
-                    new PortalErrorResponse('INTERNAL_ERROR', 'Portal data unavailable.')
-                )
-            );
+            RestContext.response.statusCode = 500;
+            return new MeResponse('INTERNAL_ERROR', 'Portal data unavailable.');
         }
-    }
-
-    private static void respond(Integer status, String body) {
-        responseStatus = status;
-        responseBody = body;
     }
 
     /**
@@ -129,7 +166,22 @@ global without sharing class ParticipantPortalData {
         // Two queries rather than a semi-join subquery: Apex does not support
         // `WHERE Id = (SELECT ...)`, and separate queries show which link of the
         // identity chain actually failed.
-        List<User> users = [SELECT ContactId FROM User WHERE Id = :userId LIMIT 1];
+        // A caller without a portal session runs as the site guest user, which cannot
+        // read the User table at all. That surfaces as a QueryException rather
+        // than an empty list, and it means exactly one thing here: there is no
+        // portal identity to resolve. Map it to the same 401 as a missing
+        // contact instead of letting it fall through to a 500, which would tell
+        // the caller "something is broken" for what is simply "not logged in".
+        List<User> users;
+        try {
+            users = [SELECT ContactId FROM User WHERE Id = :userId LIMIT 1];
+        } catch (QueryException noUserAccess) {
+            throw identityError(
+                401,
+                'NO_CONTACT_IDENTITY',
+                'The signed-in user has no contact, so no portal data can be resolved.'
+            );
+        }
         if (users.isEmpty() || users[0].ContactId == null) {
             throw identityError(
                 401,
@@ -137,7 +189,48 @@ global without sharing class ParticipantPortalData {
                 'The signed-in user has no contact, so no portal data can be resolved.'
             );
         }
-        return resolveForContact(users[0].ContactId);
+        return resolveForPortalUser(users[0].ContactId, userId);
+    }
+
+    /**
+     * Second, independent authorisation layer.
+     *
+     * Record-level sharing is the first one: ParticipantPortalSharingService
+     * releases exactly one row per portal user, and this class runs `with
+     * sharing`, so the query cannot see any other participant at all.
+     *
+     * This check is the second one and deliberately redundant. It states in
+     * code what the caller must satisfy, so a row that becomes reachable for
+     * some other reason still cannot be served to a user it was not released
+     * to. Returning 403 rather than 404 here is intentional: the caller is a
+     * legitimate, authenticated portal user, and the honest answer is "not
+     * released to you", not "does not exist".
+     */
+    global static ParticipantView resolveForPortalUser(Id contactId, Id portalUserId) {
+        if (contactId == null || portalUserId == null) {
+            throw identityError(
+                401,
+                'NO_CONTACT_IDENTITY',
+                'The signed-in user has no contact, so no portal data can be resolved.'
+            );
+        }
+
+        List<Participant__c> released = [
+            SELECT Id
+            FROM Participant__c
+            WHERE Contact__c = :contactId
+                AND Portal_User__c = :portalUserId
+            LIMIT 1
+        ];
+        if (released.isEmpty()) {
+            throw identityError(
+                403,
+                'PORTAL_ACCESS_NOT_GRANTED',
+                'This participant record is not released to the signed-in portal user.'
+            );
+        }
+
+        return resolveForContact(contactId);
     }
 
     /**

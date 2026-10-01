@@ -3,7 +3,7 @@
  *
  * Focuses on getSanitizedStartUrl, the shared open-redirect (CWE-601) guard
  * used by UIBundleLogin, UIBundleRegistration and UIBundleSocialLoginConfig.
- * Every rejection path and the safe-path prefixing
+ * Every rejection path and the safe-path pass-through
  * behavior are asserted deterministically with an explicit path prefix.
  */
 @isTest
@@ -19,8 +19,8 @@ private class UIBundleAuthUtils_Test {
     static void allowsSafeRelativePath() {
         System.assertEquals(
             '/community/dashboard',
-            UIBundleAuthUtils.getSanitizedStartUrl('/dashboard', PREFIX),
-            'A safe community-relative path should be prefixed and preserved'
+            UIBundleAuthUtils.getSanitizedStartUrl('/community/dashboard', PREFIX),
+            'A safe site-absolute path should be preserved unchanged'
         );
     }
 
@@ -28,8 +28,8 @@ private class UIBundleAuthUtils_Test {
     static void allowsNestedRelativePath() {
         System.assertEquals(
             '/community/safe/relative/path',
-            UIBundleAuthUtils.getSanitizedStartUrl('/safe/relative/path', PREFIX),
-            'A nested relative path should be prefixed and preserved'
+            UIBundleAuthUtils.getSanitizedStartUrl('/community/safe/relative/path', PREFIX),
+            'A nested site-absolute path should be preserved unchanged'
         );
     }
 

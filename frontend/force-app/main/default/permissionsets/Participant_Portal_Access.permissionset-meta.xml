@@ -2,28 +2,103 @@
 <!--
     Access tier for portal members (participants).
 
-    Deliberately minimal. `ParticipantPortalData` runs `without sharing` and
-    never calls Security.stripInaccessible, so field-level security is not
-    enforced for it — the permission set therefore does NOT need object or field
-    permissions for `/me` to work. Apex class access is the only hard
-    requirement, and without it the endpoint answers 403/404 for a logged-in
-    member.
+    Deliberately minimal, and read-only. `ParticipantPortalData` runs
+    `without sharing` and never calls Security.stripInaccessible.
 
-    Consequence worth keeping in mind: the single server-side filter
-    `Participant__c WHERE Contact__c = :contactId` is what keeps participants
-    apart. It is not reinforced by sharing rules or FLS. See ADR-012 and
+    Object and field permissions ARE required here, despite `without sharing`:
+    system mode bypasses sharing rules and record visibility, but it does not
+    make an sObject queryable for a user who has no CRUD on it. Without
+    allowRead the endpoint fails with
+    "System.QueryException: sObject type 'Participant__c' is not supported".
+    Read-only is enough — nothing here grants create, edit, delete or
+    view-all-rows.
+
+    Consequence worth keeping in mind: read access alone is not enough. The
+    org enforces Apex record sharing, so `without sharing` in
+    ParticipantPortalData does NOT bypass row visibility — the portal member
+    saw 0 rows on Participant__c until the sharing rule
+    PortalParticipantSeesOwnRecord was added. The rule keys on
+    Participant__c.Portal_User__c, which is why this set also needs Read on
+    that field. See ADR-012 and
     backend/docs/portal/portal-access-plan.md — phase 1.5 is still open.
 
     Not granted here:
     - UIBundleLogin, UIBundleForgotPassword, UIBundleSocialLoginConfig — those
       are called by anonymous visitors and live in
       frontend_Guest_User_Api_Access.
-    - No object permissions: a member gets no CRUD on any custom object. The
-      portal reads through Apex, not through UI API.
+    - No write access to any object: a member gets no CRUD beyond read.
+      The portal reads through Apex, not through UI API.
 -->
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
     <label>Participant Portal Access</label>
-    <description>Grants portal members access to their own portal data. No custom object access; participants reach their data exclusively through the read-only Apex endpoint.</description>
+    <description>Grants portal members read access to the records their own portal view is built from, plus the read-only Apex endpoint. No write access to any object.</description>
+
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Participant__c.Status__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Participant__c.StartDate__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Participant__c.ExpectedEndDate__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Participant__c.Program__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Participant__c.Coach_Profile__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <!-- Referenziert die Sharing Rule PortalParticipantSeesOwnRecord
+         (Participant__c.Portal_User__c = UserInfo.getUserId()). Ohne Read auf
+         das Feld selbst wertet die Org die Rule nicht aus, weil FLS erzwungen
+         wird. Schreibrecht wird bewusst nicht vergeben: der Wert wird aus
+         User.ContactId abgeleitet, nicht vom Portaluser gepflegt. -->
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Participant__c.Portal_User__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Participant__c</object>
+        <viewAllFields>false</viewAllFields>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Program__c</object>
+        <viewAllFields>false</viewAllFields>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Coach_Profile__c</object>
+        <viewAllFields>false</viewAllFields>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
 
     <userPermissions>
         <enabled>true</enabled>

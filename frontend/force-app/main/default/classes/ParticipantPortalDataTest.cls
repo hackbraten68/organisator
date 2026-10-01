@@ -235,6 +235,51 @@ public class ParticipantPortalDataTest {
         System.assertEquals(betaContactId, betaView.contactId, 'beta keeps its own contact');
     }
 
+    @IsTest
+    static void aRowReleasedToTheCallerIsServed() {
+        ensureData();
+
+        // Portal_User__c is the release target, so it is what
+        // resolveForPortalUser() asserts. UserInfo.getUserId() is the running
+        // user, which is the only identity a test can act as.
+        releaseToCurrentUser(alphaContactId);
+
+        ParticipantPortalData.ParticipantView view = resolveForPortalUser(alphaContactId, UserInfo.getUserId());
+        System.assertEquals(
+            alphaParticipantId,
+            view.participantId,
+            'a row released to the caller is served'
+        );
+    }
+
+    @IsTest
+    static void aRowReleasedToSomebodyElseIsRefused() {
+        ensureData();
+
+        // The caller is legitimate and authenticated but the row is not theirs.
+        // 403 rather than 404: the honest answer is "not released to you".
+        try {
+            resolveForPortalUser(alphaContactId, makeUnknownId());
+            System.assert(false, 'a row released to another user must not be served');
+        } catch (PortalIdentityException error) {
+            System.assertEquals('PORTAL_ACCESS_NOT_GRANTED', error.getCode());
+            System.assertEquals(403, error.getStatusCode());
+        }
+    }
+
+    @IsTest
+    static void aRowWithoutAnyReleaseIsRefused() {
+        ensureData();
+
+        // Nothing released the row, so there is nothing to fall back on.
+        try {
+            resolveForPortalUser(alphaContactId, UserInfo.getUserId());
+            System.assert(false, 'a row without a release must not be served');
+        } catch (PortalIdentityException error) {
+            System.assertEquals('PORTAL_ACCESS_NOT_GRANTED', error.getCode());
+        }
+    }
+
     // ---------------------------------------------------------------------
 
     /** A syntactically valid Id that is guaranteed not to exist in this org. */
@@ -242,8 +287,21 @@ public class ParticipantPortalDataTest {
         return (Id) '005000000000000AAA';
     }
 
+    /** Points Portal_User__c at the running user, i.e. simulates the release. */
+    private static void releaseToCurrentUser(Id contactId) {
+        Participant__c participant = [
+            SELECT Id FROM Participant__c WHERE Contact__c = :contactId LIMIT 1
+        ];
+        participant.Portal_User__c = UserInfo.getUserId();
+        update participant;
+    }
+
     private static ParticipantPortalData.ParticipantView resolveForContact(Id contactId) {
         return ParticipantPortalData.resolveForContact(contactId);
+    }
+
+    private static ParticipantPortalData.ParticipantView resolveForPortalUser(Id contactId, Id portalUserId) {
+        return ParticipantPortalData.resolveForPortalUser(contactId, portalUserId);
     }
 
     private static void ensureData() {

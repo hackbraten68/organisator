@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Eigenes Apex Sharing Reason, damit ParticipantPortalSharingService nur die
+    eigenen Portal-Freigaben erkennt und bearbeitet. Manuelle oder fremde
+    Freigaben auf Participant__c bleiben damit unberuehrt, und ein Benutzerwechsel
+    laesst sich sauber abgleichen.
+
+    WICHTIG fuer diese Sandbox: Der Apex Sharing Reason ist per Metadata API
+    nicht deploybar. Er fehlt in der Registry des @salesforce/cli, und die
+    OAuth-Tokens sind abgelaufen, sodass auch der rohe Metadata-Weg nicht
+    offen ist. Einmalig manuell anlegen:
+
+      Setup -> Object Manager -> Participant -> Apex Sharing Reasons -> New
+        Label: Portal Access
+        Name:  Portal_Access
+
+    Danach den Deploy wiederholen, damit Source-Tracking und Org zusammenpassen.
+    ParticipantPortalSharingService.cls laeuft bis dahin nicht, weil er
+    Schema.Participant__Share.RowCause.Portal_Access__c referenziert.
+-->
+<SharingRules xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Portal_Access</fullName>
+</SharingRules>

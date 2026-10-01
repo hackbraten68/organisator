@@ -23,6 +23,12 @@ public without sharing class UIBundleAuthUtils {
 
     /**
      * Validates and sanitizes redirect URL to prevent open redirect vulnerabilities.
+     * The incoming URL is already site-absolute (the SPA router hands over paths that
+     * include the app base path, e.g. /organisatorv1/dashboard), so it is returned
+     * unchanged once validated. It is deliberately NOT prefixed with the site path
+     * prefix: on a Picasso/DigitalExperienceConfig site the CustomSite path prefix
+     * (/organisatorv1vforcesite) differs from the SPA base path (/organisatorv1), so
+     * prefixing would produce a duplicated, unreachable path after frontdoor redirect.
      * @param url The URL to validate.
      * @param defaultUrl Fallback URL if validation fails.
      * @return Sanitized URL or defaultUrl if invalid.
@@ -51,7 +57,7 @@ public without sharing class UIBundleAuthUtils {
             if (charCode < 32 || charCode == 127) { return defaultUrl; }
         }
         
-        return defaultUrl + url;
+        return url;
     }
 
     /**

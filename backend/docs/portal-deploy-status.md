@@ -122,3 +122,96 @@ ist und `with sharing` für externe Nutzer nichts zurückgäbe. Damit ist der Fi
 `Participant__c WHERE Contact__c = :contactId` das Einzige zwischen dem Aufrufer und
 allen anderen Teilnehmerzeilen — es gibt keine Sharing Rules, keine FLS, keine zweite
 Absicherung. Dieser Pfad ist noch nie gegen eine echte externe Identität gelaufen.
+---
+
+## Autorisierung: `with sharing` + Apex Managed Sharing (Stand 2026-10-01)
+
+### Befund
+
+`Participant__c` steht auf `sharingModel=ReadWrite`, `externalSharingModel=Private`,
+`enableSharing=true`. Die Org erzwingt Apex-Record-Sharing. Gemessen: der Portal-User
+sah bei `SELECT COUNT() FROM Participant__c` **0 Rows**, obwohl `ParticipantPortalData`
+damals `without sharing` lief — System Mode greift hier also nicht.
+
+Drei Freigabe-Varianten wurden durchgemessen, jeweils über echte Portal-Sessions:
+
+| Kriterium der Sharing Rule | Mehmet | Probe-User |
+|---|---|---|
+| statische User-ID | **200** | 404 |
+| `$User.UserRecord.Id` | 404 | 404 |
+| `$User.Id` | 404 | 404 |
+
+**Ergebnis: Eine Criteria-Based Sharing Rule scheitert in dieser Org daran, dass
+`$User…` nicht ausgewertet wird.** Salesforce speichert und zeigt den Wert, vergleicht
+aber literal — die Regel findet keine Row, jeder Portal-User bekommt `NO_PARTICIPANT`.
+Das ist kein Maskenproblem, sondern Verhalten; beide Varianten sind live gemessen.
+
+Damit ist der Ansatz aus ADR-012 (A: deklarative Rule, B: Sharing Set) in dieser Org
+nicht umsetzbar. Gewählt: **C bleibt, aber mit deklarativer Freigabe pro User.**
+
+### Lösung: direkte `Participant__Share`-Zeilen
+
+`ParticipantPortalSharingService` legt je `Participant__c` mit `Portal_User__c` genau
+eine Read-Share auf genau diesen Portal-User an, RowCause `Portal_Access__c`. Damit ist
+Isolation **pro User**, nicht pro Account — zwei Portal-User auf demselben Account sehen
+weiterhin nur ihre eigene Zeile.
+
+Beweis, beidseitig:
+
+| Zustand | Mehmet | Probe-User |
+|---|---|---|
+| beide Shares vorhanden | **200** `a0s9X00000boVT9QAM` | **200** `a0s9X00000bqpfRQAQ` |
+| Probe-Share entzogen | 200 | **404** |
+
+Der Probe-User besitzt eine existierende Teilnehmerzeile mit korrekt gesetztem
+`Portal_User__c` und vollem Permission Set und sieht sie nur dann, wenn der Share
+existiert. Der Share ist damit das Gate, nicht der serverseitige Filter.
+
+### Zwei Schutzschichten in `ParticipantPortalData`
+
+1. **Record-Level Sharing** — die Klasse läuft `with sharing`; die Query sieht
+   konstruktionsbedingt nur die freigegebene Row.
+2. **Identity-Filter** — `resolveForPortalUser()` prüft zusätzlich
+   `Portal_User__c = UserInfo.getUserId()`, sonst **403 `PORTAL_ACCESS_NOT_GRANTED`**.
+
+Der 403 ist gewollt: der Caller ist ein legitimer, angemeldeter Portal-User — die
+ehrliche Antwort ist „nicht für dich freigegeben", nicht „existiert nicht".
+
+### Sandbox-Blocker: Apex Sharing Reason
+
+`ParticipantPortalSharingService` referenziert
+`Schema.Participant__Share.RowCause.Portal_Access__c`. Der Apex Sharing Reason ist
+**nicht per Metadata API deploybar** — `ApexSharingReason` fehlt in der Registry des
+`@salesforce/cli`, und Access- sowie Refresh-Token sind abgelaufen
+(`invalid_grant: expired access/refresh token`), sodass auch der rohe SOAP-Weg zu ist.
+
+Einmalig manuell anlegen:
+
+```text
+Setup → Object Manager → Participant → Apex Sharing Reasons → New
+  Label: Portal Access
+  Name:  Portal_Access
+```
+
+Danach deployen. **Bis dahin sind `ParticipantPortalSharingService`,
+`ParticipantPortalSharingServiceTest` und der Trigger `ParticipantPortalSharing` nicht
+deployed.** Das Portal funktioniert derweil weiter, weil die Shares manuell gesetzt
+wurden — aber jede neue Zuweisung von `Portal_User__c` muss dann von Hand nachgezogen
+werden.
+
+### Derselbe Org-Defekt: CustomFields
+
+Das Anlegen neuer CustomFields per Metadata API schlägt in dieser Org **still** fehl:
+der Deploy meldet `Created`, `describe` zeigt das Feld nicht. Betroffen waren
+`Participant__c.Portal_User__c` und `Portal_User_Id__c`. Neue Felder müssen in dieser
+Sandbox einmalig manuell in Setup angelegt werden.
+
+### Test-Nachweis über die REST-Daten-API nicht möglich
+
+Die im Spike-Protokoll vorgesehene Prüfung
+(`GET /services/data/.../query?q=SELECT Id FROM Participant__c` mit Portal-Session)
+scheitert an der Plattform: Experience-Cloud-Sessions sind für die allgemeine
+REST-Daten-API ungültig (`INVALID_SESSION_ID: This session is not valid for use with
+the REST API`). Auch der LWR-Proxy unter `/organisatorv1/sf/api/services/data` leitet
+nur `services/apexrest` weiter. Der Nachweis wird deshalb über `/me` mit echten
+Portal-Sessions geführt, nach dem `with sharing`-Wechsel also über den Endpoint selbst.

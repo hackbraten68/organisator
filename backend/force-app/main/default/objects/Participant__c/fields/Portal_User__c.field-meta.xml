@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Portal_User__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Portal-Login dieses Teilnehmers. Fuellt die Sharing Rule PortalParticipantSeesOwnRecord und verlegt die Zugriffsgrenze des Portals damit vom Apex-Code auf ein Feld: der Portal-User liest genau seine eigene Row. Nicht selbst pflegen - wird aus User.ContactId abgeleitet.</description>
+    <inlineHelpText>Wird aus User.ContactId abgeleitet und nicht manuell gepflegt.</inlineHelpText>
+    <label>Portal User</label>
+    <referenceTo>User</referenceTo>
+    <relationshipLabel>Portal User</relationshipLabel>
+    <relationshipName>Portal_User</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>
