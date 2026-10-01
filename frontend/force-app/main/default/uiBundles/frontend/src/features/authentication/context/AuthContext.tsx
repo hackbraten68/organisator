@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { getCurrentUser } from "@salesforce/ui-bundle/api";
-import { API_ROUTES } from "../authenticationConfig";
+import { logoutUrl } from "../../../config/site";
 
 interface User {
 	readonly id: string;
@@ -44,12 +44,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 	}, []);
 
 	const logout = useCallback((startURL?: string) => {
-		// Navigate to logout URL (server-side endpoint)
-		// Use replace to prevent back button from returning to authenticated session
-		const finalLogoutUrl = startURL
-			? `${API_ROUTES.LOGOUT}?startURL=${encodeURIComponent(startURL)}`
-			: API_ROUTES.LOGOUT;
-		window.location.replace(finalLogoutUrl);
+		// Navigate to the server-side session logout on the My Domain origin.
+		// Use replace to prevent the back button from returning to the session.
+		window.location.replace(logoutUrl(startURL));
 	}, []);
 
 	useEffect(() => {
