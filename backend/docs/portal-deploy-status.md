@@ -177,27 +177,54 @@ existiert. Der Share ist damit das Gate, nicht der serverseitige Filter.
 Der 403 ist gewollt: der Caller ist ein legitimer, angemeldeter Portal-User — die
 ehrliche Antwort ist „nicht für dich freigegeben", nicht „existiert nicht".
 
-### Sandbox-Blocker: Apex Sharing Reason
+### Apex Sharing Reason: nicht anlegbar, durch Identitätsprüfung ersetzt
 
-`ParticipantPortalSharingService` referenziert
-`Schema.Participant__Share.RowCause.Portal_Access__c`. Der Apex Sharing Reason ist
-**nicht per Metadata API deploybar** — `ApexSharingReason` fehlt in der Registry des
-`@salesforce/cli`, und Access- sowie Refresh-Token sind abgelaufen
-(`invalid_grant: expired access/refresh token`), sodass auch der rohe SOAP-Weg zu ist.
+`ApexSharingReason` steht nicht in der Registry des `@salesforce/cli` und lässt sich
+deshalb weder deployen noch retrieven. Der Menüpunkt unter Setup → Object Manager →
+Participant → Apex Sharing Reasons ist in dieser Org nicht vorhanden. `Participant__Share`
+selbst ist vollständig funktionsfähig — `queryable`, `createable`, die Felder `Id`,
+`ParentId`, `UserOrGroupId`, `AccessLevel`, `RowCause` sind da — es fehlt nur der eigene
+Grund.
 
-Einmalig manuell anlegen:
+`ParticipantPortalSharingService` nutzt deshalb `RowCause.Manual` und erkennt die eigenen
+Shares an ihrer Identität statt am RowCause: Eine Share gehört dem Portal, wenn ihr
+`UserOrGroupId` dem vorherigen oder dem aktuellen `Portal_User__c` der Row entspricht. Der
+Trigger liefert den vorherigen Wert aus `Trigger.oldMap`.
+
+**Was das kostet:** Eine manuelle Freigabe eines Administrators an eine *dritte* Person
+wird nie angefasst. Eine manuelle Freigabe an *denselben* User wie das Portal kann aber
+nicht unterschieden werden und würde beim Wechsel des Release-Ziels mit entfernt. Ein
+eigener Sharing Reason würde das auflösen; `PORTAL_ROW_CAUSE` ist die einzige Stelle, die
+dann zu ändern wäre, `isOurs()` bliebe schlicht überflüssig.
+
+`synchroniseAll()` ist deshalb **nur additiv**: ohne vorherigen Wert kann eine verwaiste
+Share nicht zugeordnet werden, und stilles Entziehen von Zugriff ist der schlimmere
+Fehler. Solche Shares werden geloggt statt gelöscht.
+
+### Live-Nachweis der Automatik
+
+Über echte Portal-Sessions, Service und Trigger sind deployed:
+
+| Aktion | Ergebnis |
+|---|---|
+| `Portal_User__c` auf einen Portal-User setzen | Read-Share automatisch angelegt |
+| Release von Mehmet auf Probe-User umhängen | alte Share entfernt, neue angelegt, nur eine bleibt |
+| Mehmet nach der Umhängung | **403 `PORTAL_ACCESS_NOT_GRANTED`** |
+| `Portal_User__c` auf `null` | Share entfernt, 0 Rows |
+| Mehmet ohne Freigabe | **403 `PORTAL_ACCESS_NOT_GRANTED`** |
+| `synchroniseAll()` | fehlende Share ergänzt, bestehende unverändert |
+| zurücksetzen | beide User wieder 200 mit eigener Row |
+
+Eine Share an einen **internen** User schlägt fehl:
 
 ```text
-Setup → Object Manager → Participant → Apex Sharing Reasons → New
-  Label: Portal Access
-  Name:  Portal_Access
+FIELD_INTEGRITY_EXCEPTION: AccessLevel (trivial share level Read,
+                             for organization with default level Edit)
 ```
 
-Danach deployen. **Bis dahin sind `ParticipantPortalSharingService`,
-`ParticipantPortalSharingServiceTest` und der Trigger `ParticipantPortalSharing` nicht
-deployed.** Das Portal funktioniert derweil weiter, weil die Shares manuell gesetzt
-wurden — aber jede neue Zuweisung von `Portal_User__c` muss dann von Hand nachgezogen
-werden.
+Das ist kein Defekt: `sharingModel = ReadWrite` bedeutet Default-Level `Edit` intern, und
+`Read` ist gegenüber dem internen Default „trivial". Externe Portal-User bekommen `Read`
+korrekt — der Fehler trat nur beim Test mit einem internen Admin als Release-Ziel auf.
 
 ### Derselbe Org-Defekt: CustomFields
 

@@ -369,3 +369,40 @@ Two things that will mislead you when testing with `curl`:
 - **Experience Cloud sessions do not work against `/services/data/...`**, so the spike's
   planned negative test (a SOQL read as a portal user) cannot be run that way. Test
   through `/me` with real portal sessions instead.
+
+---
+
+## Portal access: managed sharing, not a sharing rule (2026-10-01)
+
+`Participant__c` is `externalSharingModel = Private` and this org enforces Apex record
+sharing, so `without sharing` grants nothing — a portal user saw `0` rows. Access is now a
+`Participant__Share` Read row per portal user, created by
+`ParticipantPortalSharingService` from the `ParticipantPortalSharing` trigger.
+
+Two independent layers guard `/me`:
+
+1. **Record-level sharing** — the class runs `with sharing`, so the query cannot see
+   another participant at all.
+2. **Identity filter** — `resolveForPortalUser()` additionally asserts
+   `Portal_User__c = UserInfo.getUserId()`, else **403 `PORTAL_ACCESS_NOT_GRANTED`**.
+
+Two things to know before changing this:
+
+- **`RowCause` is `Manual`, not a custom sharing reason.** No Apex Sharing Reason can be
+  created in this sandbox, so the service attributes its shares by identity instead: a
+  share is ours if its `UserOrGroupId` matches the row's previous or current
+  `Portal_User__c`. An administrator's share to a third user is never touched; one to the
+  *same* user cannot be told apart. `PORTAL_ROW_CAUSE` is the only thing to change once a
+  real reason exists.
+- **A share to an *internal* user fails** with
+  `FIELD_INTEGRITY_EXCEPTION: trivial share level Read, for organization with default level Edit`.
+  `sharingModel = ReadWrite` means the internal default is Edit, so Read is trivial there.
+  External portal users get Read fine. Do not "fix" this by raising the level — it would
+  grant internal users write access.
+
+**Apex tests cannot insert a share row at all**, at any level: the test context applies the
+internal default and refuses anything at or below it, `Edit` included, while `All` is
+rejected with `INVALID_ACCESS_LEVEL`. The service therefore computes its diff in a separate
+`planFor()` step that does no DML, and the tests assert on that plan. Share rows are only
+ever inserted in production. Do not "fix" a failing share test by writing the row in the
+test — it cannot work.

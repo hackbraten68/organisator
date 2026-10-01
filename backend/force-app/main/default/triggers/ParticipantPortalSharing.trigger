@@ -27,14 +27,33 @@
  */
 trigger ParticipantPortalSharing on Participant__c(after insert, after update) {
   List<Participant__c> changed = new List<Participant__c>();
+  Map<Id, Id> previousPortalUsers = new Map<Id, Id>();
 
   for (Participant__c participant : Trigger.new) {
-    if (Trigger.isInsert || participant.Portal_User__c != Trigger.oldMap.get(participant.Id).Portal_User__c) {
+    // Trigger.oldMap is null on insert, so it must not be touched at all then.
+    // Accessing it is what produced a NullPointerException in a test context.
+    if (Trigger.isInsert) {
       changed.add(participant);
+      continue;
+    }
+
+    Participant__c previous = Trigger.oldMap.get(participant.Id);
+    if (previous == null) {
+      changed.add(participant);
+      continue;
+    }
+    if (participant.Portal_User__c != previous.Portal_User__c) {
+      changed.add(participant);
+      previousPortalUsers.put(participant.Id, previous.Portal_User__c);
     }
   }
 
   if (!changed.isEmpty()) {
-    ParticipantPortalSharingService.synchronise(changed);
+    // The previous value is what lets the service tell its own share from an
+    // administrator's manual one; see isOurs() in the service.
+    ParticipantPortalSharingService.synchronise(
+      changed,
+      previousPortalUsers.isEmpty() ? null : previousPortalUsers
+    );
   }
 }

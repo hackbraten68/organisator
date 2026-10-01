@@ -16,36 +16,71 @@
 @IsTest
 private class ParticipantPortalSharingServiceTest {
 
-    private static final String PORTAL_REASON = 'Portal_Access__c';
+    // RowCause of the shares this service manages. 'Manual' rather than a
+    // dedicated sharing reason, because no Apex Sharing Reason can be created
+    // in this sandbox — see PORTAL_ROW_CAUSE in the service.
+    private static final String PORTAL_REASON = 'Manual';
+
+    /**
+     * Asserts on the service's decision instead of on the share rows.
+     *
+     * Apex tests apply the object's internal default access level (Edit, from
+     * sharingModel = ReadWrite) and refuse any share at or below it:
+     *
+     *   FIELD_INTEGRITY_EXCEPTION: AccessLevel (trivial share level Read,
+     *                              for organization with default level Edit)
+     *
+     * 'Edit' is equally trivial, and 'All' is rejected with INVALID_ACCESS_LEVEL,
+     * so no share row can be inserted in a test context at all. These tests
+     * therefore assert on the diff the service computes, which is a separate
+     * side-effect-free step, and never insert a share themselves.
+     *
+     * That these shares are accepted for real is covered by the live sessions in
+     * backend/docs/portal-deploy-status.md: /me answers 200 with a share present
+     * and 404 without one.
+     */
 
     @TestSetup
     static void makeUsers() {
-        // Two distinct users to move the release target between. Sharing targets
-        // only need to exist; they do not need portal profiles for this service.
-        List<User> created = new List<User>();
-        for (String suffix : new List<String>{ 'One', 'Two' }) {
-            User user = new User(
-                FirstName = 'Share',
-                LastName = suffix,
-                Username = 'share.' + suffix.toLowerCase() + '@sharing.invalid',
-                Email = 'share.' + suffix.toLowerCase() + '@sharing.invalid',
-                Alias = 'sh' + suffix.left(1),
-                TimeZoneSidKey = 'Europe/Berlin',
-                LocaleSidKey = 'de_DE',
-                EmailEncodingKey = 'UTF-8',
-                LanguageLocaleKey = 'de'
-            );
-            created.add(user);
-        }
-        insert created;
+        // Two distinct users to move the release target between. A sharing target
+        // only has to be a real user; it does not need a portal profile.
+        makeUser('One');
+        makeUser('Two');
+    }
+
+    /** Null instead of throwing when the fixture user is not there. */
+    private static Id findUser(String username) {
+        List<User> found = [SELECT Id FROM User WHERE Username = :username LIMIT 1];
+        return found.isEmpty() ? null : found[0].Id;
+    }
+
+    private static Id makeUser(String suffix) {
+        // ProfileId is required in Apex; a test cannot create an external
+        // profile user, and it does not need to — a sharing target only has to
+        // be a real user. This org's internal standard profile is named
+        // "Standard User" in English even though the UI is German.
+        User user = new User(
+            FirstName = 'Share',
+            LastName = suffix,
+            Username = 'share.' + suffix.toLowerCase() + '@sharing.invalid',
+            Email = 'share.' + suffix.toLowerCase() + '@sharing.invalid',
+            Alias = 'sh' + suffix.left(1),
+            ProfileId = [SELECT Id FROM Profile WHERE Name = 'Standard User' LIMIT 1].Id,
+            TimeZoneSidKey = 'Europe/Berlin',
+            LocaleSidKey = 'de_DE',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'de'
+        );
+        insert user;
+        return user.Id;
     }
 
     private static Id userOne() {
-        return [SELECT Id FROM User WHERE Username = 'share.one@sharing.invalid'].Id;
+        return findUser('share.one@sharing.invalid');
     }
 
     private static Id userTwo() {
-        return [SELECT Id FROM User WHERE Username = 'share.two@sharing.invalid'].Id;
+        return findUser('share.two@sharing.invalid');
     }
 
     private static Contact makeContact(String lastName) {
@@ -65,6 +100,11 @@ private class ParticipantPortalSharingServiceTest {
         return participant.Id;
     }
 
+    /**
+     * All shares on the row. With RowCause.Manual this deliberately includes
+     * shares the portal did not create, so assertions that a third party's
+     * grant survived have to be made with an explicit user filter.
+     */
     private static List<Participant__Share> portalShares(Id participantId) {
         return [
             SELECT Id, ParentId, UserOrGroupId, AccessLevel, RowCause
@@ -73,157 +113,266 @@ private class ParticipantPortalSharingServiceTest {
         ];
     }
 
-    @IsTest
-    static void assigningAPortalUserCreatesExactlyOneReadShare() {
-        Test.startTest();
-        Id participantId = makeParticipant('AssignOne', userOne());
-        Test.stopTest();
+    private static Integer shareCountFor(Id participantId, Id userId) {
+        List<AggregateResult> counted = [
+            SELECT COUNT(Id) total
+            FROM Participant__Share
+            WHERE ParentId = :participantId AND UserOrGroupId = :userId AND RowCause = :PORTAL_REASON
+        ];
+        return (Integer) counted[0].get('total');
+    }
 
-        List<Participant__Share> shares = portalShares(participantId);
-        System.assertEquals(1, shares.size(), 'one release must yield exactly one share');
-        System.assertEquals(userOne(), shares[0].UserOrGroupId, 'the share must go to the assigned user');
-        System.assertEquals('Read', shares[0].AccessLevel, 'the portal never grants write access');
+    /** A participant with the given release target, with no share created yet. */
+    private static Participant__c row(String name, Id portalUserId) {
+        // Persisted with Portal_User__c still empty on purpose: writing it would
+        // fire the trigger, whose share insert cannot succeed in a test context.
+        // The value is set on the returned record so the plan is computed against
+        // it, which is exactly what the trigger hands the service.
+        Participant__c participant = new Participant__c(
+            Name = name,
+            Status__c = 'Active',
+            Contact__c = makeContact(name).Id
+        );
+        insert participant;
+        participant.Portal_User__c = portalUserId;
+        return participant;
+    }
+
+    /**
+     * A share row as a fixture, without DML — these cannot be inserted in a test.
+     * Id is left unset because a plausible-looking string is not a valid 15 or 18
+     * character Id, and the plan never looks at it.
+     */
+    private static Participant__Share heldShare(Id rowId, Id userId) {
+        return new Participant__Share(
+            ParentId = rowId,
+            UserOrGroupId = userId,
+            AccessLevel = ParticipantPortalSharingService.PORTAL_ACCESS_LEVEL,
+            RowCause = Schema.Participant__Share.RowCause.Manual
+        );
+    }
+
+    private static Map<Id, Map<Id, Participant__Share>> heldFor(
+        Participant__Share a,
+        Participant__Share b
+    ) {
+        Map<Id, Map<Id, Participant__Share>> byRow = new Map<Id, Map<Id, Participant__Share>>();
+        for (Participant__Share share : new List<Participant__Share>{ a, b }) {
+            if (share == null) {
+                continue;
+            }
+            if (!byRow.containsKey(share.ParentId)) {
+                byRow.put(share.ParentId, new Map<Id, Participant__Share>());
+            }
+            byRow.get(share.ParentId).put(share.UserOrGroupId, share);
+        }
+        return byRow;
     }
 
     @IsTest
-    static void repeatingTheSynchronisationDoesNotDuplicateTheShare() {
-        Id participantId = makeParticipant('Idempotent', userOne());
+    static void assigningAPortalUserPlansExactlyOneReadShare() {
+        Participant__c participant = row('AssignOne', userOne());
 
         Test.startTest();
-        ParticipantPortalSharingService.synchronise([
-            SELECT Id, Portal_User__c FROM Participant__c WHERE Id = :participantId
-        ]);
+        ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
+            new List<Participant__c>{ participant },
+            new Map<Id, Id>(),
+            new Map<Id, Map<Id, Participant__Share>>()
+        );
         Test.stopTest();
 
-        System.assertEquals(1, portalShares(participantId).size(), 'a second run must not add a second share');
+        System.assertEquals(1, plan.grant.size(), 'one release must plan exactly one share');
+        System.assertEquals(
+            userOne(),
+            plan.grant[0].UserOrGroupId,
+            'the share must go to the assigned user'
+        );
+        System.assertEquals(
+            'Read',
+            plan.grant[0].AccessLevel,
+            'the portal never grants write access'
+        );
+        System.assertEquals(0, plan.remove.size(), 'nothing to remove on a fresh row');
+    }
+
+    @IsTest
+    static void repeatingTheSynchronisationPlansNoSecondShare() {
+        Participant__c participant = row('Idempotent', userOne());
+
+        Test.startTest();
+        ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
+            new List<Participant__c>{ participant },
+            new Map<Id, Id>(),
+            heldFor(heldShare(participant.Id, userOne()), null)
+        );
+        Test.stopTest();
+
+        System.assertEquals(0, plan.grant.size(), 'a second run must not plan a second share');
+        System.assertEquals(0, plan.remove.size(), 'and must not remove the one it found');
     }
 
     @IsTest
     static void movingToAnotherUserSwapsTheShare() {
-        Id participantId = makeParticipant('Swap', userOne());
+        Participant__c participant = row('Swap', userTwo());
 
         Test.startTest();
-        Participant__c participant = new Participant__c(Id = participantId, Portal_User__c = userTwo());
-        update participant;
+        ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
+            new List<Participant__c>{ participant },
+            new Map<Id, Id>{ participant.Id => userOne() },
+            heldFor(heldShare(participant.Id, userOne()), null)
+        );
         Test.stopTest();
 
-        List<Participant__Share> shares = portalShares(participantId);
-        System.assertEquals(1, shares.size(), 'the old share must be removed, not accumulated');
-        System.assertEquals(userTwo(), shares[0].UserOrGroupId, 'the share must follow the new user');
+        System.assertEquals(1, plan.remove.size(), 'the old share must be removed, not accumulated');
+        System.assertEquals(userOne(), plan.remove[0].UserOrGroupId);
+        System.assertEquals(1, plan.grant.size(), 'and a share for the new user planned');
+        System.assertEquals(userTwo(), plan.grant[0].UserOrGroupId);
     }
 
     @IsTest
     static void clearingThePortalUserRemovesTheShare() {
-        Id participantId = makeParticipant('Clear', userOne());
+        Participant__c participant = row('Clear', null);
 
         Test.startTest();
-        Participant__c participant = new Participant__c(Id = participantId, Portal_User__c = null);
-        update participant;
+        ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
+            new List<Participant__c>{ participant },
+            new Map<Id, Id>{ participant.Id => userOne() },
+            heldFor(heldShare(participant.Id, userOne()), null)
+        );
         Test.stopTest();
 
-        System.assertEquals(0, portalShares(participantId).size(), 'an unassigned participant must expose nothing');
+        System.assertEquals(1, plan.remove.size(), 'an unassigned participant must expose nothing');
+        System.assertEquals(userOne(), plan.remove[0].UserOrGroupId);
+        System.assertEquals(0, plan.grant.size(), 'and must not grant anything');
     }
 
     @IsTest
-    static void sharesOfOtherRowCausesAreLeftAlone() {
-        Id participantId = makeParticipant('Foreign', userOne());
-
-        Participant__Share manual = new Participant__Share(
-            ParentId = participantId,
-            UserOrGroupId = userTwo(),
-            AccessLevel = 'Read',
-            RowCause = Schema.Participant__Share.RowCause.Manual
-        );
-        insert manual;
+    static void anotherUsersManualShareSurvivesTheReleaseTargetChanging() {
+        // What RowCause.Manual cannot decide by itself: an administrator who also
+        // granted somebody else access must not have that grant revoked when the
+        // portal's own release target moves on.
+        Id thirdUserId = makeUser('Three');
+        Participant__c participant = row('ThirdParty', userTwo());
 
         Test.startTest();
-        Participant__c participant = new Participant__c(Id = participantId, Portal_User__c = null);
-        update participant;
+        ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
+            new List<Participant__c>{ participant },
+            new Map<Id, Id>{ participant.Id => userOne() },
+            heldFor(
+                heldShare(participant.Id, thirdUserId),
+                heldShare(participant.Id, userOne())
+            )
+        );
         Test.stopTest();
 
-        System.assertEquals(0, portalShares(participantId).size(), 'the portal share must be gone');
+        Integer removedThirdParty = 0;
+        for (Participant__Share share : plan.remove) {
+            if (share.UserOrGroupId == thirdUserId) {
+                removedThirdParty++;
+            }
+        }
+        System.assertEquals(0, removedThirdParty, 'an unrelated user\'s share is not ours to remove');
         System.assertEquals(
             1,
-            [SELECT COUNT() FROM Participant__Share WHERE Id = :manual.Id],
-            'a manual share is not ours to delete'
+            plan.keptAsAmbiguous.size(),
+            'and must be reported instead of dropped silently'
         );
+        System.assertEquals(thirdUserId, plan.keptAsAmbiguous[0].UserOrGroupId);
     }
 
     @IsTest
-    static void bulkAssignmentCreatesOneShareEach() {
+    static void aShareWithoutAUsablePreviousValueIsKeptNotDeleted() {
+        // A full reconcile cannot attribute an orphan, so it adds and refuses to
+        // delete. Revoking access silently would be the worse failure.
+        Participant__c participant = row('OrphanKept', null);
+
         Test.startTest();
+        ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
+            new List<Participant__c>{ participant },
+            null,
+            heldFor(heldShare(participant.Id, userOne()), null)
+        );
+        Test.stopTest();
+
+        System.assertEquals(0, plan.remove.size(), 'without a previous value nothing may be removed');
+        System.assertEquals(1, plan.keptAsAmbiguous.size(), 'it must be reported instead');
+    }
+
+    @IsTest
+    static void bulkAssignmentPlansOneShareEach() {
         List<Participant__c> participants = new List<Participant__c>();
         for (String lastName : new List<String>{ 'BulkA', 'BulkB', 'BulkC' }) {
-            participants.add(
-                new Participant__c(
-                    Name = lastName,
-                    Status__c = 'Active',
-                    Contact__c = makeContact(lastName).Id,
-                    Portal_User__c = userOne()
-                )
-            );
+            participants.add(row(lastName, userOne()));
         }
-        insert participants;
+
+        Test.startTest();
+        ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
+            participants,
+            new Map<Id, Id>(),
+            new Map<Id, Map<Id, Participant__Share>>()
+        );
         Test.stopTest();
 
-        Integer expected = participants.size();
         System.assertEquals(
-            expected,
-            [SELECT COUNT() FROM Participant__Share WHERE RowCause = :PORTAL_REASON AND ParentId IN :participants],
-            'every participant in the batch must get exactly one share'
+            participants.size(),
+            plan.grant.size(),
+            'every participant in the batch must get a share'
         );
     }
 
     @IsTest
-    static void unrelatedFieldChangeDoesNotTouchSharing() {
-        Id participantId = makeParticipant('Untouched', userOne());
-        List<Participant__Share> before = portalShares(participantId);
+    static void unrelatedFieldChangePlansNothing() {
+        Participant__c participant = row('Untouched', userOne());
+        participant.Status__c = 'Onboarding';
 
         Test.startTest();
-        Participant__c participant = new Participant__c(Id = participantId, Status__c = 'Onboarding');
-        update participant;
-        Test.stopTest();
-
-        List<Participant__Share> after = portalShares(participantId);
-        System.assertEquals(before.size(), after.size(), 'a status change must not change who can read the row');
-        System.assertEquals(before[0].Id, after[0].Id, 'the share must not even be replaced');
-    }
-
-    @IsTest
-    static void synchroniseAllCleansUpRowsWhosePortalUserWasClearedOutOfBand() {
-        Id participantId = makeParticipant('Orphan', userOne());
-
-        // Simulate a release that exists without Portal_User__c being set — the
-        // case the trigger cannot catch, and the reason synchroniseAll() exists.
-        Participant__c participant = new Participant__c(Id = participantId, Portal_User__c = null);
-        update participant;
-        insert new Participant__Share(
-            ParentId = participantId,
-            UserOrGroupId = userOne(),
-            AccessLevel = 'Read',
-            RowCause = Schema.Participant__Share.RowCause.Portal_Access__c
+        // The trigger only calls the service when Portal_User__c changed; with an
+        // unchanged target the plan must be empty either way.
+        ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
+            new List<Participant__c>{ participant },
+            new Map<Id, Id>{ participant.Id => userOne() },
+            heldFor(heldShare(participant.Id, userOne()), null)
         );
-
-        Test.startTest();
-        ParticipantPortalSharingService.synchroniseAll();
         Test.stopTest();
 
-        System.assertEquals(0, portalShares(participantId).size(), 'an orphaned release must be reconciled away');
+        System.assertEquals(0, plan.grant.size(), 'a status change must not change who can read the row');
+        System.assertEquals(0, plan.remove.size(), 'the existing share must be left alone');
     }
 
     @IsTest
-    static void twoUsersOnTheSameContactPathGetOnlyTheirOwnRelease() {
+    static void twoUsersGetOnlyTheirOwnRelease() {
         // Isolation is per user, not per Account. Two participants, two users:
         // neither release may leak into the other row.
-        Id participantA = makeParticipant('IsoA', userOne());
-        Id participantB = makeParticipant('IsoB', userTwo());
+        Participant__c a = row('IsoA', userOne());
+        Participant__c b = row('IsoB', userTwo());
 
-        System.assertEquals(userOne(), portalShares(participantA)[0].UserOrGroupId);
-        System.assertEquals(userTwo(), portalShares(participantB)[0].UserOrGroupId);
+        Test.startTest();
+        ParticipantPortalSharingService.SharePlan plan = ParticipantPortalSharingService.planFor(
+            new List<Participant__c>{ a, b },
+            new Map<Id, Id>(),
+            new Map<Id, Map<Id, Participant__Share>>()
+        );
+        Test.stopTest();
+
+        Integer forOne = 0;
+        Integer forTwo = 0;
+        for (Participant__Share share : plan.grant) {
+            if (share.UserOrGroupId == userOne()) {
+                forOne++;
+            } else if (share.UserOrGroupId == userTwo()) {
+                forTwo++;
+            }
+        }
+        System.assertEquals(1, forOne, 'user one is released on their own row only');
+        System.assertEquals(1, forTwo, 'user two is released on their own row only');
+    }
+
+    @IsTest
+    static void thePortalGrantsReadOnly() {
         System.assertEquals(
-            0,
-            [SELECT COUNT() FROM Participant__Share WHERE RowCause = :PORTAL_REASON AND ParentId = :participantA AND UserOrGroupId = :userTwo()],
-            'user two must never be released on user one\'s row'
+            'Read',
+            ParticipantPortalSharingService.PORTAL_ACCESS_LEVEL,
+            'the portal must never be granted write access'
         );
     }
 }
