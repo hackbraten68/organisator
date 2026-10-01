@@ -280,3 +280,92 @@ npx playwright test
 The same trap exists in `backend`: `npm test` in `backend/` runs `sfdx-lwc-jest` (Jest) but
 the tests are Vitest and fail to load. Use
 `cd backend/force-app/main/default/uiBundles/backend && npx vitest run` (247 tests).
+
+---
+
+## Three bugs that kept `/me` unreachable (found 2026-10-01)
+
+All three were latent because the endpoint had never returned a row to anyone. They are
+recorded because each one has a non-obvious cause that costs an hour to rediscover.
+
+### `urlMapping` needs a wildcard
+
+```apex
+@RestResource(urlMapping='/participant-portal/*')   // not '/participant-portal'
+```
+
+The frontend calls `/services/apexrest/participant-portal/me`. Without the `/*` that URL
+matches no resource and answers `404 Could not find a match for URL`.
+
+### The response body has to be returned, not stored
+
+The class used to keep the body in a static field and never write it to
+`RestContext.response`, so every call answered `200` with an empty body. Writing it
+explicitly is not available here — `RestContext.response.response` does not exist on this
+API version:
+
+```text
+Variable does not exist: response
+```
+
+So the method returns the object and Salesforce serialises it. Note that `@HttpGet` rejects
+`Object` as a return type:
+
+```text
+HttpGet methods do not support return type of Object
+```
+
+which is why there is one `MeResponse` class carrying both the participant fields and
+`code`/`message` rather than a `ParticipantView` and a `PortalErrorResponse`.
+
+### Do not prefix the start URL again
+
+`getSanitizedStartUrl()` used to prepend `Site.getPathPrefix()`. The SPA router already
+sends paths that include the app base path, so login redirected to
+`/organisatorv1/organisatorv1/`. On a Picasso site it is wrong twice over: the CustomSite
+path (`/organisatorv1vforcesite`) is not the SPA path (`/organisatorv1`).
+
+### Not enough to log in — access has to be granted
+
+`without sharing` does not grant anything here. This org enforces Apex record sharing, so
+a portal user saw `0` rows on `Participant__c` regardless. `ParticipantPortalData` now runs
+`with sharing` and requires a `Participant__Share` row per portal user, created by
+`ParticipantPortalSharingService`. `viewAllRecords` was rejected on purpose: combined with
+the `ApiEnabled` permission set it would let every portal user read every participant row.
+
+---
+
+## Login and logout paths
+
+```text
+login   POST /organisatorv1/sf/api/services/apexrest/auth/login
+data    GET  /organisatorv1/sf/api/services/apexrest/participant-portal/me
+logout  GET  <orgUrl>/sfsites/s/logout?site=Organisator&retURL=<startURL>
+```
+
+`SFDC_ENV.apiPath` is `/organisatorv1/sf/api`, so the Data SDK prefixes
+`/services/apexrest/...`. Calling `/organisatorv1/services/apexrest/...` directly returns
+the SPA shell with `200` and looks like a working API while being the fallback route.
+
+Two things that will mislead you when testing with `curl`:
+
+- **Portal sessions cannot be checked with `Authorization: Bearer <sid>`.** The REST API
+  rejects them with `INVALID_SESSION_ID: This session is not valid for use with the REST
+  API`, so you always see the anonymous answer and conclude the thing you just tested works.
+- **After logout, a `curl` cookie jar keeps working.** Logout is confirmed server-side
+  (`AuthSession.IsCurrent = false`), but the jar still replays the old cookie. Verify logout
+  in a real browser: a protected route must ask for the login again.
+
+## Sandbox gotchas worth knowing before you waste a day
+
+- **Criteria-Based Sharing Rules do not evaluate `$User` here.** `Portal_User__c =
+  $User.UserRecord.Id` and `= $User.Id` are both stored and displayed, and both match zero
+  rows — every portal user gets `NO_PARTICIPANT`. A static user id works. Measured, not
+  assumed.
+- **Creating a CustomField via the Metadata API fails silently here.** The deploy reports
+  `Created`, `describe` does not show the field. New fields must be created once in Setup.
+- **`SharingReason`, `SharingCriteriaRule` and `SharingGuestRule` are not in the CLI
+  registry**, so they can be neither deployed nor retrieved. Create them in Setup.
+- **Experience Cloud sessions do not work against `/services/data/...`**, so the spike's
+  planned negative test (a SOQL read as a portal user) cannot be run that way. Test
+  through `/me` with real portal sessions instead.
