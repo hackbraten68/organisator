@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Portal_User_Id__c</fullName>
+    <description>Portal-User-ID als Text. Existiert nur fuer die Sharing Rule PortalParticipantSeesOwnRecord: Salesforce wertet $User.UserRecord.Id in einem Kriterium auf dem Lookup-Feld Portal_User__c nicht dynamisch aus, sondern vergleicht literal. Ueber ein Textfeld ist der Vergleich auswertbar. Nicht pflegen - Formel auf Portal_User__c.</description>
+    <externalId>false</externalId>
+    <formula>Portal_User__c</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <inlineHelpText>Formel aus Portal_User__c. Nur fuer die Sharing Rule des Portals.</inlineHelpText>
+    <label>Portal-User-ID</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

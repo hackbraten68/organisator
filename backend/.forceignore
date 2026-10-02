@@ -57,5 +57,15 @@ package.xml
 **/staticresources/SiteSamples*
 **/objects/prm_*
 
+# Account is reference-only: 31 retrieved standard fields, zero __c. Nine of them
+# do not resolve in hubSandbox ("Could not resolve standard field's name"), which
+# fails the deploy. Out of scope per AGENTS.md — schema:check reads the local
+# files directly and is unaffected by this pattern.
+**/objects/Account/**
+
+# Standard Salesforce transaction security policy. The org rejects it with
+# "Not available for deploy for this organization", so it can never be pushed.
+**/transactionSecurityPolicies/**
+
 node_modules/
 .DS_Store

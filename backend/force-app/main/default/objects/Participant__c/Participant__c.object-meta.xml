@@ -162,5 +162,9 @@
     <pluralLabel>Participants</pluralLabel>
     <searchLayouts />
     <sharingModel>ReadWrite</sharingModel>
+    <sharingReasons>
+        <fullName>Portal_Access__c</fullName>
+        <label>Portal Access</label>
+    </sharingReasons>
     <visibility>Public</visibility>
 </CustomObject>
