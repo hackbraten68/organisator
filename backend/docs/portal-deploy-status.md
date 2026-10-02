@@ -327,23 +327,134 @@ the REST API`). Auch der LWR-Proxy unter `/organisatorv1/sf/api/services/data` l
 nur `services/apexrest` weiter. Der Nachweis wird deshalb über `/me` mit echten
 Portal-Sessions geführt, nach dem `with sharing`-Wechsel also über den Endpoint selbst.
 
-### Logout: Server-Seite invalidiert, Cookie-Jar im Test irreführend
+### Logout: funktioniert (2026-10-02, live verifiziert)
 
-`GET /sfsites/s/logout?site=Organisator` (302, danach `/organisatorv1/login`) invalidiert
-die serverseitige Session. Über `AuthSession` geprüft: die `ChatterNetworks`-Sessions des
-Portal-Users haben `LastModifiedDate == CreatedDate` und `IsCurrent = false`.
+Sign Out schickt den Portal-User jetzt auf `https://techandteach--devhub.sandbox.my.site.com/organisatorv1/login` —
+die React-Loginseite dieser Site, nicht Salesforces eigener Login.
 
-Ein `curl`-Test mit Cookie-Jar meldet danach fälschlich weiterhin `200`. Grund ist das
-Testsetup, nicht das Verhalten: Experience-Cloud-Sessions sind **nicht** über
-`Authorization: Bearer <sid>` prüfbar — die REST-API weist sie mit
-`INVALID_SESSION_ID: This session is not valid for use with the REST API` ab, man bekommt
-also immer `NO_CONTACT_IDENTITY` und damit ein falsches „Logout hat gewirkt". Der sid ist
-zudem an den `TempChatterNetworks`-Session-Typ gebunden, den Salesforce erst serverseitig
-abläuft, während curl das alte Cookie weiter mitsendet.
+Der Weg dorthin war drei Hypothesen lang falsch. Der entscheidende Fehler in beiden ersten
+Versuchen war nicht die Landauswahl, sondern dass **kein `/sfsites/s/logout` die
+Portal-Session überhaupt beendet** — der Nutzer sah eine Salesforce-Loginseite und war
+weiterhin eingeloggt.
 
-**Für den Abnahmetest:** Logout im echten Browser prüfen (geschützte Route muss wieder
-den Login verlangen), nicht per `curl` mit Cookie-Jar. Wer es per API prüfen will, muss
-das Cookie-Set nach dem Logout neu aufbauen, statt das alte weiterzureichen.
+Gemessen mit echter Portal-Session, vor und nach jedem Kandidaten über
+`GET /organisatorv1/sf/api/services/apexrest/participant-portal/me`. Diese Prüfung ist
+entscheidend: `/me` löst serverseitig aus `User.ContactId` auf und nimmt keine Parameter,
+also beweist ein 200 nach einem „Logout", dass die Session gelebt hat — egal was
+Statuscode und Redirect sagten.
+
+| Kandidat | Status | `/me` danach | Session beendet? |
+|---|---|---|---|
+| `<origin>/organisatorv1vforcesite/secur/logout.jsp` | 200 | **401** | **ja** |
+| `<origin>/organisatorv1vforcesite/sfsites/s/logout` | 503 | 200 | nein — CDN-Fehlerseite |
+| `<myDomain>/sfsites/s/logout` | 302 → Org-Login | 200 | **nein** |
+| `<myDomain>/servlet/networks/logout` | 404 | 200 | nein |
+
+Drei Korrekturen an früheren Befunden:
+
+- **`/sfsites/s/logout` war nie ein Logout für ein Portal-Mitglied.** Es beendet die
+  *Lightning*-Session und leitet dann über `…my.salesforce.com/visualforce/session?url=…`
+  weiter. `Network.logoutUrl` gilt für diesen Pfad nicht.
+- **`secur/logout.jsp` war nicht tot.** Ein früherer Commit hat es als „verified dead"
+  entfernt, weil `/organisatorv1/secur/logout.jsp` nicht erreichbar ist — was der
+  App-Container auf dem Picasso-Präfix weiterhin verursacht. Diese Verallgemeinerung auf
+  das vforcesite-Präfix ohne Beleg hat logout einen Tag lang auf `/sfsites/s/logout`
+  gezeigt.
+- **Login und Logout liegen nicht auf derselben Fläche.** Login ist tatsächlich auf
+  `…vforcesite` (Salesforces eigene Willkommens-Mail verlinkt dorthin). Logout ist auf dem
+  Aura/VF-Pfad darunter, nicht auf dem LWR-`/sfsites/s/`-Pfad.
+
+Die Landauswahl übernimmt `Network.logoutUrl`, fest committed in
+`frontend/force-app/main/default/networks/Organisator.network-meta.xml` (nicht über
+`org-setup.config.json`: `ensureLogoutUrl()` ruft `deriveSiteName()`, das bei mehr als einer
+`*.network-meta.xml` im Projekt wirft — im `frontend`-Projekt liegen zwei). **Die Domain ist
+sandbox-spezifisch** und für eine andere Org zu ersetzen.
+
+Kein Return-URL-Parameter wird verwendet. Am My-Domain-Endpunkt gemessen liefern `retURL`,
+`redirect`, `returnUrl`, `logoutUrl` und `startURL` alle dieselbe `Location`; der Wert
+erscheint nur doppelt-kodiert im `url=`-Echo der Umleitung. Dieses Echo als „Redirect wurde
+übernommen" zu lesen ist der Fehler, der den Bug ursprünglich ausgeliefert hat.
+
+Verifiziert durch `live-guest.spec.ts` gegen die Live-Site: Login → Portal → Logout landet
+auf `/organisatorv1/login` → geschützte Route verlangt wieder Authentifizierung.
+
+### Abnahmeprüfungen der Live-Suite (Stand 2026-10-02)
+
+`live-guest.spec.ts` gegen die Live-Site, Lauf vom 2026-10-02:
+
+| Fall | Credentials | Status |
+|---|---|---|
+| Login-Formular wird nutzbar, obwohl die Session-Probe scheitern muss | keine | ✅ grün |
+| **Live liefert das im Working Tree gebaute Bundle** | keine | ✅ grün |
+| Gast liest keine Teilnehmerdaten (401 `NO_CONTACT_IDENTITY`) | keine | ✅ grün |
+| Portal-User sieht den eigenen Teilnehmer | User | ✅ grün |
+| Logout landet auf der React-Loginseite, nicht auf dem Org-Login | User | ✅ grün |
+| Zweiter Portal-User sieht nie den ersten Teilnehmer | User + User2 | ⏭ **ausgesetzt** |
+
+Der ausgesetzte Fall ist **kein offenes Gate**: der Nachweis existiert bereits auf
+Service-Ebene, siehe [Autorisierung](#autorisierung-with-sharing--apex-managed-sharing-stand-2026-10-01)
+— beide Shares vorhanden → beide User 200 mit eigener Row, Probe-Share entzogen → 404. Der
+Browserfall ergänzt nur die Oberfläche: dass die UI nichts fremdes rendert, auch wenn der
+Response-Level-Check grün wäre. Er liegt in einem eigenen `describe.skip`-Block mit
+ausgeschriebener Begründung, und keine Env-Variable schaltet ihn ein. Reaktivieren: Passwort
+für `probe.mixeddml2.1790159877908@example.invalid` setzen (siehe
+[Erzeugen eines weiteren Portal-Users](#erzeugen-eines-weiteren-portal-users-falls-doch-nötig)),
+`.skip` entfernen, `PORTAL_USER2`/`PORTAL_PASSWORD2` wieder aufnehmen.
+
+Der Bundle-Fall vergleicht das ausgelieferte `assets/index-<hash>.js` gegen das lokale
+`dist/index.html` — **nicht** gegen einen fest verdrahteten Hash, der beim nächsten Deploy
+aus dem falschen Grund bricht. Ein fehlendes `dist/` **schlägt fehl statt zu überspringen**:
+ohne lokalen Build gibt es nichts zu vergleichen, der Rollout-Zustand ist dann schlicht
+unbewiesen, und ein Skip würde genau das verdecken.
+
+Negativkontrollen, am 2026-10-02 ausgeführt und in `frontend/AGENTS.md` festgehalten:
+
+```text
+dist/index.html auf falschen Hash    -> 1 failed (Expected index-STALE…, Received index-CwIPKROn.js)
+dist/ wegbewegt                      -> 1 failed ("is missing — run `npm run build` first", nicht übersprungen)
+dist/ wiederhergestellt              -> 1 passed
+```
+
+Die Logout-Landung prüft Host **und** Pfad in einer einzigen auto-retryenden Predicate. Zwei
+Gründe: ein synchrones `page.url()` direkt nach dem Klick race't die Navigation und liest die
+URL vor dem Logout, und der Org-Login liefert `/organisatorv1/login` ebenfalls — eine reine
+Pfadprüfung wäre also grün, während der User auf der falschen Seite steht. Genau so ist der
+DevHub-Login-Bug damals live gegangen.
+
+Was der Fall „zweiter Portal-User" **nicht** belegen kann, ausdrücklich: `/me` nimmt keinen
+Parameter und löst die Identität serverseitig aus `User.ContactId` auf. Es gibt also keine
+Stelle für eine Id-Substitution, der klassische Injektions-Negativtest existiert nicht. Eine
+Sonde über `/services/data/...` wäre wertlos — Experience-Cloud-Sessions werden dort mit
+`INVALID_SESSION_ID` abgewiesen, die Assertion wäre bedingungslos grün.
+
+### Widerlegt: `AuthSession.IsCurrent == false` beweist kein Portal-Logout
+
+Dieser Abschnitt stand hier bis 2026-10-02 und war falsch:
+
+> ~~`GET /sfsites/s/logout?site=Organisator` invalidiert die serverseitige Session. Über
+> `AuthSession` geprüft: die `ChatterNetworks`-Sessions des Portal-Users haben
+> `LastModifiedDate == CreatedDate` und `IsCurrent = false`.~~
+
+Der Endpunkt beendet die **Lightning**-Session, nicht die Experience-Cloud-Portal-Session.
+Live gegengeprüft am 2026-10-02: nach genau diesem Aufruf liefert `/me` **weiterhin 200**,
+die Portal-Session lebt. Siehe [Logout: funktioniert](#logout-funktioniert-2026-10-02-live-verifiziert)
+für die Messung und den funktionierenden Endpunkt.
+
+Warum die damalige Prüfung das nicht zeigen konnte: `AuthSession` gilt für die
+Lightning-Session. Der `TempChatterNetworks`-Session-Typ, an den eine Portal-Session gebunden
+ist, ist davon unberührt — `IsCurrent = false` auf der falschen Session beweist nichts über
+die richtige.
+
+**Für den Abnahmetest gilt daher weiterhin, und jetzt mit Begründung:** Logout im echten
+Browser prüfen, geschützte Route muss wieder den Login verlangen. Der Nachweis läuft als
+`live-guest.spec.ts` gegen die Live-Site. Wer es per API prüfen will, kann
+`/organisatorv1/sf/api/services/apexrest/participant-portal/me` **im Session-Kontext des
+Browsers** vor und nach dem Logout aufrufen — genau das macht die Spec, und es ist der
+belastbare Nachweis, weil `/me` serverseitig aus `User.ContactId` auflöst.
+
+Nicht möglich bleibt eine Prüfung über `Authorization: Bearer <sid>`: Experience-Cloud-Sessions
+sind für die allgemeine REST-Daten-API ungültig (`INVALID_SESSION_ID`), man bekommt also immer
+`NO_CONTACT_IDENTITY` und damit ein falsches „Logout hat gewirkt".
 
 ### Setup-Elemente, die es nur in Salesforce Classic gibt
 
