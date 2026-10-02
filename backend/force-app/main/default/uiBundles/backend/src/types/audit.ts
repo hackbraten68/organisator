@@ -291,7 +291,7 @@ export const DEFAULT_FIELD_POLICIES: Record<string, AuditFieldPolicyConfig> = {
   learning_path: {
     Title: { strategy: 'FULL', displayType: 'text' },
     Order__c: { strategy: 'FULL', displayType: 'numeric' },
-    EstimatedWeeks__c: { strategy: 'FULL', displayType: 'numeric' },
+    Estimated_Weeks__c: { strategy: 'FULL', displayType: 'numeric' },
     Status: { strategy: 'FULL', displayType: 'status' },
   },
   availability: {

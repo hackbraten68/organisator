@@ -203,8 +203,12 @@ describe("learning path audit", () => {
     expect(variables.eventType).toBe("learning_path.item_updated");
     const changes = parsedChanges(variables);
     expect(changes).toHaveLength(1);
+    // The underscore is the API name (docs/AGENTS.md:171 — org truth, not a
+    // typo). This assertion pins it deliberately: the sibling spelling
+    // `EstimatedWeeks__c` exists in the org from a different scope and reads as
+    // a field that does not exist over uiapi GraphQL.
     expect(changes[0]).toMatchObject({
-      field: "EstimatedWeeks__c",
+      field: "Estimated_Weeks__c",
       oldValue: 2,
       newValue: 4,
     });

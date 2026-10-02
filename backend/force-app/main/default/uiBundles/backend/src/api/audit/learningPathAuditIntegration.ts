@@ -48,7 +48,7 @@ export async function recordLearningPathItemCreated(
   const changes = [
     { field: 'Title', changed: true, oldValue: undefined, newValue: item.title },
     {
-      field: 'EstimatedWeeks__c',
+      field: 'Estimated_Weeks__c',
       changed: true,
       oldValue: undefined,
       newValue: item.estimatedWeeks ?? null,
@@ -88,8 +88,8 @@ export async function recordLearningPathItemUpdated(
   options: AuditOptions,
 ): Promise<AuditEvent> {
   const comparisons = compareFieldChanges(
-    { Title: before.title, EstimatedWeeks__c: before.estimatedWeeks ?? null, Status: before.status },
-    { Title: after.title, EstimatedWeeks__c: after.estimatedWeeks ?? null, Status: after.status },
+    { Title: before.title, Estimated_Weeks__c: before.estimatedWeeks ?? null, Status: before.status },
+    { Title: after.title, Estimated_Weeks__c: after.estimatedWeeks ?? null, Status: after.status },
   );
 
   const redactedChanges = applyFieldRedaction(comparisons, 'learning_path');

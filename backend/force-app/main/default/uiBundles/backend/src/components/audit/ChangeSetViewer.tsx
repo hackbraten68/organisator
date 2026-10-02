@@ -48,7 +48,7 @@ function getFieldLabel(field: string): string {
     Status: 'Status',
     Title: 'Titel',
     Order__c: 'Position',
-    EstimatedWeeks__c: 'Geschätzte Wochen',
+    Estimated_Weeks__c: 'Geschätzte Wochen',
     Metadata: 'Metadaten',
   };
   return labels[field] || field;

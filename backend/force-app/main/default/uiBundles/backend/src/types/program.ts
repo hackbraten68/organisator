@@ -9,7 +9,7 @@
  *                             Modules are reusable content templates, NOT a
  *                             mandatory curriculum for every participant.
  *   LearningPathItem__c   -> LearningPathItem (Title__c, Order__c,
- *                             EstimatedWeeks__c, Status__c picklist, lookups
+ *                             Estimated_Weeks__c, Status__c picklist, lookups
  *                             to Participant__c and Program__c)
  *                             The participant-specific curriculum. A Program
  *                             defines duration and organizational framework;
