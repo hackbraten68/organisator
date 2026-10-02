@@ -17,7 +17,7 @@ interface AuthContextType {
 	 * check must not lock the visitor out of logging in.
 	 */
 	authProbeFailed: boolean;
-	logout: (startURL?: string) => void;
+	logout: () => void;
 }
 
 /**
@@ -64,10 +64,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
-	const logout = useCallback((startURL?: string) => {
-		// Navigate to the server-side session logout on the My Domain origin.
+	const logout = useCallback(() => {
+		// End the session on the server. Where the user lands afterwards is not
+		// decided here — the logout endpoint has no return-URL parameter (see
+		// `logoutUrl`), so the Network metadata <logoutUrl> steers it.
+		//
 		// Use replace to prevent the back button from returning to the session.
-		window.location.replace(logoutUrl(startURL));
+		window.location.replace(logoutUrl());
 	}, []);
 
 	useEffect(() => {

@@ -552,11 +552,13 @@ export default function SessionTimeoutValidator({
 			onSessionExpired();
 		}
 
-		// Use centralized logout from AuthContext
-		// This clears auth state and redirects to logout URL
-		// Pass current location as retUrl to redirect back after logout
-		// Use window.location.pathname to include the base path
-		logout(window.location.pathname);
+		// Use centralized logout from AuthContext. This ends the session and
+		// redirects to the logout URL.
+		//
+		// No return path is passed, and none would be honoured: the session logout
+		// endpoint has no return-URL parameter (measured 2026-10-02 — `retURL`
+		// appears only echoed inside its own `visualforce/session?url=` redirect).
+		logout();
 	}, [sessionTimeout, logout, onSessionExpired]);
 
 	/**

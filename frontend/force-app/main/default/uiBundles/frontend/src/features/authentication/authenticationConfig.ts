@@ -1,5 +1,3 @@
-import { logoutUrl } from "../../config/site";
-
 /**
  * [Dev Note] Centralized configuration for Auth routes.
  * Each route contains both the path and page title.
@@ -26,20 +24,6 @@ export const ROUTES = {
 		PATH: "/change-password",
 		TITLE: "Change Password | MyApp",
 	},
-} as const;
-
-/**
- * [Dev Note] Centralized configuration for API endpoints.
- * These are server-side endpoints, not client-side routes.
- *
- * [Dev Note] LOGOUT is consumed by AuthContext via `window.location.replace`.
- * It is NOT site-relative: the React app container intercepts every path under the
- * site prefix, so `/secur/logout.jsp` never reaches the server. The session logout
- * lives on the My Domain origin instead. See `logoutUrl` in `src/config/site.ts`.
- */
-export const API_ROUTES = {
-	// W-21253864: Logout URL integration is not currently supported
-	LOGOUT: logoutUrl(),
 } as const;
 
 /**
