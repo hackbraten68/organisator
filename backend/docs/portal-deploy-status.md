@@ -34,6 +34,42 @@ das Network. Die Primär-URL steht im DEC, das Network trägt die sekundäre
 `...vforcesite`-URL für die Legacy-Auth-Endpunkte. Beide URLs sind verschieden und
 müssen es bleiben.
 
+## Zugangsdaten
+
+### Backend (Backoffice)
+
+| | |
+|---|---|
+| **URL** | `https://techandteach--devhub.sandbox.my.salesforce.com/lightning/app/backend` |
+| **Login** | Org-Login mit `samuel.dillenburg@codingschule.de.devhub` (System Administrator) |
+| **App** | Custom Application `backend` → UI Bundle `c__backend` |
+
+### Frontend (Teilnehmer-Portal)
+
+| | |
+|---|---|
+| **URL** | `https://techandteach--devhub.sandbox.my.site.com/organisatorv1` |
+| **Login** | `https://techandteach--devhub.sandbox.my.site.com/organisatorv1/login` |
+| **Testuser** | `mehmet.kaya.portal@codingschule.de.devhub` |
+| **Negativtest-User** | `probe.mixeddml2.1790159877908@example.invalid` |
+
+Beide Portal-Passwörter sind gesetzt, aber nicht dokumentiert.
+
+### Profil-Freigabe (Backend-App)
+
+Die Backend-App ist nicht automatisch für alle Profile sichtbar. Sie muss im Profil
+aktiviert werden:
+
+1. Setup → **Profiles** → dein Profil
+2. **App Settings** → **App Access**
+3. `backend` auf „Visible" setzen → **Save**
+
+### CLI-Hinweis
+
+`/tmp` ist ein 16G-tmpfs, das von einem fremden Windows-VM-Image
+(`/tmp/opencode/tui/base2/windows/data.img`) gefüllt ist. Für `sf`-Befehle vor
+`TMPDIR=/home/sam/tmp` schützen, sonst `ENOSPC`.
+
 ## Warum eine neue Site nötig war
 
 `appContainer` ist auf einer bestehenden Site **schreibgeschützt**. Ein bereits
