@@ -5,6 +5,11 @@
  *   GET /services/apexrest/participant-portal/me
  *   No parameters, deliberately — see "Authorisation".
  *
+ *   This class serves /me and nothing else. The learning paths live on
+ *   ParticipantPortalLearningPath, which owns '/participant-portal/me/learning-path'.
+ *   One endpoint per class is what keeps each response free of the other's nulls;
+ *   do not fold them back together, see that class's comment for what that cost.
+ *
  * RESPONSE STYLE
  *   getMe() returns the view (or an error) and lets Salesforce serialise it to
  *   application/json. RestContext.response.response is not available on this
@@ -83,12 +88,18 @@ global with sharing class ParticipantPortalData {
     }
 
     /**
-     * The HTTP boundary shape.
+     * The HTTP boundary shape: participant fields on success, code/message on failure.
      *
-     * An @HttpGet method cannot return Object, so success and failure cannot be
-     * two different types. MeResponse carries the participant fields flat — the
-     * shape the UI reads — and the stable error code/message on top. The UI
-     * branches on the HTTP status, so code/message are simply null on success.
+     * Salesforce serialises the returned object to application/json.
+     * RestContext.response.response does not exist on this org's API version, so an
+     * explicit body write is not an option and the status code is the only part set
+     * through RestContext. @HttpGet rejects Object as a return type, which is why
+     * this is one flat class carrying both the participant fields and code/message
+     * rather than a ParticipantView and a PortalErrorResponse.
+     *
+     * The learning-path endpoint is deliberately NOT part of this shape. It is a
+     * separate @RestResource (ParticipantPortalLearningPath) so that neither
+     * response has to carry the other's fields as null.
      */
     global class MeResponse {
         public String participantId;
@@ -123,6 +134,14 @@ global with sharing class ParticipantPortalData {
         }
     }
 
+    /**
+     * GET /services/apexrest/participant-portal/me
+     *
+     * The only endpoint on this resource. The urlMapping needs its '/*' wildcard
+     * because a wildcard-free mapping does not match '/me' — see AGENTS.md. The
+     * more specific mapping on ParticipantPortalLearningPath wins for
+     * '/me/learning-path', so this wildcard does not swallow it.
+     */
     @HttpGet
     global static MeResponse getMe() {
         // Personal portal data: never let a shared cache hold it.
@@ -135,9 +154,32 @@ global with sharing class ParticipantPortalData {
             return new MeResponse(error.getCode(), error.getMessage());
         } catch (Exception error) {
             // Never surface the raw exception: it would leak field names and IDs.
+            reportInternalError(error);
             RestContext.response.statusCode = 500;
             return new MeResponse('INTERNAL_ERROR', 'Portal data unavailable.');
         }
+    }
+
+    /**
+     * Logs a caught exception at ERROR level, then returns.
+     *
+     * The response body stays generic on purpose — a raw Apex message leaks
+     * field names and ids to the caller. The log is where the cause belongs.
+     *
+     * This exists because the alternative was a bug nobody could see: the
+     * learning-path endpoint answered 500 for every signed-in member because the
+     * portal permission set had no CRUD on Learning_Path__c, and the catch-all
+     * discarded the QueryException that said so. ApexLog was empty, and an
+     * unauthenticated request could not reproduce it either — a guest fails
+     * identity resolution first and gets a clean 401, so the endpoint looked
+     * healthy from outside the browser. ParticipantPortalLearningPath carries its
+     * own copy of this, so neither class is blind.
+     */
+    private static void reportInternalError(Exception error) {
+        System.debug(
+            LoggingLevel.ERROR,
+            'ParticipantPortalData /me failed: ' + error.getTypeName() + ': ' + error.getMessage()
+        );
     }
 
     /**

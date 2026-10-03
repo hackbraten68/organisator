@@ -2,25 +2,29 @@
 <!--
     Access tier for portal members (participants).
 
-    Deliberately minimal, and read-only. `ParticipantPortalData` runs
-    `without sharing` and never calls Security.stripInaccessible.
+    Deliberately minimal, and read-only. `ParticipantPortalData` and
+    `ParticipantPortalLearningPath` both run `with sharing`, and neither calls
+    Security.stripInaccessible.
 
-    Object and field permissions ARE required here, despite `without sharing`:
-    system mode bypasses sharing rules and record visibility, but it does not
-    make an sObject queryable for a user who has no CRUD on it. Without
-    allowRead the endpoint fails with
+    Object and field permissions ARE required here, and they are the easy thing
+    to get wrong. `with sharing` governs ROW visibility — it does not make an
+    sObject queryable for a user who has no CRUD on it. Without allowRead the
+    endpoint fails with
     "System.QueryException: sObject type 'Participant__c' is not supported".
-    Read-only is enough — nothing here grants create, edit, delete or
-    view-all-rows.
 
-    Consequence worth keeping in mind: read access alone is not enough. The
-    org enforces Apex record sharing, so `without sharing` in
-    ParticipantPortalData does NOT bypass row visibility — the portal member
-    saw 0 rows on Participant__c until the sharing rule
-    PortalParticipantSeesOwnRecord was added. The rule keys on
-    Participant__c.Portal_User__c, which is why this set also needs Read on
-    that field. See ADR-012 and
-    backend/docs/portal/portal-access-plan.md — phase 1.5 is still open.
+    Record sharing is a SECOND, independent gate. The org enforces Apex record
+    sharing, so `ParticipantPortalSharingService` releases exactly one
+    `Participant__c` row per portal user via the `Portal_Access__c` sharing
+    reason, and the endpoint additionally asserts
+    `Participant__c.Portal_User__c = UserInfo.getUserId()`. The entries below
+    grant only the outer layer: without the share row the member still sees 0
+    rows. That is also why this set needs Read on `Portal_User__c` itself.
+
+    Read-only is enough — nothing here grants create, edit, delete or
+    view-all-rows. `viewAllRecords` in particular stays false: combined with
+    ApiEnabled it would hand every portal member read access to every row of
+    these objects, which is precisely what the two-layer model prevents. See
+    ADR-012 and backend/docs/portal/portal-access-plan.md.
 
     Not granted here:
     - UIBundleLogin, UIBundleForgotPassword, UIBundleSocialLoginConfig — those
@@ -69,6 +73,68 @@
         <readable>true</readable>
     </fieldPermissions>
 
+    <!-- Learning_Path__c is read for GET /me/learning-path. Read is the whole
+         grant: the page is read-only, and viewAllRecords stays false so the
+         Learning_Path__Share rows created by
+         ParticipantPortalSharingService.synchroniseLearningPaths() remain the
+         thing that decides which rows a member sees. Granting object access
+         does not grant row access — that is the two-layer model described
+         above, and this entry is only the outer layer.
+
+         FAILED WITHOUT THIS ENTRY. Adding the endpoint with the three object
+         permissions above in place made /me/learning-path answer 500 for a
+         signed-in member while /me kept answering 200, because the member had
+         no CRUD on Learning_Path__c at all. The query threw
+         System.QueryException and the endpoint's catch-all turned it into
+         INTERNAL_ERROR. Two things made that expensive to diagnose:
+
+           - An unauthenticated curl cannot see it. A guest fails identity
+             resolution first and gets a clean 401, so the endpoint looks
+             healthy from the outside; only a real member session reaches the
+             query. Same shape as the record-level lesson above, one level up.
+- ApexLog was empty, because nothing was logging the swallowed
+              exception. ParticipantPortalLearningPath now logs the caught
+              exception at ERROR level for exactly this reason, and so does
+              ParticipantPortalData for /me.
+
+         Read on each queried field is required separately, because
+         viewAllFields is false above. Participant__c is read because the query
+         filters on it; the fields mirror the SELECT list. Program__c is
+         deliberately absent — the portal view does not select it.
+
+         Title__c has NO entry here, and that is not an oversight. It is
+         <required>true</required>, and the Metadata API refuses a
+         fieldPermissions entry for a required field:
+
+             You cannot deploy to a required field:
+             Learning_Path__c.Title__c
+
+         A required field is readable by everyone who can read the object, so
+         there is nothing to grant. Deploying the set with the entry present
+         fails the whole permission set — not just that one field — which is
+         why the other three objects were rolled back with it. Check
+         <required> in the field metadata before adding an entry here. -->
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Learning_Path__c.Status__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Learning_Path__c.Order__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Learning_Path__c.Estimated_Weeks__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Learning_Path__c.Participant__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
     <objectPermissions>
         <allowCreate>false</allowCreate>
         <allowDelete>false</allowDelete>
@@ -76,6 +142,16 @@
         <allowRead>true</allowRead>
         <modifyAllRecords>false</modifyAllRecords>
         <object>Participant__c</object>
+        <viewAllFields>false</viewAllFields>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Learning_Path__c</object>
         <viewAllFields>false</viewAllFields>
         <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
@@ -107,6 +183,16 @@
 
     <classAccesses>
         <apexClass>ParticipantPortalData</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+
+    <!-- The learning-path endpoint is a separate @RestResource, so it needs its
+         own class access. Without this entry the URL is refused outright — no
+         matter how correct the objectPermissions below are — so a missing class
+         entry and a missing object grant fail in the same place but for
+         different reasons. Both are required. -->
+    <classAccesses>
+        <apexClass>ParticipantPortalLearningPath</apexClass>
         <enabled>true</enabled>
     </classAccesses>
 

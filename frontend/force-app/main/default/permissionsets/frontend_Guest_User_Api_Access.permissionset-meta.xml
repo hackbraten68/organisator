@@ -24,4 +24,16 @@
         <apexClass>UIBundleSocialLoginConfig</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <!--
+        Deliberately no entry for ParticipantPortalLearningPath. An anonymous
+        caller is refused with 403 before the class runs, which is the stronger
+        posture: a private data endpoint stays uncallable by guests rather than
+        callable and answering 401. The body of that 403 names the class, but
+        the route is behind PrivateRoute, so no unauthenticated browser session
+        can render it. Do not "fix" this by granting guest access.
+
+        /me answers a guest with 401 NO_CONTACT_IDENTITY because the guest
+        profile already carries ParticipantPortalData — that grant lives in the
+        profile, not in this permission set.
+    -->
 </PermissionSet>

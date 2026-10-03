@@ -6,8 +6,7 @@
  * (see `fetchMe`). It exists to prove the whole vertical cut in one screen:
  * `User -> Contact -> Participant__c -> Apex -> React`.
  */
-import { useEffect, useState } from "react";
-import { fetchMe, MeError, type Me } from "../features/participant/api/participantApi";
+import { useParticipant } from "../features/participant/context/ParticipantContext";
 import { StatusAlert } from "../components/alerts/status-alert";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Skeleton } from "../components/ui/skeleton";
@@ -44,33 +43,7 @@ function DetailRow({ label, value }: { label: string; value: string | null }) {
 }
 
 export default function HomePage() {
-	const [me, setMe] = useState<Me | null>(null);
-	const [error, setError] = useState<{ message: string; code: string | null } | null>(null);
-	const [loading, setLoading] = useState(true);
-
-	useEffect(() => {
-		let cancelled = false;
-
-		fetchMe()
-			.then((data) => {
-				if (!cancelled) setMe(data);
-			})
-			.catch((err: unknown) => {
-				if (cancelled) return;
-				if (err instanceof MeError) {
-					setError({ message: err.message, code: err.code });
-				} else {
-					setError({ message: "Portal data unavailable.", code: null });
-				}
-			})
-			.finally(() => {
-				if (!cancelled) setLoading(false);
-			});
-
-		return () => {
-			cancelled = true;
-		};
-	}, []);
+	const { me, loading, error } = useParticipant();
 
 	if (loading) {
 		return (

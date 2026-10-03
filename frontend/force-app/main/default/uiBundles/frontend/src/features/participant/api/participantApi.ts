@@ -7,11 +7,13 @@
  * accepts a participant id from the client, so there is nothing to filter on
  * the client and no id to tamper with.
  *
- * The class runs `without sharing` because `Participant__c` has an external
- * org-wide default of `Private`, which would return nothing for an external
- * portal user. That makes the server-side contact filter the only thing
- * standing between the caller and every other participant row — see ADR-012
- * and backend/docs/portal/portal-access-plan.md (phase 1.5 is still open).
+ * The class runs `with sharing` precisely because `Participant__c` has an
+ * external org-wide default of `Private`. `ParticipantPortalSharingService`
+ * releases exactly one row per portal user, so the server-side contact filter
+ * is not the only thing standing between the caller and every other
+ * participant row — it is the second of two independent layers, the first
+ * being the share itself. See ADR-012 and
+ * backend/docs/portal/portal-access-plan.md.
  */
 import { createDataSDK } from "@salesforce/platform-sdk";
 import { handleApiResponse } from "@/features/authentication/utils/helpers";
