@@ -1,10 +1,9 @@
 /**
- * Portal start page: the signed-in participant's own account overview.
+ * Account page: the signed-in participant's own data.
  *
- * This is the first page that shows participant data, and it is deliberately
- * thin — one record, read-only, resolved server-side from the session
- * (see `fetchMe`). It exists to prove the whole vertical cut in one screen:
- * `User -> Contact -> Participant__c -> Apex -> React`.
+ * One record, read-only, resolved server-side from the session (see
+ * `fetchMe`). It is not the portal's start page any more — `/` is the
+ * dashboard; this is the participant's own detail view.
  */
 import { useParticipant } from "../features/participant/context/ParticipantContext";
 import { StatusAlert } from "../components/alerts/status-alert";
@@ -42,7 +41,7 @@ function DetailRow({ label, value }: { label: string; value: string | null }) {
 	);
 }
 
-export default function HomePage() {
+export default function MeinKontoPage() {
 	const { me, loading, error } = useParticipant();
 
 	if (loading) {
