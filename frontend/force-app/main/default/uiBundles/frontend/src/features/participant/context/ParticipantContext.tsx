@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { useAuth } from "../../authentication/context/AuthContext";
 import { fetchMe, MeError, type Me } from "../api/participantApi";
 
 interface ParticipantContextType {
@@ -18,6 +19,7 @@ export function ParticipantProvider({ children }: ParticipantProviderProps) {
 	const [me, setMe] = useState<Me | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<{ message: string; code: string | null } | null>(null);
+	const { isAuthenticated, loading: authLoading } = useAuth();
 
 	const load = useCallback(async () => {
 		setLoading(true);
@@ -38,9 +40,20 @@ export function ParticipantProvider({ children }: ParticipantProviderProps) {
 		}
 	}, []);
 
+	// The provider sits above the private routes now, because the app shell
+	// renders the participant's name in the sidebar footer. A guest must not
+	// trigger the request: `/me` answers 401 for anonymous sessions, so every
+	// login page visit would log a failure and paint a spurious error state.
 	useEffect(() => {
+		if (authLoading) return;
+		if (!isAuthenticated) {
+			setMe(null);
+			setError(null);
+			setLoading(false);
+			return;
+		}
 		void load();
-	}, [load]);
+	}, [isAuthenticated, authLoading, load]);
 
 	const value: ParticipantContextType = {
 		me,

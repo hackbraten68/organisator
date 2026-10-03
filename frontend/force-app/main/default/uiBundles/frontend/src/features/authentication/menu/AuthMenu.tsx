@@ -27,9 +27,23 @@ export interface AuthMenuProps {
 	menuItems?: React.ReactNode;
 	/** CSS class applied to the DropdownMenuContent wrapper */
 	className?: string;
+	/**
+	 * Side the menu opens towards. A trigger at the bottom of the viewport must
+	 * use "top" or the menu renders off-screen — the sidebar footer is that case.
+	 */
+	side?: "top" | "right" | "bottom" | "left";
+	/** Alignment against the trigger; the footer aligns to its own left edge. */
+	align?: "start" | "center" | "end";
 }
 
-export function AuthMenu({ trigger, guestContent, menuItems, className }: AuthMenuProps) {
+export function AuthMenu({
+	trigger,
+	guestContent,
+	menuItems,
+	className,
+	side = "bottom",
+	align = "end",
+}: AuthMenuProps) {
 	const { user, isAuthenticated, loading, logout } = useAuth();
 
 	if (loading) {
@@ -52,7 +66,7 @@ export function AuthMenu({ trigger, guestContent, menuItems, className }: AuthMe
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>{triggerNode}</DropdownMenuTrigger>
 
-			<DropdownMenuContent align="end" className={className ?? "w-48"}>
+			<DropdownMenuContent side={side} align={align} className={className ?? "w-48"}>
 				{isAuthenticated ? (
 					<>
 						<DropdownMenuLabel className="truncate">{user?.name}</DropdownMenuLabel>

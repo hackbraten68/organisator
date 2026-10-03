@@ -1,6 +1,5 @@
 import { Navigate, Outlet, useLocation } from "react-router";
 import { useAuth } from "../context/AuthContext";
-import { ParticipantProvider } from "../../participant/context/ParticipantContext";
 import { AUTH_REDIRECT_PARAM, ROUTES } from "../authenticationConfig";
 
 /**
@@ -32,9 +31,7 @@ export default function PrivateRoute() {
 		);
 	}
 
-	return (
-		<ParticipantProvider>
-			<Outlet />
-		</ParticipantProvider>
-	);
+	// No ParticipantProvider here — it is mounted in AuthAppLayout so the app
+	// shell can read the participant name too. See ParticipantContext.
+	return <Outlet />;
 }

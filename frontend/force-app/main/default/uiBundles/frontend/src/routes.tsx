@@ -1,6 +1,7 @@
 import type { RouteObject } from 'react-router';
-import Home from './pages/Home';
+import Dashboard from './pages/Dashboard';
 import LearningPath from './pages/LearningPath';
+import MeinKonto from './pages/MeinKonto';
 import NotFound from './pages/NotFound';
 import Login from "./features/authentication/pages/Login";
 import ForgotPassword from "./features/authentication/pages/ForgotPassword";
@@ -30,13 +31,18 @@ export const routes: RouteObject[] = [
         children: [
           {
             index: true,
-            element: <Home />,
-            handle: { showInNavigation: true, label: "Mein Konto" }
+            element: <Dashboard />,
+            handle: { showInNavigation: true, label: "Dashboard", icon: "dashboard" }
           },
           {
             path: "learning-path",
             element: <LearningPath />,
-            handle: { showInNavigation: true, label: "Lernpfad" }
+            handle: { showInNavigation: true, label: "Lernpfad", icon: "book" }
+          },
+          {
+            path: "mein-konto",
+            element: <MeinKonto />,
+            handle: { showInNavigation: true, label: "Mein Konto", icon: "contact" }
           },
           {
             path: ROUTES.PROFILE.PATH,
