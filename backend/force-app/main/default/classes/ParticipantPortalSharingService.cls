@@ -255,7 +255,178 @@ public without sharing class ParticipantPortalSharingService {
         synchronise(participants);
     }
 
+    // --- Learning_Path__c sharing ---
+
+    /**
+     * RowCause used for every Learning_Path__c share this service manages.
+     *
+     * The same dedicated Apex Sharing Reason as on Participant__c, reused here
+     * so that portal-managed shares are attributable across both objects.
+     */
+    public static final String LEARNING_PATH_ROW_CAUSE = 'Portal_Access__c';
+
+    /**
+     * What a Learning_Path__c synchronise call intends to do, before any of it
+     * is written. Mirrors SharePlan for the child object.
+     */
+    public class LearningPathSharePlan {
+        /** Shares to remove: they carry our reason but no longer match the target. */
+        public List<Learning_Path__Share> remove = new List<Learning_Path__Share>();
+        /** Shares to create, at PORTAL_ACCESS_LEVEL. */
+        public List<Learning_Path__Share> grant = new List<Learning_Path__Share>();
+    }
+
+    /**
+     * Brings the portal's Read shares for the given learning paths into line with
+     * their parent Participant__c.Portal_User__c.
+     *
+     * The grant target is indirect: Learning_Path__c → Participant__c →
+     * Portal_User__c. The query loads the parent participants to resolve it.
+     *
+     * @param learningPaths rows to reconcile. Ids that do not exist are ignored.
+     */
+    public static void synchroniseLearningPaths(List<Learning_Path__c> learningPaths) {
+        if (learningPaths == null || learningPaths.isEmpty()) {
+            return;
+        }
+
+        LearningPathSharePlan plan = planForLearningPaths(learningPaths);
+
+        report('removed', Database.delete(plan.remove, false));
+        report('granted', Database.insert(plan.grant, false));
+    }
+
+    /**
+     * Works out which shares should exist for the given learning paths. No DML.
+     *
+     * @param learningPaths rows to reconcile. Rows without an Id are ignored.
+     */
+    public static LearningPathSharePlan planForLearningPaths(List<Learning_Path__c> learningPaths) {
+        Set<Id> rowIds = new Set<Id>();
+        Set<Id> participantIds = new Set<Id>();
+        for (Learning_Path__c lp : learningPaths) {
+            if (lp.Id != null) {
+                rowIds.add(lp.Id);
+            }
+            if (lp.Participant__c != null) {
+                participantIds.add(lp.Participant__c);
+            }
+        }
+        if (rowIds.isEmpty()) {
+            return new LearningPathSharePlan();
+        }
+
+        Map<Id, Map<Id, Learning_Path__Share>> byRow = new Map<Id, Map<Id, Learning_Path__Share>>();
+        for (Learning_Path__Share share : [
+            SELECT Id, ParentId, UserOrGroupId
+            FROM Learning_Path__Share
+            WHERE ParentId IN :rowIds
+                AND RowCause = :LEARNING_PATH_ROW_CAUSE
+        ]) {
+            if (!byRow.containsKey(share.ParentId)) {
+                byRow.put(share.ParentId, new Map<Id, Learning_Path__Share>());
+            }
+            byRow.get(share.ParentId).put(share.UserOrGroupId, share);
+        }
+
+        Map<Id, Participant__c> participantsById = new Map<Id, Participant__c>();
+        for (Participant__c p : [
+            SELECT Id, Portal_User__c
+            FROM Participant__c
+            WHERE Id IN :participantIds
+        ]) {
+            participantsById.put(p.Id, p);
+        }
+
+        return planForLearningPaths(learningPaths, byRow, participantsById);
+    }
+
+    /**
+     * The same decision, against a caller-supplied view of the existing shares
+     * and parent participants.
+     *
+     * Exists because a share row cannot be inserted in an Apex test: the test
+     * context applies the object's internal default access level (Edit, from
+     * sharingModel = ReadWrite) and refuses anything at or below it as trivial,
+     * 'Edit' included. Passing the current state in keeps the logic under test
+     * without forcing the tests to manufacture rows the platform will not accept.
+     *
+     * @param existingShares the portal shares currently held for these rows, keyed
+     *        by row id and then by user or group id. Rows absent from it are
+     *        treated as having no share.
+     * @param participantsById the parent participants by id, used to resolve the
+     *        grant target. Participants absent from it are treated as having no
+     *        portal user.
+     */
+    public static LearningPathSharePlan planForLearningPaths(
+        List<Learning_Path__c> learningPaths,
+        Map<Id, Map<Id, Learning_Path__Share>> existingShares,
+        Map<Id, Participant__c> participantsById
+    ) {
+        LearningPathSharePlan plan = new LearningPathSharePlan();
+        if (learningPaths == null || learningPaths.isEmpty()) {
+            return plan;
+        }
+
+        Map<Id, Learning_Path__c> learningPathsById = new Map<Id, Learning_Path__c>();
+        for (Learning_Path__c lp : learningPaths) {
+            if (lp.Id != null) {
+                learningPathsById.put(lp.Id, lp);
+            }
+        }
+
+        Map<String, Learning_Path__Share> existing = new Map<String, Learning_Path__Share>();
+        for (Map<Id, Learning_Path__Share> perRow : existingShares.values()) {
+            for (Learning_Path__Share share : perRow.values()) {
+                existing.put(lpKey(share.ParentId, share.UserOrGroupId), share);
+            }
+        }
+
+        // Everything in `existing` already carries LEARNING_PATH_ROW_CAUSE, so there
+        // is nothing else to check: a share that no longer points at the row's
+        // release target is ours to remove. Shares under any other reason were
+        // never in this collection and cannot be touched.
+        for (Learning_Path__Share share : existing.values()) {
+            Learning_Path__c lp = learningPathsById.get(share.ParentId);
+            if (lp == null) {
+                continue;
+            }
+            Participant__c participant = participantsById.get(lp.Participant__c);
+            Id portalUserId = participant != null ? participant.Portal_User__c : null;
+            if (portalUserId != share.UserOrGroupId) {
+                plan.remove.add(share);
+            }
+        }
+
+        for (Learning_Path__c lp : learningPaths) {
+            if (lp.Id == null || lp.Participant__c == null) {
+                continue;
+            }
+            Participant__c participant = participantsById.get(lp.Participant__c);
+            if (participant == null || participant.Portal_User__c == null) {
+                continue;
+            }
+            Id portalUserId = participant.Portal_User__c;
+            if (!existing.containsKey(lpKey(lp.Id, portalUserId))) {
+                plan.grant.add(
+                    new Learning_Path__Share(
+                        ParentId = lp.Id,
+                        UserOrGroupId = portalUserId,
+                        AccessLevel = PORTAL_ACCESS_LEVEL,
+                        RowCause = Schema.Learning_Path__Share.RowCause.Portal_Access__c
+                    )
+                );
+            }
+        }
+
+        return plan;
+    }
+
     private static String key(Id parentId, Id userOrGroupId) {
+        return String.valueOf(parentId) + ':' + String.valueOf(userOrGroupId);
+    }
+
+    private static String lpKey(Id parentId, Id userOrGroupId) {
         return String.valueOf(parentId) + ':' + String.valueOf(userOrGroupId);
     }
 

@@ -390,4 +390,287 @@ private class ParticipantPortalSharingServiceTest {
             'the portal must never be granted write access'
         );
     }
+
+    // --- Learning_Path__c sharing tests ---
+
+    private static final String LP_PORTAL_REASON = 'Portal_Access__c';
+
+    private static Learning_Path__c lpRow(String title, Id participantId) {
+        Learning_Path__c lp = new Learning_Path__c(
+            Title__c = title,
+            Participant__c = participantId,
+            Status__c = 'Planned',
+            Order__c = 1,
+            Estimated_Weeks__c = 2
+        );
+        insert lp;
+        return lp;
+    }
+
+    private static Learning_Path__Share lpHeldShare(Id rowId, Id userId) {
+        return new Learning_Path__Share(
+            ParentId = rowId,
+            UserOrGroupId = userId,
+            AccessLevel = ParticipantPortalSharingService.PORTAL_ACCESS_LEVEL,
+            RowCause = Schema.Learning_Path__Share.RowCause.Portal_Access__c
+        );
+    }
+
+    private static Map<Id, Map<Id, Learning_Path__Share>> lpHeldFor(List<Learning_Path__Share> shares) {
+        Map<Id, Map<Id, Learning_Path__Share>> byRow = new Map<Id, Map<Id, Learning_Path__Share>>();
+        for (Learning_Path__Share share : shares) {
+            if (!byRow.containsKey(share.ParentId)) {
+                byRow.put(share.ParentId, new Map<Id, Learning_Path__Share>());
+            }
+            byRow.get(share.ParentId).put(share.UserOrGroupId, share);
+        }
+        return byRow;
+    }
+
+    private static Map<Id, Map<Id, Learning_Path__Share>> lpHeldFor(Learning_Path__Share a) {
+        List<Learning_Path__Share> shares = new List<Learning_Path__Share>();
+        if (a != null) {
+            shares.add(a);
+        }
+        return lpHeldFor(shares);
+    }
+
+    private static Learning_Path__Share lpForeignShare(Id rowId, Id userId) {
+        return new Learning_Path__Share(
+            ParentId = rowId,
+            UserOrGroupId = userId,
+            AccessLevel = ParticipantPortalSharingService.PORTAL_ACCESS_LEVEL,
+            RowCause = Schema.Learning_Path__Share.RowCause.Manual
+        );
+    }
+
+    private static Map<Id, Participant__c> lpParticipantsById(List<Participant__c> participants) {
+        Map<Id, Participant__c> byId = new Map<Id, Participant__c>();
+        for (Participant__c p : participants) {
+            byId.put(p.Id, p);
+        }
+        return byId;
+    }
+
+    @IsTest
+    static void assigningAParticipantPlansExactlyOneLearningPathShare() {
+        Participant__c participant = row('LpAssignOne', userOne());
+        Learning_Path__c lp = lpRow('LP-1', participant.Id);
+
+        Test.startTest();
+        ParticipantPortalSharingService.LearningPathSharePlan plan = ParticipantPortalSharingService.planForLearningPaths(
+            new List<Learning_Path__c>{ lp },
+            new Map<Id, Map<Id, Learning_Path__Share>>(),
+            lpParticipantsById(new List<Participant__c>{ participant })
+        );
+        Test.stopTest();
+
+        System.assertEquals(1, plan.grant.size(), 'one learning path must plan exactly one share');
+        System.assertEquals(
+            userOne(),
+            plan.grant[0].UserOrGroupId,
+            'the share must go to the portal user of the parent participant'
+        );
+        System.assertEquals(
+            'Read',
+            plan.grant[0].AccessLevel,
+            'the portal never grants write access'
+        );
+        System.assertEquals(0, plan.remove.size(), 'nothing to remove on a fresh row');
+    }
+
+    @IsTest
+    static void repeatingTheLearningPathSynchronisationPlansNoSecondShare() {
+        Participant__c participant = row('LpIdempotent', userOne());
+        Learning_Path__c lp = lpRow('LP-2', participant.Id);
+
+        Test.startTest();
+        ParticipantPortalSharingService.LearningPathSharePlan plan = ParticipantPortalSharingService.planForLearningPaths(
+            new List<Learning_Path__c>{ lp },
+            lpHeldFor(lpHeldShare(lp.Id, userOne())),
+            lpParticipantsById(new List<Participant__c>{ participant })
+        );
+        Test.stopTest();
+
+        System.assertEquals(0, plan.grant.size(), 'a second run must not plan a second share');
+        System.assertEquals(0, plan.remove.size(), 'and must not remove the one it found');
+    }
+
+    @IsTest
+    static void movingTheParticipantSwapsTheLearningPathShare() {
+        Participant__c participant = row('LpSwap', userTwo());
+        Learning_Path__c lp = lpRow('LP-3', participant.Id);
+
+        Test.startTest();
+        ParticipantPortalSharingService.LearningPathSharePlan plan = ParticipantPortalSharingService.planForLearningPaths(
+            new List<Learning_Path__c>{ lp },
+            lpHeldFor(lpHeldShare(lp.Id, userOne())),
+            lpParticipantsById(new List<Participant__c>{ participant })
+        );
+        Test.stopTest();
+
+        System.assertEquals(1, plan.remove.size(), 'the old share must be removed, not accumulated');
+        System.assertEquals(userOne(), plan.remove[0].UserOrGroupId);
+        System.assertEquals(1, plan.grant.size(), 'and a share for the new user planned');
+        System.assertEquals(userTwo(), plan.grant[0].UserOrGroupId);
+    }
+
+    @IsTest
+    static void clearingTheParticipantRemovesTheLearningPathShare() {
+        Participant__c participant = row('LpClear', null);
+        Learning_Path__c lp = lpRow('LP-4', participant.Id);
+
+        Test.startTest();
+        ParticipantPortalSharingService.LearningPathSharePlan plan = ParticipantPortalSharingService.planForLearningPaths(
+            new List<Learning_Path__c>{ lp },
+            lpHeldFor(lpHeldShare(lp.Id, userOne())),
+            lpParticipantsById(new List<Participant__c>{ participant })
+        );
+        Test.stopTest();
+
+        System.assertEquals(1, plan.remove.size(), 'an unassigned participant must expose nothing');
+        System.assertEquals(userOne(), plan.remove[0].UserOrGroupId);
+        System.assertEquals(0, plan.grant.size(), 'and must not grant anything');
+    }
+
+    @IsTest
+    static void aLearningPathShareUnderAnotherReasonIsNeverRemoved() {
+        Id thirdUserId = makeUser('LpThree');
+        Participant__c participant = row('LpThirdParty', userTwo());
+        Learning_Path__c lp = lpRow('LP-5', participant.Id);
+
+        Test.startTest();
+        ParticipantPortalSharingService.LearningPathSharePlan plan = ParticipantPortalSharingService.planForLearningPaths(
+            new List<Learning_Path__c>{ lp },
+            lpHeldFor(lpHeldShare(lp.Id, userOne())),
+            lpParticipantsById(new List<Participant__c>{ participant })
+        );
+        Test.stopTest();
+
+        System.assertEquals(1, plan.remove.size(), 'only the portal\'s own share is removed');
+        System.assertEquals(
+            userOne(),
+            plan.remove[0].UserOrGroupId,
+            'and it is the one carrying our reason'
+        );
+        System.assertEquals(
+            Schema.Learning_Path__Share.RowCause.Portal_Access__c,
+            plan.remove[0].RowCause,
+            'the removed share must be ours'
+        );
+        System.assertNotEquals(
+            thirdUserId,
+            plan.remove[0].UserOrGroupId,
+            'an administrator\'s grant is untouched'
+        );
+    }
+
+    @IsTest
+    static void bulkLearningPathAssignmentPlansOneShareEach() {
+        Participant__c participant = row('LpBulk', userOne());
+        List<Learning_Path__c> lps = new List<Learning_Path__c>();
+        for (Integer i = 0; i < 3; i++) {
+            lps.add(lpRow('LP-B' + i, participant.Id));
+        }
+
+        Test.startTest();
+        ParticipantPortalSharingService.LearningPathSharePlan plan = ParticipantPortalSharingService.planForLearningPaths(
+            lps,
+            new Map<Id, Map<Id, Learning_Path__Share>>(),
+            lpParticipantsById(new List<Participant__c>{ participant })
+        );
+        Test.stopTest();
+
+        System.assertEquals(
+            lps.size(),
+            plan.grant.size(),
+            'every learning path in the batch must get a share'
+        );
+    }
+
+    @IsTest
+    static void unrelatedLearningPathFieldChangePlansNothing() {
+        Participant__c participant = row('LpUntouched', userOne());
+        Learning_Path__c lp = lpRow('LP-6', participant.Id);
+        lp.Status__c = 'In Progress';
+
+        Test.startTest();
+        ParticipantPortalSharingService.LearningPathSharePlan plan = ParticipantPortalSharingService.planForLearningPaths(
+            new List<Learning_Path__c>{ lp },
+            lpHeldFor(lpHeldShare(lp.Id, userOne())),
+            lpParticipantsById(new List<Participant__c>{ participant })
+        );
+        Test.stopTest();
+
+        System.assertEquals(0, plan.grant.size(), 'a status change must not change who can read the row');
+        System.assertEquals(0, plan.remove.size(), 'the existing share must be left alone');
+    }
+
+    @IsTest
+    static void twoParticipantsGetOnlyTheirOwnLearningPathRelease() {
+        Participant__c a = row('LpIsoA', userOne());
+        Participant__c b = row('LpIsoB', userTwo());
+        Learning_Path__c lpA = lpRow('LP-7A', a.Id);
+        Learning_Path__c lpB = lpRow('LP-7B', b.Id);
+
+        Test.startTest();
+        ParticipantPortalSharingService.LearningPathSharePlan plan = ParticipantPortalSharingService.planForLearningPaths(
+            new List<Learning_Path__c>{ lpA, lpB },
+            new Map<Id, Map<Id, Learning_Path__Share>>(),
+            lpParticipantsById(new List<Participant__c>{ a, b })
+        );
+        Test.stopTest();
+
+        Integer forOne = 0;
+        Integer forTwo = 0;
+        for (Learning_Path__Share share : plan.grant) {
+            if (share.UserOrGroupId == userOne()) {
+                forOne++;
+            } else if (share.UserOrGroupId == userTwo()) {
+                forTwo++;
+            }
+        }
+        System.assertEquals(1, forOne, 'user one is released on their own learning path only');
+        System.assertEquals(1, forTwo, 'user two is released on their own learning path only');
+    }
+
+    @IsTest
+    static void aClearedParticipantMakesAnOrphanedLearningPathShareRemovable() {
+        Participant__c participant = row('LpOrphaned', null);
+        Learning_Path__c lp = lpRow('LP-8', participant.Id);
+
+        Test.startTest();
+        ParticipantPortalSharingService.LearningPathSharePlan plan = ParticipantPortalSharingService.planForLearningPaths(
+            new List<Learning_Path__c>{ lp },
+            lpHeldFor(lpHeldShare(lp.Id, userOne())),
+            lpParticipantsById(new List<Participant__c>{ participant })
+        );
+        Test.stopTest();
+
+        System.assertEquals(1, plan.remove.size(), 'a share without a release target is removed');
+        System.assertEquals(userOne(), plan.remove[0].UserOrGroupId);
+        System.assertEquals(0, plan.grant.size(), 'and nothing is granted in its place');
+    }
+
+    @IsTest
+    static void learningPathWithoutParticipantPlansNothing() {
+        Learning_Path__c lp = new Learning_Path__c(
+            Title__c = 'LP-9',
+            Status__c = 'Planned',
+            Order__c = 1,
+            Estimated_Weeks__c = 2
+        );
+        insert lp;
+
+        Test.startTest();
+        ParticipantPortalSharingService.LearningPathSharePlan plan = ParticipantPortalSharingService.planForLearningPaths(
+            new List<Learning_Path__c>{ lp },
+            new Map<Id, Map<Id, Learning_Path__Share>>(),
+            new Map<Id, Participant__c>()
+        );
+        Test.stopTest();
+
+        System.assertEquals(0, plan.grant.size(), 'a learning path without a participant must not be shared');
+        System.assertEquals(0, plan.remove.size(), 'and nothing to remove');
+    }
 }
