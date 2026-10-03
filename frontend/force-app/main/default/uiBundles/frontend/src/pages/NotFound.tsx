@@ -1,17 +1,22 @@
 import { Link } from 'react-router';
+import { Button } from '../components/ui/button';
 
+/**
+ * Token-driven rather than `text-gray-900` / `bg-blue-600`.
+ *
+ * These four hardcoded colours were the only ones in the portal and they do not
+ * respond to the `.dark` class, so the 404 page stayed dark-on-light inside a dark
+ * shell. Everything else in the bundle already used tokens.
+ */
 export default function NotFound() {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
-        <p className="text-lg text-gray-600 mb-8">Page not found</p>
-        <Link
-          to="/"
-          className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-        >
-          Go to Home
-        </Link>
+        <h1 className="mb-4 text-4xl font-bold text-foreground">404</h1>
+        <p className="mb-8 text-lg text-muted-foreground">Page not found</p>
+        <Button asChild variant="default">
+          <Link to="/">Go to Home</Link>
+        </Button>
       </div>
     </div>
   );

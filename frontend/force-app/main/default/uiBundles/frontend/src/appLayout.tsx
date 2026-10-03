@@ -1,17 +1,32 @@
 import { Outlet, Link, useLocation } from "react-router";
 import { getNavigationRoutes } from "./router-utils";
 import { useEffect, useId, useRef, useState } from "react";
+import { Keyboard } from "lucide-react";
 import { AuthMenu } from "./features/authentication/menu/AuthMenu";
 import { NavigationLinks, PortalSidebar } from "./components/layouts/portal-sidebar";
 import { useAuth } from "./features/authentication/context/AuthContext";
+import { KeyboardShortcutsDialog } from "./components/KeyboardShortcutsDialog";
+import ThemeToggle from "./components/ThemeToggle";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 export default function AppLayout() {
 	const [isOpen, setIsOpen] = useState(false);
+	const [shortcutsOpen, setShortcutsOpen] = useState(false);
 	const location = useLocation();
 	const navId = useId();
 	const outletWrapperRef = useRef<HTMLDivElement>(null);
 	const previousPathname = useRef<string | null>(null);
 	const { isAuthenticated, loading: authLoading } = useAuth();
+
+	// Bound here and nowhere else. The hook skips keystrokes that come from a text
+	// field, so "?" typed into the login form stays a "?" and does not open this.
+	useKeyboardShortcuts([
+		{
+			key: "?",
+			description: "Toggle shortcuts dialog",
+			action: () => setShortcutsOpen((v) => !v),
+		},
+	]);
 
 	useEffect(() => {
 		if (previousPathname.current !== null && previousPathname.current !== location.pathname) {
@@ -94,6 +109,16 @@ export default function AppLayout() {
 							Organisator
 						</Link>
 						<div className="ml-auto flex items-center gap-2">
+							<button
+								type="button"
+								onClick={() => setShortcutsOpen(true)}
+								className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+								aria-label="Tastenkürzel anzeigen"
+								title="Tastenkürzel (?)"
+							>
+								<Keyboard className="size-5" aria-hidden="true" />
+							</button>
+							<ThemeToggle />
 							<div className="lg:hidden">
 								<AuthMenu />
 							</div>
@@ -114,6 +139,8 @@ export default function AppLayout() {
 					<Outlet />
 				</div>
 			</div>
+
+			<KeyboardShortcutsDialog isOpen={shortcutsOpen} onOpenChange={setShortcutsOpen} />
 		</div>
 	);
 }
