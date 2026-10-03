@@ -374,6 +374,71 @@ a portal user saw `0` rows on `Participant__c` regardless. `ParticipantPortalDat
 `ParticipantPortalSharingService`. `viewAllRecords` was rejected on purpose: combined with
 the `ApiEnabled` permission set it would let every portal user read every participant row.
 
+### And access still needs an *object* grant — the layer above that one
+
+Adding `/me/learning-path` for `Learning_Path__c` answered **500 `INTERNAL_ERROR` for every
+signed-in member** while `/me` kept answering 200. `Participant_Portal_Access` had no CRUD
+on the new object at all:
+
+```text
+System.QueryException: sObject type 'Learning_Path__c' is not supported
+```
+
+`with sharing` governs **row** visibility. It does not make an object queryable for a user
+with no object permission. The portal profile grants nothing, so the whole grant is in the
+permission set — and a new endpoint needs a new entry there for the object, for every
+queried field (`viewAllFields` is false), and for `classAccesses`.
+
+Two things made this invisible, both worth internalising:
+
+- **A guest `curl` cannot see it.** A guest fails identity resolution first and gets a clean
+  `401`, so the endpoint looks healthy from outside the browser. Only a real member session
+  reaches the query. Same shape as the sharing lesson above, one layer up.
+- **`ApexLog` was empty** because the catch-all discarded the exception that named the cause.
+  Every new endpoint here logs its caught exception at `LoggingLevel.ERROR`.
+
+**A required field gets no `fieldPermissions` entry.** `Learning_Path__c.Title__c` is
+required, and the Metadata API refuses the entry:
+
+```text
+You cannot deploy to a required field: Learning_Path__c.Title__c
+```
+
+That fails the **whole** permission set, not just the one field — three object permissions
+were rolled back with it. Check `<required>` in the field metadata before adding an entry.
+
+Two answers that look like defects and are not:
+
+| Request | Response | Why it is correct |
+|---|---|---|
+| Guest → `/me/learning-path` | `403 FORBIDDEN` | The guest has no `classAccesses` for the class, so an anonymous caller cannot invoke a private data endpoint **at all**. Granting it would only align the error message and weaken the posture. The 403 body names the class, but the route is behind `PrivateRoute`, so no unauthenticated browser session can render it. |
+| Member → `/me/learning-path` | `200` + `learningPaths` | One `Learning_Path__Share` row per learning path, `Portal_Access__c`, `Read`, correct user. |
+
+Do not "fix" the guest 403 by granting class access. The route to that grant is a
+`Profile`, and profiles are never deployed here — see `backend/docs/AGENTS.md`, "Never
+deploy profiles (E3)".
+
+### One endpoint per class, not one class per resource
+
+Apex allows a single `@HttpGet` per class and rejects `Object` as its return type. The first
+version of this feature put `/me` and `/me/learning-path` in `ParticipantPortalData`
+together: a dispatcher string-matching `requestURI.endsWith('/me/learning-path')`, and one
+flat `PortalResponse` that carried the other endpoint's fields as `null`. That cost two
+things worth avoiding:
+
+- Neither response could change without breaking the other.
+- The dispatcher's fallback answered **any** unrecognised sub-path with `/me` data, because
+  `urlMapping='/participant-portal/*'` also matches `/me/anything` — a `200` with the wrong
+  body for a URL that does not exist.
+
+`ParticipantPortalLearningPath` is a separate `@RestResource` at the more specific
+`/participant-portal/me/learning-path`. Measured, not assumed: after the split `/me` still
+answers `401 NO_CONTACT_IDENTITY` with the participant shape and the learning path answers
+with its own, so Salesforce resolves the specific mapping over the wildcard. The member URL
+is unchanged, so the UI bundle needed no change — and because only comments moved in the
+bundle, the built hash stayed `index-agfB05Ba.js`, which is what made the browser check
+trustworthy.
+
 ---
 
 ## Login and logout paths

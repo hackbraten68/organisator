@@ -514,6 +514,17 @@ Erst jetzt wird der Portalumfang aufgebaut. Reihenfolge nach Nutzerwert:
 | 5.2     | Abwesenheiten — Antrag, Status | beantragen, stornieren, Dokument hochladen |
 | 5.3     | Lernpfad — Fortschritt         | keiner                                     |
 
+**Stand 5.3 (2026-10-03):** Die read-only Lernpfad-Ansicht ist live —
+`GET /me/learning-path` liefert Titel, Status, Reihenfolge und geschätzte Wochen, freigegeben
+über je eine `Learning_Path__c.Share`-Zeile pro Pfad (`Portal_Access__c`). Live belegt mit
+vier Pfaden, inklusive eines im Backoffice angelegten, der ohne Sync-Lauf über den
+`LearningPathPortalSharing`-Trigger erschienen ist. Details und die drei Fallstricke der
+Autorisierung stehen in `../portal-deploy-status.md`.
+
+Offen bleibt, was „Fortschritt" über die Anzeige hinaus meint: **erfassen**, also wer einen
+Schritt abgeschlossen hat, ist nicht gebaut. Solange das offen ist, ist 5.3 nicht fertig —
+die Tabelle oben ist der Plan, nicht der Abschluss.
+
 Jede Schreiboperation braucht:
 
 - serverseitige Autorisierung gegen den **eigenen** Datensatz, nie gegen eine

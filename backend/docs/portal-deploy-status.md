@@ -6,11 +6,13 @@ Stand 2026-10-01, Ziel-Org `hubSandbox`.
 
 | Baustein | Status |
 |---|---|
-| `ParticipantPortalData` (+ `PortalIdentityException`) | deployed, Active |
+| `ParticipantPortalData` (+ `PortalIdentityException`) | deployed, Active — `/me` |
+| `ParticipantPortalLearningPath` | deployed, Active — `/me/learning-path` |
+| `ParticipantPortalSharingService` + `LearningPathPortalSharing` (Trigger) | deployed, Active |
 | `UIBundleLogin`, `UIBundleChangePassword`, `UIBundleAuthUtils`, `UIBundleSocialLoginConfig`, `UIBundleForgotPassword` | deployed, Active |
 | `Participant_Portal_Access` (Permission Set) | deployed, zugewiesen an 2 Portal-User |
 | `frontend_Guest_User_Api_Access` (Permission Set) | deployed |
-| `UIBundle:frontend` (das React-Portal inkl. `/me`) | deployed, Active, **an Site `Organisator` gebunden** |
+| `UIBundle:frontend` (das React-Portal inkl. `/me` und `/learning-path`) | deployed, Active, **an Site `Organisator` gebunden** |
 | Network `Organisator` | **Live**, Pfad `/organisatorv1vforcesite`, Site-as-Container |
 | CustomSite `Organisator` (ChatterNetwork) | **Active**, Pfad `/organisatorv1vforcesite` |
 | CustomSite `Organisator1` (Picasso) | **Active**, Pfad `/organisatorv1` |
@@ -618,3 +620,134 @@ Live-Tests auch ohne ihn, und die Sperre des Submit-Buttons dauert real rund 1,3
 Fix ist damit als Notwendigkeit **nicht** belegt — er bleibt als Robustheitsnetz gegen
 ein hängendes Promise, aber er war nicht die Ursache des gemeldeten Problems.
 
+
+---
+
+## Lernpfad read-only im Portal (live, 2026-10-03)
+
+`Learning_Path__c` hat im Portal eine eigene read-only Seite. Der Endpoint ist eine eigene
+Apex-Klasse, `ParticipantPortalLearningPath`, nicht eine zweite Methode in
+`ParticipantPortalData`.
+
+```text
+GET /organisatorv1/sf/api/services/apexrest/participant-portal/me/learning-path
+```
+
+### Warum eine zweite Klasse statt einer zweiten Methode
+
+Apex erlaubt **eine** `@HttpGet`-Methode pro Klasse, und die darf nicht `Object`
+zurückgeben. Der erste Wurf hatte deshalb beide Endpunkte in `ParticipantPortalData`
+gelegt: ein Dispatcher, der per `requestURI.endsWith(...)` verzweigte, und eine
+`PortalResponse`, die die Felder des jeweils anderen Endpunkts als `null` mitschleppte.
+
+Zwei Kosten, beide real:
+
+- Keine der beiden Antworten ließ sich ändern, ohne die andere zu brechen.
+- Der Fallback des Dispatchers beantwortete **jeden** unbekannten Subpfad mit
+  `/me`-Daten, weil `urlMapping='/participant-portal/*'` auch `/me/irgendwas`
+  matcht. Kein Sicherheitsproblem — die Identität wird serverseitig aufgelöst — aber
+  ein 200 mit dem falschen Body für eine URL, die es nicht gibt.
+
+Gemessen nach dem Split, dass Salesforce das spezifischere Mapping gewinnt:
+
+| Aufruf | Antwort |
+| --- | --- |
+| `/me` | `401` `NO_CONTACT_IDENTITY`, Teilnehmerfelder |
+| `/me/learning-path` | `403` `FORBIDDEN` (Gast, siehe unten) |
+
+Die URL ist dadurch unverändert geblieben, das UI-Bundle musste für den Split nichts
+anpassen. Der gebaute Hash `index-agfB05Ba.js` war vor und nach dem Kommentar-Umbau
+identisch — die Änderung ist serverseitig.
+
+### Der 500er, der nicht testbar war
+
+Beim ersten Live-Versuch antwortete `/me/learning-path` für **jeden** angemeldeten
+Mitglieder mit `500 INTERNAL_ERROR`, während `/me` sauber `200` lieferte. Ursache: das
+Permission Set `Participant_Portal_Access` hatte **kein** CRUD auf `Learning_Path__c`.
+
+Zwei Dinge haben das teuer gemacht, und beide sind Lehre für den nächsten Endpoint:
+
+- **Ein Gast-`curl` sieht es nicht.** Ein Gast scheitert zuerst an der
+  Identitätsauflösung und bekommt ein sauberes `401`. Von außen sieht der Endpoint
+  gesund aus; nur eine echte Member-Session erreicht die Query. Dieselbe Form wie beim
+  Row-Level-Zugriff, eine Ebene höher.
+- **`ApexLog` war leer**, weil der Catch-all die `QueryException` verworfen hat, die
+  den Grund nannte. Beide Klassen loggen die gefangene Exception jetzt auf `ERROR`.
+
+```text
+System.QueryException: sObject type 'Learning_Path__c' is not supported
+```
+
+Nachweis der Berechtigung in der Org:
+
+```text
+ObjectPermissions: allowRead=true  allowEdit=false  viewAllRecords=false
+FieldPermissions: Status__c, Order__c, Estimated_Weeks__c, Participant__c readable
+```
+
+**`Title__c` hat bewusst keinen `fieldPermissions`-Eintrag.** Das Feld ist required, und
+die Metadata API verweigert einen Eintrag dafür:
+
+```text
+You cannot deploy to a required field: Learning_Path__c.Title__c
+```
+
+Das scheitert das **komplette** Permission Set, nicht nur dieses eine Feld — die drei
+Object-Permissions wurden mit zurückgerollt. Vor dem Hinzufügen eines Eintrags
+`<required>` in den Feld-Metadaten prüfen.
+
+### Gastverhalten: 403 ist hier die richtige Antwort
+
+`/me` beantwortet einen Gast mit `401`, der Lernpfad mit `403` und einem Body, der die
+interne Klasse nennt. Das ist **kein** Inkonsistenzfehler und wurde bewusst so gelassen:
+
+Der `classAccesses`-Eintrag für `ParticipantPortalLearningPath` liegt ausschließlich in
+`Participant_Portal_Access`. Der Gast bekommt die Klasse nicht, also kann ein anonymer
+Aufrufer einen privaten Daten-Endpoint **gar nicht erst aufrufen**. Eine Freigabe würde
+nur die Fehlermeldung angleichen und die Haltung verschlechtern. Die Begründung steht im
+Gast-Permission Set, damit sie nicht versehentlich „repariert" wird.
+
+Grund, das die Repo-Policy bestätigt: der nötige Ausweg wäre ein Grant auf dem
+Site-Gast-**Profil**, und Profile werden hier grundsätzlich nicht deployed
+(siehe `docs/AGENTS.md`, „Never deploy profiles (E3)") — mit `rollbackOnError` würde
+das den gesamten Deploy zurückrollen.
+
+### Live-Nachweis
+
+Vier Lernpfade für Mehmet Kaya (`a0s9X00000boVT9QAM`), jeder mit genau einer
+`Learning_Path__Share`-Zeile:
+
+| Learning Path | Share | RowCause | AccessLevel | User |
+| --- | --- | --- | --- | --- |
+| LP-0012 | 1 | `Portal_Access__c` | Read | `0059X00000rOHULQA4` |
+| LP-0014 | 1 | `Portal_Access__c` | Read | `0059X00000rOHULQA4` |
+| LP-0013 | 1 | `Portal_Access__c` | Read | `0059X00000rOHULQA4` |
+| LP-0031 | 1 | `Portal_Access__c` | Read | `0059X00000rOHULQA4` |
+
+```text
+4 Learning_Path__c, 4 Shares, davon 4 mit Portal_Access__c, 0 mit fremdem RowCause
+```
+
+**LP-0031 ist der entscheidende Fall:** Der Pfad wurde im Backoffice als Coach angelegt
+und erschien danach ohne Sync-Lauf im Portal. Das belegt den `LearningPathPortalSharing`
+-Trigger auf `after insert` — er erzeugt eine strukturgleiche Zeile, wie sie
+`synchroniseLearningPaths()` schreibt. Vorher war der Trigger nur deployed, nicht
+belegt.
+
+Ein Aufruf von `synchroniseLearningPaths()` mit diesem Datenstand ist damit ein No-op:
+es gibt nichts zu ergänzen und nichts zu entziehen.
+
+### Testabdeckung
+
+`ParticipantPortalLearningPath` hat bewusst **keine** eigenen Unit-Tests. Das ist
+erzwungen, nicht nachlässig:
+
+- `queryLearningPaths()` ist privat, und eine Test-Seam würde die Annahme brauchen, dass
+  ein Aufrufer eine fremde `participantId` einschleusen kann — genau das darf nicht
+  testbar sein.
+- `Learning_Path__c.Share`-Zeilen lassen sich in Apex-Tests prinzipiell nicht anlegen
+  (siehe oben), also lässt sich der gefilterte Query nicht mit echten Daten prüfen.
+
+Abgedeckt ist die geteilte Identitätskette durch `ParticipantPortalDataTest` (10/10) und
+die Diff-Logik durch `ParticipantPortalSharingServiceTest` (21/21). Der eigentliche
+Nachweis ist deshalb der Live-Nachweis oben, nicht eine grüne Suite.
