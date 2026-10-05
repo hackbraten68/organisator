@@ -32,10 +32,45 @@ fight over the same file.
 | `ParticipantContactUniqueness` (trigger)              | Portal profiles, permission sets, member setup |
 | `AuditEvent__c` event types                           | Experience Cloud templates                     |
 | `CustomPermission` `Manage_Participant_Portal_Access` |                                                |
+| `StaffIdentity` (`/staff-identity/me`, signed-in user) |                                              |
 | The internal backoffice UI Bundle                     | The participant UI Bundle                      |
+
+`StaffIdentity` answers "who is signed in" for the **backoffice** bundle, so it lives
+here; `ParticipantPortalData` answers the same question for the **portal**, so it lives
+there. They cannot share one class: a class has exactly one owning project and the two
+deploy independently.
 
 The portal feature is planned in `docs/portal/portal-access-plan.md`; the binding decisions
 are in `docs/portal/architecture-decisions.md`.
+
+---
+
+## The UI Bundle cannot learn who is signed in
+
+The runtime carries no user identity. `SFDC_ENV` has `orgUrl`, `apiPath`, `basePath`,
+`namespace` and `appName` — **no user id, no username** (verified on the live site, see
+`frontend/AGENTS.md` → "Login and logout paths"). The platform-sdk's `AppIdentity` is the
+*UIBundle* identity (`namespace`/`appName`/`qualifiedName`/`bundleId`), not a person, and
+UI API has no `uiapi.user` root.
+
+The "Logged in as <username>" bar above the backoffice is rendered **by Salesforce on the
+server**. Its presence is not evidence that the bundle can read it — reading it as such
+sent the actor picker down a dead end for a day.
+
+So identity comes from `StaffIdentity` (`GET /services/apexrest/staff-identity/me`), which
+answers from `UserInfo.getUserId()` and takes **no parameters** — there is nowhere to
+substitute an id. Class access is granted in `backend_Access` and `backend_Coach`; without
+that `classAccesses` entry a limited profile gets 403 and the bundle falls back to the
+picker (`actorContext.ts` → `doResolve`).
+
+The client calls it through `sdk.fetch`, not `fetch`: the SDK prefixes `SFDC_ENV.apiPath`,
+and a raw absolute path answers **200 with the SPA shell** — the same trap the portal
+documents. Every failure (404 / 403 / 401 / network) resolves to `null` and the actor
+chain continues; nothing there may throw, or the remembered actor would be lost too.
+
+**Not verified against an org** — see the ADR in
+`force-app/main/default/uiBundles/backend/docs/AUDIT-SYSTEM-DESIGN.md` § 16 for what to
+check in the browser console after deploying.
 
 ---
 

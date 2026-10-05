@@ -746,3 +746,95 @@ Monitoring bei Stillstand). Bis dahin gilt: Fehler sind in den Logs
 erkennbar (`Failed to write audit event <type> for <subjectId>`), aber
 nicht automatisch nachspielbar.
 
+## 16. ADR: Actor kommt vom Server, nicht vom Picker (2026-10-03)
+
+Der ActorPicker („Wer arbeitet hier?“) erschien bei **jedem neuen Tab**. Die
+Begründung dahinter war messbar — und die Behebung ist es ebenfalls.
+
+### Warum der Client die Person nicht kennen konnte
+
+`SFDC_ENV` trägt `orgUrl`, `apiPath`, `basePath`, `namespace` und `appName`.
+**Keine** User-ID, **keinen** Usernamen (Frontend-`AGENTS.md`, Abschnitt
+„Login and logout paths“; die Typen des Platform-SDK bestätigen es: `AppIdentity`
+ist die *UIBundle*-Identität — `namespace`/`appName`/`qualifiedName`/`bundleId`,
+keine Person). Es gibt keine `uiapi.user`-Wurzel, `AuthSession` und
+`LoginHistory` sind nicht exponiert.
+
+Die Leiste **„Logged in as samuel.dillenburg@codingschule.de“** oben auf der
+Seite ändert daran nichts: Sie wird **serverseitig** von Salesforce gerendert.
+Ihre Existenz sagt nichts darüber, was das UI Bundle lesen kann. Genau diese
+Beobachtung führte zur ersten Fehldeutung („der Login-Name steht doch da“).
+
+### Die Lösung: `GET /services/apexrest/staff-identity/me`
+
+`StaffIdentity` (Apex, Projekt `backend`) liest `UserInfo.getUserId()` und
+antwortet mit diesem einen User-Datensatz. Damit ist der Actor nicht mehr eine
+Aussage *über* eine Person, sondern die Person selbst — das war von Anfang an
+die Forderung aus § 2.7. Der Endpunkt nimmt **keine** Parameter: es gibt keine
+Stelle, an der ein Caller eine andere Id einsetzen könnte.
+
+Transport ist `sdk.fetch`, nicht `fetch`: das Data SDK setzt `SFDC_ENV.apiPath`
+davor (ein roher Aufruf mit absolutem Pfad liefert 200 mit der SPA-Shell) und
+hängt den CSRF-Header an — `services/apexrest` steht in der `alwaysProtectedUrls`-
+Liste des SDK, auch dieses GET bekommt also ein Token.
+
+Class-Zugriff über `backend_Access` / `backend_Coach` (`classAccesses`), sonst
+antwortet ein limitiertes internes Profil 403.
+
+### Auflösungsreihenfolge
+
+```text
+1  Server-Identität   StaffIdentity /me          maßgeblich
+2  Plattform-Hinweise SFDC_ENV                   Fallback (belegt: ohne User)
+3  Gemerkte Wahl      sessionStorage/localStorage Fallback
+4  Eindeutige Org     genau 1 Standard-User      Fallback
+5  SYSTEM             + Picker                   auditable Abwesenheit
+```
+
+Schritte 2–4 sind **Self-Attestation** und ehrlich als solche gekennzeichnet.
+Schritt 1 ist es nicht mehr.
+
+### Was sich dadurch nebenbei ändert
+
+- **Der Picker verschwindet im Normalfall.** Er ist jetzt nur noch der
+  Fallback für „Server kann nicht antworten“: nicht deployed (404), kein
+  Class-Grant (403), keine Session (401).
+- **Ein widersprechendes Gemerktes wird verworfen.** `adoptServerIdentity()`
+  löscht einen Actor-Eintrag, dessen `userId` von der des Servers abweicht. Ohne
+  das gewinnt auf einem geteilten Browser-Profil die Erinnerung der letzten
+  Person dauerhaft gegen den angemeldeten User — der Fall, den die
+  localStorage-Spiegelung überhaupt erst geschaffen hat.
+- **„Benutzer wechseln“ verschwindet mit.** `getAuditActorSource()` liefert
+  `"server"`, und die Sidebar blendet den Menüpunkt dann aus. Ein
+  Menüeintrag, der stillschweigend dieselbe Person zurückgibt, ist schlechter
+  als keiner.
+- **Die Wahl wird gemerkt** (`organisator.actor-remembered` in localStorage),
+  falls der Server einmal nicht antwortet — pro Browser-Profil, per
+  „Benutzer wechseln“ löschbar.
+
+### Nicht verifiziert
+
+Der Endpunkt ist **nicht** gegen eine laufende Org gemessen: hier gibt es
+keinen Org-Zugriff. Zu prüfen nach dem Deploy, im Browser-Konsole des
+Backoffice:
+
+```text
+[audit] Staff identity unavailable (HTTP …)   → 404 nicht deployed / 403 kein Grant / 401 keine Session
+[audit] SFDC_ENV keys: [...]                  → bestätigt erneut: keine User-Keys
+```
+
+Fällt der Aufruf durch, bleibt der Picker — der Normalfall ist also entweder
+„Dialog“ oder „gar nichts“, nie „falscher Actor“. Die Frontend-Regression
+(`ActivityTimeline.test.tsx`, `actorContext.test.ts`, `staffIdentityService.test.ts`)
+deckt die Kette ab; **Apex**-Tests laufen erst mit `sf apex run test` gegen die
+Org, siehe `StaffIdentityTest`.
+
+### Testabdeckung
+
+`staffIdentityService.test.ts` (10 Tests): URL und Methode, optionale Felder,
+`fullName`-Fallback, 404/403/401, Error-Code-Antwort, Antwort ohne Id/Name
+(null, weil ein Actor ohne Namen nichts in der Audit-Spur zu suchen hat),
+Surface ohne `fetch`, Fehler beim SDK-Aufruf, beim Request und beim Parsen.
+`actorContext.test.ts` (+4): Server schlägt Plattform **und** Override **und**
+`listStaffUsers`, stale Override wird verworfen, gemerkter Override bleibt bei
+Übereinstimmung, Source `server` vs. `self` vs. `system`.
