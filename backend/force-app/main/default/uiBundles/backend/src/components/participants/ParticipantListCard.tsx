@@ -46,6 +46,45 @@ export default function ParticipantListCard({
 }: ParticipantListCardProps) {
   const [query, setQuery] = useState("");
 
+  const filteredGroups = useMemo(() => {
+    const groups: GroupConfig[] = [
+      {
+        key: "needs-attention",
+        label: "Achtung",
+        count: counts.needsAttention,
+        defaultOpen: true,
+        filter: (p) => getCompletion(p).state !== "ready",
+      },
+      {
+        key: "active",
+        label: "Aktiv",
+        count: counts.active,
+        defaultOpen: true,
+        filter: (p) => p.status === "Active",
+      },
+      {
+        key: "all",
+        label: "Alle",
+        count: counts.total,
+        defaultOpen: false,
+        filter: () => true,
+      },
+    ];
+    const q = query.trim().toLowerCase();
+    return groups.map((g) => ({
+      ...g,
+      participants: participants.filter((p) => {
+        if (!g.filter(p)) return false;
+        if (!q) return true;
+        return (
+          participantDisplayName(p).toLowerCase().includes(q) ||
+          (p.programName ?? "").toLowerCase().includes(q) ||
+          (p.coachName ?? "").toLowerCase().includes(q)
+        );
+      }),
+    }));
+  }, [participants, query, counts.needsAttention, counts.active, counts.total]);
+
   if (error) {
     return (
       <Card className="h-full flex flex-col">
@@ -106,46 +145,6 @@ export default function ParticipantListCard({
     );
   }
 
-  const groups: GroupConfig[] = [
-    {
-      key: "needs-attention",
-      label: "Achtung",
-      count: counts.needsAttention,
-      defaultOpen: true,
-      filter: (p) => getCompletion(p).state !== "ready",
-    },
-    {
-      key: "active",
-      label: "Aktiv",
-      count: counts.active,
-      defaultOpen: true,
-      filter: (p) => p.status === "Active",
-    },
-    {
-      key: "all",
-      label: "Alle",
-      count: counts.total,
-      defaultOpen: false,
-      filter: () => true,
-    },
-  ];
-
-  const filteredGroups = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return groups.map((g) => ({
-      ...g,
-      participants: participants.filter((p) => {
-        if (!g.filter(p)) return false;
-        if (!q) return true;
-        return (
-          participantDisplayName(p).toLowerCase().includes(q) ||
-          (p.programName ?? "").toLowerCase().includes(q) ||
-          (p.coachName ?? "").toLowerCase().includes(q)
-        );
-      }),
-    }));
-  }, [participants, query, groups]);
-
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-4">
@@ -166,7 +165,7 @@ export default function ParticipantListCard({
       <CardContent className="flex-1 p-0">
         <Accordion
           type="multiple"
-          defaultValue={groups.filter((g) => g.defaultOpen).map((g) => g.key)}
+          defaultValue={filteredGroups.filter((g) => g.defaultOpen).map((g) => g.key)}
           className="w-full"
         >
           {filteredGroups.map((group) => (
