@@ -216,10 +216,13 @@ global with sharing class StaffIdentity {
     /**
      * First name, or the first token of the full name when there is none.
      *
-     * @VisibleForTesting so the fallback is covered without creating a User.
+     * @TestVisible so the fallback is covered without creating a User.
+     *
+     * private, not global: @TestVisible only applies to private or protected
+     * members. Nothing outside this class needs it.
      */
-    @VisibleForTesting
-    global static String displayName(String firstName, String fullName) {
+    @TestVisible
+    private static String displayName(String firstName, String fullName) {
         if (firstName != null && firstName.trim() != '') {
             return firstName.trim();
         }
