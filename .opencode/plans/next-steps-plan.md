@@ -31,30 +31,33 @@ Phase 0-6 ist abgeschlossen. Jetzt Fokus auf Produktreife, UX-Vollständigkeit u
 
 **Ziel:** Konsistente States über alle Komponenten.
 
-### Aktueller Stand (aus Analyse)
+### Aktueller Stand (gemessen 2026-10-05, nicht geschätzt)
+
 | Komponente | Loading | Error | Empty |
 |------------|---------|-------|-------|
-| ParticipantListCard | ❌ | ❌ | ⚠️ Inline |
-| ParticipantSummaryCard | ❌ | ❌ | ❌ |
-| ParticipantAppointmentsTab | ✅ | ⚠️ Toast | ✅ |
-| AvailabilitySlots | ❌ | ⚠️ Toast | ✅ |
-| ParticipantActivity | ✅ | ✅ | ✅ |
-| ParticipantAbsencesTab | ✅ | ⚠️ Toast | ⚠️ Custom |
-| ParticipantLearningPath | ✅ | ✅ | ⚠️ Custom |
+| ParticipantListCard | ✅ Skeleton | ✅ Alert | ✅ EmptyState |
+| ParticipantSummaryCard | ✅ Skeleton | ✅ Alert | ❌ fehlt |
+| AvailabilitySlots | ✅ Skeleton | ⚠️ Toast | ✅ EmptyState |
+| ParticipantAppointmentsTab (`appointments/`) | ✅ Skeleton | ⚠️ Toast | ✅ EmptyState |
+| ParticipantActivity | ❌ | ❌ | ❌ — prüfen, was dort tatsächlich läuft |
+| ParticipantAbsencesTab (`absences/`) | ✅ Skeleton | ⚠️ Toast | ❌ Custom |
+| ParticipantLearningPath | ✅ Skeleton | ✅ Alert | ❌ Custom |
+
+Die Tabelle stand hier lange auf dem Stand "Skeleton ❌ / Alert ❌". Das war
+veraltet: ListCard, SummaryCard und AvailabilitySlots haben inzwischen alle
+drei States. Die echten Lücken sind schmaler — es fehlen Empty-States, keine
+Ladenden.
+
+**Achtung Pfade:** `ParticipantAppointmentsTab` und `ParticipantAbsencesTab`
+liegen unter `src/components/appointments/` bzw. `src/components/absences/`,
+nicht unter `participants/`. Die alte Liste hier führte sie unter
+`participants/`.
 
 ### Schritte
-1. **ParticipantListCard** — Skeleton + EmptyState + Error-Alert hinzufügen
-2. **ParticipantSummaryCard** — Skeleton + Error-Alert hinzufügen
-3. **AvailabilitySlots** — Skeleton + Error-Alert hinzufügen
-4. **Konsolidierung** — Alle Custom-Empty-States durch `EmptyState`-Komponente ersetzen
-5. **Error-Handling** — Toast durch Inline-Alert ergänzen (nicht ersetzen)
-
-### Dateien
-- `src/components/participants/ParticipantListCard.tsx`
-- `src/components/participants/ParticipantSummaryCard.tsx`
-- `src/components/appointments/AvailabilitySlots.tsx`
-- `src/components/participants/ParticipantAbsencesTab.tsx`
-- `src/components/participants/ParticipantLearningPath.tsx`
+1. **ParticipantSummaryCard** — EmptyState ergänzen (einziger echter Loading/Error-Fall)
+2. **ParticipantActivity** — klären, was dort beim Laden und bei leerer Liste passiert
+3. **AbsencesTab, LearningPath** — Custom-Empty durch die `EmptyState`-Komponente ersetzen
+4. **AvailabilitySlots, ParticipantAppointmentsTab** — Toast durch Inline-Alert ergänzen (nicht ersetzen)
 
 ---
 
@@ -86,25 +89,35 @@ Phase 0-6 ist abgeschlossen. Jetzt Fokus auf Produktreife, UX-Vollständigkeit u
 
 **Ziel:** Bundle-Größe optimieren, Code-Splitting einführen.
 
-### Aktueller Stand
-- 1.1 MB JS / 107 KB CSS
-- Kein Code-Splitting
-- Keine React.lazy
-- Keine Dynamic Imports
-- Alle 7 Routes statisch importiert
+### Aktueller Stand (gemessen am Build vom 2026-10-05)
+
+Der Abschnitt behauptete "kein Code-Splitting, keine React.lazy, alle 7 Routes
+statisch, 1.1 MB JS". Das ist überholt — Route-Splitting, Vendor-Chunks und
+Component-Lazy sind gebaut:
+
+```text
+index-SJsrBgMG.js           492K   Application-Shell
+vendor-radix-DA-s4Xvv.js    236K   getrennt
+ParticipantPage-CHVfun7E.js 196K   lazy
+vendor-react-DPHgkQsE.js    100K   getrennt
+vendor-date-BXAVOGEr.js      28K   getrennt
+ProgramDetailPage            20K   lazy
+vendor-icons                 16K   getrennt
+ContactPage                   12K   lazy
+Summe JS                   1,2M    Summe CSS 100K
+```
+
+`routes.tsx` nutzt `lazy` + `Suspense` (11 Routen), `ActivityEventDetailsDrawer`
+ist ebenfalls lazy. Offen ist eigentlich nur noch der 492K-Index-Chunk.
 
 ### Schritte
-1. **Route-based Code Splitting** — `React.lazy` + `Suspense` für alle Routes
-2. **Vendor-Chunking** — React, Radix, date-fns, lucide-react separat
-3. **Component-Level Lazy Loading** — `ActivityEventDetailsDrawer`, `ChangeSetViewer`, `DatePicker`
-4. **Bundle-Analysis** — `rollup-plugin-visualizer` hinzufügen
-5. **React-Query-Optimierung** — `staleTime`, `cacheTime` prüfen
+1. **Bundle-Analyse** — `rollup-plugin-visualizer` hinzufügen, um zu sehen, was den Index-Chunk aufbläht
+2. **Index-Chunk** — nach dem Messen entscheiden, was davon in eigene Chunks wandert; `ParticipantPage` (196K) ist der größte Einzelposten
+3. **React-Query-Optimierung** — `staleTime`, `cacheTime` prüfen
 
 ### Dateien
 - `vite.config.ts`
 - `src/routes.tsx`
-- `src/components/audit/ActivityEventDetailsDrawer.tsx`
-- `src/components/audit/ChangeSetViewer.tsx`
 
 ---
 
@@ -164,7 +177,7 @@ Phase 0-6 ist abgeschlossen. Jetzt Fokus auf Produktreife, UX-Vollständigkeit u
 ### RC-Checkliste
 - [ ] Build erfolgreich
 - [ ] Lint 0 Fehler
-- [ ] Tests 140/140
+- [ ] Tests 270/270 Vitest + Apex grün
 - [ ] Responsive geprüft (1024-1440px)
 - [ ] Accessibility geprüft
 - [ ] Dark Mode geprüft

@@ -1,6 +1,6 @@
 # Portal-Zugang: was deployed ist und was fehlt
 
-Stand 2026-10-01, Ziel-Org `hubSandbox`.
+Stand 2026-10-05, Ziel-Org `hubSandbox`.
 
 ## In der Org
 
@@ -9,10 +9,13 @@ Stand 2026-10-01, Ziel-Org `hubSandbox`.
 | `ParticipantPortalData` (+ `PortalIdentityException`) | deployed, Active — `/me` |
 | `ParticipantPortalLearningPath` | deployed, Active — `/me/learning-path` |
 | `ParticipantPortalSharingService` + `LearningPathPortalSharing` (Trigger) | deployed, Active |
+| `StaffIdentity` (+ `StaffIdentityException`) | deployed, Active — `/staff-identity/me` (Backoffice) |
+| `backend_Access` / `backend_Coach` mit `classAccesses` auf `StaffIdentity` | deployed, 2026-10-05 |
 | `UIBundleLogin`, `UIBundleChangePassword`, `UIBundleAuthUtils`, `UIBundleSocialLoginConfig`, `UIBundleForgotPassword` | deployed, Active |
 | `Participant_Portal_Access` (Permission Set) | deployed, zugewiesen an 2 Portal-User |
 | `frontend_Guest_User_Api_Access` (Permission Set) | deployed |
 | `UIBundle:frontend` (das React-Portal inkl. `/me` und `/learning-path`) | deployed, Active, **an Site `Organisator` gebunden** |
+| `UIBundle:backend` (das React-Backoffice) | deployed, 2026-10-05, 231/231 Komponenten |
 | Network `Organisator` | **Live**, Pfad `/organisatorv1vforcesite`, Site-as-Container |
 | CustomSite `Organisator` (ChatterNetwork) | **Active**, Pfad `/organisatorv1vforcesite` |
 | CustomSite `Organisator1` (Picasso) | **Active**, Pfad `/organisatorv1` |

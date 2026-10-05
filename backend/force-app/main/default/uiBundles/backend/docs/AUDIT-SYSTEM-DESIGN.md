@@ -812,22 +812,44 @@ Schritt 1 ist es nicht mehr.
   falls der Server einmal nicht antwortet — pro Browser-Profil, per
   „Benutzer wechseln“ löschbar.
 
-### Nicht verifiziert
+### Stand der Verifikation
 
-Der Endpunkt ist **nicht** gegen eine laufende Org gemessen: hier gibt es
-keinen Org-Zugriff. Zu prüfen nach dem Deploy, im Browser-Konsole des
-Backoffice:
+**Gemessen gegen `hubSandbox` am 2026-10-05:**
+
+| | |
+|---|---|
+| `StaffIdentity`, `StaffIdentityException` | deployed, Active, API 67, Deploy-ID `0Af9X00001CNR1iSAH` |
+| `classAccesses` in `backend_Access` / `backend_Coach` | deployed, beide „Changed" im selben Deploy |
+| `sf apex run test --tests StaffIdentityTest` | **6/6 grün**, Test Run Id `7079X00002IWdak` |
+| `UIBundle:backend` | deployed, 231/231 Komponenten |
+| Frontend-Regression | 270/270 Vitest, `eslint` 0 Errors |
+
+Der einzige bisher aufgetretene Fehler kam vom **Dry-Run**, nicht vom Deploy:
+`@VisibleForTesting` existiert in Apex nicht (`Annotation does not exist`), die
+Klasse hätte nicht kompiliert. Jetzt `@TestVisible`, und `displayName` ist
+deshalb `private` — `@TestVisible` gilt nur für private oder protected Members.
+`--dry-run` vor dem Deploy ist bei neuen Apex-Klassen hier also nicht optional.
+
+**Offen ist ausschließlich der HTTP-Pfad**, also die Frage, ob der Aufruf im
+Backoffice wirklich antwortet und der Picker verschwindet. Aus der Konsole:
 
 ```text
 [audit] Staff identity unavailable (HTTP …)   → 404 nicht deployed / 403 kein Grant / 401 keine Session
 [audit] SFDC_ENV keys: [...]                  → bestätigt erneut: keine User-Keys
 ```
 
+Erwartet im Normalfall: **keine** der beiden Meldungen, kein Dialog, und
+`organisator.actor-remembered` in localStorage taucht **nicht** auf — das
+Schlüsselwort wäre das Zeichen dafür, dass der Server nicht geantwortet hat und
+die Kette auf eine Merkung zurückgefallen ist.
+
+**Warum das nicht per CLI prüfbar war:** `sf org display` liefert einen
+SOAP-`sessionId`, den das REST-Gateway nicht akzeptiert. Auch
+`/services/data/v67.0/limits` antwortet damit 401, es liegt also nicht am
+Endpunkt. Ein REST-Aufruf bleibt dem Browser vorbehalten.
+
 Fällt der Aufruf durch, bleibt der Picker — der Normalfall ist also entweder
-„Dialog“ oder „gar nichts“, nie „falscher Actor“. Die Frontend-Regression
-(`ActivityTimeline.test.tsx`, `actorContext.test.ts`, `staffIdentityService.test.ts`)
-deckt die Kette ab; **Apex**-Tests laufen erst mit `sf apex run test` gegen die
-Org, siehe `StaffIdentityTest`.
+„Dialog" oder „gar nichts", nie „falscher Actor".
 
 ### Testabdeckung
 

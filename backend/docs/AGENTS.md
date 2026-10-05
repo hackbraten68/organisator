@@ -68,9 +68,11 @@ and a raw absolute path answers **200 with the SPA shell** — the same trap the
 documents. Every failure (404 / 403 / 401 / network) resolves to `null` and the actor
 chain continues; nothing there may throw, or the remembered actor would be lost too.
 
-**Not verified against an org** — see the ADR in
-`force-app/main/default/uiBundles/backend/docs/AUDIT-SYSTEM-DESIGN.md` § 16 for what to
-check in the browser console after deploying.
+Deployed und Apex-getestet gegen `hubSandbox` (2026-10-05): Klassen Active, `StaffIdentityTest`
+6/6 grün. **Offen ist nur der HTTP-Pfad** — ob der Aufruf im Browser wirklich antwortet und der
+Picker verschwindet. Siehe die ADR in
+`force-app/main/default/uiBundles/backend/docs/AUDIT-SYSTEM-DESIGN.md` § 16 für die
+Konsolenausgaben, die das belegen.
 
 ---
 
