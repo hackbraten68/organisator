@@ -1,10 +1,14 @@
 /**
  * Actor bootstrap for the app shell.
  *
- * Kicks off `resolveAuditActor()` once (platform identity → session
- * override → SYSTEM) and reports whether the session picker is needed:
- * only when neither source produced an identity. Choosing a name stores a
- * session-scoped, self-attested staff actor; dismissing keeps SYSTEM.
+ * Kicks off `resolveAuditActor()` once (server identity → platform identity →
+ * remembered self-attestation → SYSTEM) and reports whether the picker is
+ * needed: only when nothing produced an identity. Choosing a name stores a
+ * remembered, self-attested staff actor; dismissing keeps SYSTEM.
+ *
+ * `switchable` is false when the server named the user: the actor is then the
+ * signed-in User record, not a choice, and "Benutzer wechseln" would be a dead
+ * menu entry that silently re-resolves to the same person.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -12,6 +16,7 @@ import type { ActorInfo } from "@/types/audit";
 import {
   clearSessionActorOverride,
   getAuditActor,
+  getAuditActorSource,
   refreshAuditActor,
   resolveAuditActor,
   resolveUserDetails,
@@ -25,6 +30,7 @@ export function useAuditActorInit() {
   const [phase, setPhase] = useState<ActorPhase>("resolving");
   const [actor, setActor] = useState<ActorInfo>(() => getAuditActor());
   const [details, setDetails] = useState<ActorDetails | null>(null);
+  const [switchable, setSwitchable] = useState(true);
   const liveRef = useRef(true);
 
   useEffect(() => {
@@ -49,6 +55,7 @@ export function useAuditActorInit() {
       const current = getAuditActor();
       setActor(current);
       setPhase(resolved.type === "system" ? "pick" : "done");
+      setSwitchable(getAuditActorSource() !== "server");
       void loadDetails(current.id);
     });
   }, [loadDetails]);
@@ -75,8 +82,9 @@ export function useAuditActorInit() {
     setPhase("done");
   }, []);
 
-  /** "Benutzer wechseln": drop the session override, re-resolve (lands back
-   * on the picker when no platform identity exists). */
+  /** "Benutzer wechseln": drop the self-attestation, re-resolve. Lands on the
+   * picker only when nothing else names the user; a server-resolved identity
+   * comes straight back, which is why the menu entry hides itself then. */
   const switchUser = useCallback(async () => {
     clearSessionActorOverride();
     setDetails(null);
@@ -86,8 +94,9 @@ export function useAuditActorInit() {
     const current = getAuditActor();
     setActor(current);
     setPhase(resolved.type === "system" ? "pick" : "done");
+    setSwitchable(getAuditActorSource() !== "server");
     void loadDetails(current.id);
   }, [loadDetails]);
 
-  return { phase, actor, details, needsPicker: phase === "pick", ready: phase === "done", chooseName, chooseUser, dismissPicker, switchUser };
+  return { phase, actor, details, needsPicker: phase === "pick", ready: phase === "done", switchable, chooseName, chooseUser, dismissPicker, switchUser };
 }

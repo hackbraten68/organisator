@@ -5,16 +5,29 @@
  * Salesforce session via createDataSDK): the actor is the Salesforce User
  * behind the session. Resolution chain, first hit wins:
  *
- *   1. Platform identity: `globalThis.SFDC_ENV` (runtime-injected globals the
+ *   1. Server identity: GET /services/apexrest/staff-identity/me answers with
+ *      `UserInfo`, so the actor is the signed-in User record itself — not a
+ *      claim about one. No parameter, nothing the client can influence
+ *      (AUDIT-SYSTEM-DESIGN.md § 2.7). This is what removed the picker.
+ *   2. Platform identity: `globalThis.SFDC_ENV` (runtime-injected globals the
  *      platform-sdk itself derives the app identity from) may carry a user id
  *      or username — resolved to a `User` record via UIAPI, display name is
- *      the FIRST NAME ONLY (privacy decision 2026-09-27).
- *   2. Session self-attestation: the user picks THEMSELF from the org's
- *      active Standard users once per browser session (ActorPicker).
- *      `actorType: staff`, display name first-name-only, but the id is the
- *      REAL Salesforce User id — verifiable, no typos, no duplicates.
- *      Still self-selected (no cryptographic proof), honestly so.
- *   3. Fallback `SYSTEM` — auditable absence of identity, never a guess.
+ *      the FIRST NAME ONLY (privacy decision 2026-09-27). Kept as a fallback
+ *      only: the runtime is **verified to carry no user** on this surface (it
+ *      has `orgUrl`, `apiPath`, `basePath`, `namespace`, `appName`), and the
+ *      SDK's `AppIdentity` is the UIBundle, not a person.
+ *   3. Remembered self-attestation: the user picks THEMSELF from the org's
+ *      active Standard users once (ActorPicker). `actorType: staff`, display
+ *      name first-name-only, but the id is the REAL Salesforce User id —
+ *      verifiable, no typos, no duplicates. Still self-selected (no
+ *      cryptographic proof), honestly so. Mirrored into localStorage so the
+ *      question is not repeated in every new tab; "Benutzer wechseln" clears
+ *      it (ADR-16). Only reached when the server cannot answer.
+ *   4. Unambiguous org: exactly ONE active Standard user needs no question at
+ *      all — the single candidate is taken over (ADR-16). Also only reached
+ *      when the server cannot answer.
+ *   5. Fallback `SYSTEM` — auditable absence of identity, never a guess.
+ *      Ambiguity (several staff users, nothing remembered) opens the picker.
  *
  * Spike result 2026-09-27 (live, backendtest): `User` is exposed via UIAPI;
  * there is NO who-am-I root (`uiapi.user`), and neither `AuthSession` nor
@@ -29,6 +42,10 @@
  */
 
 import { executeGraphQL } from "../graphqlClient";
+import {
+  fetchCurrentStaffIdentity,
+  type StaffIdentity,
+} from "../identity/staffIdentityService";
 import type { ActorInfo } from "@/types/audit";
 import GET_USER_BY_ID from "../user/query/GetUserById.graphql?raw";
 import GET_USER_BY_USERNAME from "../user/query/GetUserByUsername.graphql?raw";
@@ -41,6 +58,10 @@ export const SYSTEM_ACTOR: ActorInfo = {
 };
 
 export const SESSION_ACTOR_KEY = "organisator.actor-override";
+/** Mirror of the self-attestation in localStorage: the picker must not greet
+ * the same person again in every new tab. Same honesty caveat as the session
+ * copy — self-attested, per browser profile, gone with "Benutzer wechseln". */
+export const REMEMBERED_ACTOR_KEY = "organisator.actor-remembered";
 
 // Candidate SFDC_ENV keys — undocumented runtime surface, hence the list.
 // Matching is exact; values must be non-empty strings.
@@ -50,6 +71,8 @@ const USER_ID_KEYS = [
   "userID",
   "sfdcUserId",
   "currentUserId",
+  "currentUserID",
+  "loggedInUserId",
   "user-id",
 ];
 const USERNAME_KEYS = [
@@ -58,7 +81,21 @@ const USERNAME_KEYS = [
   "user_name",
   "sfdcUsername",
   "currentUsername",
+  "loggedInUsername",
+  "loginName",
 ];
+/** Identity may sit one level down (e.g. `SFDC_ENV.user.id`) — probed with the
+ * same key lists, so the runtime's exact shape does not have to be guessed.
+ * Only person-shaped containers: a `session`/`context` id would be validated
+ * as a User id (Session records share the `005` prefix) and queried pointlessly. */
+const NESTED_IDENTITY_PATHS = ["user", "currentUser", "loggedInUser", "identity"];
+/** Nested objects tend to use short keys. */
+const NESTED_USER_ID_KEYS = ["id", ...USER_ID_KEYS];
+const NESTED_USERNAME_KEYS = ["username", "userName", "name", ...USERNAME_KEYS];
+
+/** A Salesforce User id is 15 or 18 chars starting `005`. Anything else in
+ * SFDC_ENV (bundleId, app ids) is not a person and must not be looked up. */
+const SALESFORCE_USER_ID = /^005[A-Za-z0-9]{12}(?:[A-Za-z0-9]{3})?$/;
 
 interface UserNode {
   Id: string;
@@ -93,17 +130,34 @@ export function readSfdcEnvIdentity(): { userId?: string; username?: string } {
   const env = readSfdcEnv();
   if (!env) return {};
   console.debug("[audit] SFDC_ENV keys:", Object.keys(env));
-  const pick = (keys: string[]): string | undefined => {
-    for (const key of keys) {
-      const value = env[key];
-      if (typeof value === "string" && value.trim() !== "") return value.trim();
+  const idCandidates: string[] = [];
+  const nameCandidates: string[] = [];
+  const collect = (source: Record<string, unknown>, idKeys: string[], nameKeys: string[]) => {
+    for (const [keys, into] of [
+      [idKeys, idCandidates],
+      [nameKeys, nameCandidates],
+    ] as const) {
+      for (const key of keys) {
+        const value = source[key];
+        if (typeof value === "string" && value.trim() !== "") into.push(value.trim());
+      }
     }
-    return undefined;
   };
+  // Flat surface first (short aliases included — they simply miss when absent),
+  // then nested person-shaped containers.
+  collect(env, ["id", ...USER_ID_KEYS], ["name", ...USERNAME_KEYS]);
+  for (const path of NESTED_IDENTITY_PATHS) {
+    const nested = env[path];
+    if (!nested || typeof nested !== "object") continue;
+    console.debug(`[audit] SFDC_ENV.${path} keys:`, Object.keys(nested as object));
+    collect(nested as Record<string, unknown>, NESTED_USER_ID_KEYS, NESTED_USERNAME_KEYS);
+  }
   const identity: { userId?: string; username?: string } = {};
-  const userId = pick(USER_ID_KEYS);
-  const username = pick(USERNAME_KEYS);
+  // Every candidate is validated, not just the first one: a bundleId or app id
+  // in a user-id slot must not shadow a real User id further down the list.
+  const userId = idCandidates.find((value) => SALESFORCE_USER_ID.test(value));
   if (userId) identity.userId = userId;
+  const username = nameCandidates[0];
   if (username) identity.username = username;
   return identity;
 }
@@ -192,7 +246,7 @@ export async function resolveUserDetails(userId: string): Promise<ActorDetails |
 /** Self-attested session actor. v2 shape carries the real Salesforce User id
  * (picked from the org user list); v1 shape (firstName only, no userId) is
  * still accepted so older sessions keep working. sessionStorage = gone with
- * the tab. */
+ * the tab, localStorage mirror = gone with "Benutzer wechseln" (ADR-16). */
 export interface StaffUserChoice {
   id: string;
   firstName: string;
@@ -200,9 +254,20 @@ export interface StaffUserChoice {
   username?: string;
 }
 
-export function getSessionActorOverride(): ActorInfo | null {
+/** Storage access can throw outright (blocked cookies, private mode, sandboxed
+ * iframe) — the in-memory actor carries on without persistence. */
+function safeStorage(scope: "session" | "local"): Storage | null {
   try {
-    const raw = sessionStorage.getItem(SESSION_ACTOR_KEY);
+    return scope === "session" ? sessionStorage : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function readActorFrom(storage: Storage | null): ActorInfo | null {
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(SESSION_ACTOR_KEY) ?? storage.getItem(REMEMBERED_ACTOR_KEY);
     if (!raw) return null;
     const stored = JSON.parse(raw) as {
       firstName?: unknown;
@@ -218,6 +283,13 @@ export function getSessionActorOverride(): ActorInfo | null {
   }
 }
 
+/** Self-attested actor for this browser profile: the per-tab copy wins, then
+ * the remembered one. Naming is kept for compatibility — the value now spans
+ * the session AND the remembered browser profile. */
+export function getSessionActorOverride(): ActorInfo | null {
+  return readActorFrom(safeStorage("session")) ?? readActorFrom(safeStorage("local"));
+}
+
 export function setSessionActorOverride(firstName: string): ActorInfo;
 export function setSessionActorOverride(choice: { userId: string; firstName: string }): ActorInfo;
 export function setSessionActorOverride(
@@ -228,15 +300,29 @@ export function setSessionActorOverride(
   const userId = typeof firstNameOrChoice === "string" ? undefined : firstNameOrChoice.userId;
   const actor: ActorInfo = { type: "staff", displayName: firstName };
   if (userId) actor.id = userId;
-  sessionStorage.setItem(
-    SESSION_ACTOR_KEY,
-    JSON.stringify(userId ? { userId, firstName } : { firstName }),
-  );
+  const payload = JSON.stringify(userId ? { userId, firstName } : { firstName });
+  for (const storage of [safeStorage("session"), safeStorage("local")]) {
+    if (!storage) continue;
+    try {
+      storage.setItem(SESSION_ACTOR_KEY, payload);
+      storage.setItem(REMEMBERED_ACTOR_KEY, payload);
+    } catch {
+      // Storage unavailable/full — the returned actor still applies in memory.
+    }
+  }
   return actor;
 }
 
 export function clearSessionActorOverride(): void {
-  sessionStorage.removeItem(SESSION_ACTOR_KEY);
+  for (const storage of [safeStorage("session"), safeStorage("local")]) {
+    if (!storage) continue;
+    try {
+      storage.removeItem(SESSION_ACTOR_KEY);
+      storage.removeItem(REMEMBERED_ACTOR_KEY);
+    } catch {
+      // Nothing to clear if storage is unavailable.
+    }
+  }
 }
 
 interface StaffUserListResponse {
@@ -285,18 +371,70 @@ export async function listStaffUsers(limit = 50): Promise<StaffUserChoice[]> {
 // getAuditActor always prefers a live session override so a late picker
 // choice takes effect for subsequent writes without re-resolution.
 let baseActor: ActorInfo = SYSTEM_ACTOR;
+let baseSource: ActorSource = "system";
 let pending: Promise<ActorInfo> | null = null;
 
+/**
+ * Where the current actor came from. The sidebar needs this to know whether
+ * "Benutzer wechseln" can mean anything: when the server named the user, the
+ * answer is not a choice, so offering a switch would be a dead menu entry.
+ */
+export type ActorSource = "server" | "self" | "system";
+
+/**
+ * Adopts a server-resolved identity and drops a contradicting self-attestation.
+ *
+ * This is the part that makes the shared-browser case correct rather than
+ * merely unlikely: if someone used this browser before, their remembered actor
+ * would otherwise win over the signed-in user forever. The server outranks it,
+ * so the stale entry goes — silently, because it is not the current user's
+ * memory to preserve.
+ */
+function adoptServerIdentity(identity: StaffIdentity): ActorInfo {
+  const remembered = getSessionActorOverride();
+  if (remembered && remembered.id !== identity.userId) {
+    clearSessionActorOverride();
+  }
+  return { id: identity.userId, type: "staff", displayName: identity.firstName };
+}
+
 async function doResolve(): Promise<ActorInfo> {
+  const server = await fetchCurrentStaffIdentity();
+  if (server) {
+    baseSource = "server";
+    return adoptServerIdentity(server);
+  }
   const platform = await resolveUserActor(readSfdcEnvIdentity());
-  if (platform) return platform;
-  return getSessionActorOverride() ?? SYSTEM_ACTOR;
+  if (platform) {
+    baseSource = "self";
+    return platform;
+  }
+  const override = getSessionActorOverride();
+  if (override) {
+    baseSource = "self";
+    return override;
+  }
+  // An org with exactly ONE active Standard user has nothing to ask about —
+  // taking that candidate removes the picker for single-coach orgs without
+  // weakening the ambiguous case, which still asks (ADR-16).
+  const staff = await listStaffUsers();
+  if (staff.length === 1) {
+    baseSource = "self";
+    return setSessionActorOverride({ userId: staff[0].id, firstName: staff[0].firstName });
+  }
+  baseSource = "system";
+  return SYSTEM_ACTOR;
 }
 
 /** Synchronous read for services. SYSTEM until resolved — the documented,
  * auditable fallback (ADR-14). */
 export function getAuditActor(): ActorInfo {
   return getSessionActorOverride() ?? baseActor;
+}
+
+/** Where {@link getAuditActor} came from. "system" until resolution completes. */
+export function getAuditActorSource(): ActorSource {
+  return baseSource;
 }
 
 /** Kick off async resolution once per session; concurrent callers share it. */
@@ -313,13 +451,14 @@ export function resolveAuditActor(): Promise<ActorInfo> {
 /** Test-only reset of module state. */
 export function resetAuditActorForTests(): void {
   baseActor = SYSTEM_ACTOR;
+  baseSource = "system";
   pending = null;
 }
 
 /**
  * Re-run resolution (e.g. after the session override changed via "Benutzer
  * wechseln"): drops the cached promise so the next resolveAuditActor()
- * re-reads platform identity + override.
+ * re-reads server identity, platform identity and the override.
  */
 export function refreshAuditActor(): Promise<ActorInfo> {
   pending = null;

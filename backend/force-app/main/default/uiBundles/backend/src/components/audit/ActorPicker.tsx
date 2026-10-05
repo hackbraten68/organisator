@@ -1,11 +1,17 @@
 /**
- * ActorPicker: session-scoped self-attestation of WHO is working here.
+ * ActorPicker: self-attestation of WHO is working here.
  *
  * The user picks THEMSELF from the org's active Standard users (real
  * Salesforce User id, verifiable — but still self-selected, honestly so).
- * Display everywhere is first-name-only. Stored in sessionStorage (gone with
- * the tab). If the user list can't load, a freetext fallback keeps the
+ * Display everywhere is first-name-only. Stored per browser profile, so the
+ * question comes once instead of once per tab (ADR-16); "Benutzer wechseln"
+ * clears it. If the user list can't load, a freetext fallback keeps the
  * picker usable (then id-less, as before). Dismissing keeps SYSTEM.
+ *
+ * Normally not shown at all: the server endpoint answers with `UserInfo`, so
+ * the actor is the signed-in User. This is the fallback for when it cannot —
+ * not deployed yet, no class grant, or no session. Which is why the title
+ * below admits it is a fallback and does not claim to be the mechanism.
  */
 
 import { useEffect, useState } from "react";
@@ -75,9 +81,9 @@ export function ActorPicker({ isOpen, onChoose, onDismiss }: ActorPickerProps) {
         <DialogHeader>
           <DialogTitle>Wer arbeitet hier?</DialogTitle>
           <DialogDescription>
-            Wähle deinen Org-Benutzer — dein Vorname erscheint in der
-            Aktivitäts-Chronik als Autor deiner Änderungen. Nur für diese
-            Browser-Sitzung gespeichert.
+            Dein Konto konnte nicht automatisch ermittelt werden. Wähle deinen
+            Org-Benutzer — dein Vorname erscheint in der Aktivitäts-Chronik als
+            Autor deiner Änderungen. Merkt sich deine Auswahl für diesen Browser.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 px-4">

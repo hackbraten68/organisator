@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { executeGraphQL } from "../graphqlClient";
 import {
   getAuditActor,
+  getAuditActorSource,
   getSessionActorOverride,
   listStaffUsers,
   readSfdcEnvIdentity,
+  REMEMBERED_ACTOR_KEY,
   resolveAuditActor,
   resolveUserActor,
   resolveUserDetails,
@@ -18,7 +20,38 @@ vi.mock("../graphqlClient", () => ({
   executeGraphQL: vi.fn(),
 }));
 
+// The server identity is the first resolution step, so every test that does not
+// care about it has to answer "no answer" — the honest default, matching an org
+// where the endpoint is not deployed yet.
+const { mockCreateDataSDK } = vi.hoisted(() => ({ mockCreateDataSDK: vi.fn() }));
+vi.mock("@salesforce/platform-sdk", () => ({
+  createDataSDK: mockCreateDataSDK,
+}));
+
+/** Makes the server identity endpoint answer with `identity` (null = no answer). */
+function serverIdentity(
+  identity: { userId: string; firstName: string; fullName?: string } | null
+): void {
+  mockCreateDataSDK.mockResolvedValue({
+    fetch: vi.fn(async () => ({
+      ok: identity !== null,
+      status: identity !== null ? 200 : 404,
+      json: async () => identity ?? { code: "NOT_DEPLOYED", message: "no" },
+    })),
+  });
+}
+
 const mockedExecute = vi.mocked(executeGraphQL);
+
+function clearStorages() {
+  sessionStorage.clear();
+  localStorage.clear();
+}
+
+/** One `uiapi { query { User } }` page, built from partial nodes. */
+function staffResponse(nodes: Array<Record<string, unknown>>) {
+  return { uiapi: { query: { User: { edges: nodes.map((node) => ({ node })) } } } };
+}
 
 function userResponse(firstName: string | null, id = "0059b00000gUfkFAAS") {
   return {
@@ -46,8 +79,9 @@ describe("actorContext", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetAuditActorForTests();
-    sessionStorage.clear();
+    clearStorages();
     delete (globalThis as Record<string, unknown>).SFDC_ENV;
+    serverIdentity(null);
   });
 
   it("starts at SYSTEM and reads no platform identity without SFDC_ENV", () => {
@@ -60,6 +94,30 @@ describe("actorContext", () => {
       bundleId: "9YE...",
       userId: "0059b00000gUfkFAAS",
       unrelated: 42,
+    };
+    expect(readSfdcEnvIdentity()).toEqual({ userId: "0059b00000gUfkFAAS" });
+  });
+
+  it("finds identity hints nested inside SFDC_ENV", () => {
+    (globalThis as Record<string, unknown>).SFDC_ENV = {
+      bundleId: "9YE...",
+      user: { id: "0059b00000gUfkFAAS" },
+    };
+    expect(readSfdcEnvIdentity()).toEqual({ userId: "0059b00000gUfkFAAS" });
+  });
+
+  it("skips id-shaped values that are no Salesforce User id", () => {
+    (globalThis as Record<string, unknown>).SFDC_ENV = {
+      userId: "05T9YE0000000001",
+      username: "sam@example.com",
+    };
+    expect(readSfdcEnvIdentity()).toEqual({ username: "sam@example.com" });
+  });
+
+  it("takes a real User id from a later candidate when an earlier one is not one", () => {
+    (globalThis as Record<string, unknown>).SFDC_ENV = {
+      userId: "05T9YE0000000001",
+      loggedInUserId: "0059b00000gUfkFAAS",
     };
     expect(readSfdcEnvIdentity()).toEqual({ userId: "0059b00000gUfkFAAS" });
   });
@@ -110,6 +168,37 @@ describe("actorContext", () => {
     expect(sessionStorage.getItem(SESSION_ACTOR_KEY)).not.toBeNull();
   });
 
+  it("remembers the choice beyond the tab (localStorage mirror)", () => {
+    setSessionActorOverride({ userId: "0059b00000gUfkFAAS", firstName: "Samuel" });
+
+    sessionStorage.clear();
+    expect(localStorage.getItem(REMEMBERED_ACTOR_KEY)).not.toBeNull();
+    expect(getSessionActorOverride()).toEqual({
+      id: "0059b00000gUfkFAAS",
+      type: "staff",
+      displayName: "Samuel",
+    });
+  });
+
+  it("prefers the per-tab copy over the remembered one", () => {
+    setSessionActorOverride("Lena");
+    setSessionActorOverride("Samuel");
+    sessionStorage.setItem(SESSION_ACTOR_KEY, JSON.stringify({ firstName: "Tab" }));
+
+    expect(getSessionActorOverride()).toEqual({ type: "staff", displayName: "Tab" });
+  });
+
+  it("keeps resolving without any actor when neither store is readable", () => {
+    const getItem = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    try {
+      expect(getSessionActorOverride()).toBeNull();
+    } finally {
+      getItem.mockRestore();
+    }
+  });
+
   it("stores the real org user id for list choices", () => {
     const actor = setSessionActorOverride({ userId: "0059b00000gUfkFAAS", firstName: "Samuel" });
 
@@ -134,9 +223,117 @@ describe("actorContext", () => {
     expect(getAuditActor()).toEqual({ type: "staff", displayName: "Lena" });
   });
 
-  it("falls back to SYSTEM with no platform identity and no override", async () => {
+    it("falls back to SYSTEM with no platform identity and no override", async () => {
     await expect(resolveAuditActor()).resolves.toEqual(SYSTEM_ACTOR);
     expect(getAuditActor()).toEqual(SYSTEM_ACTOR);
+    expect(getAuditActorSource()).toBe("system");
+  });
+
+  describe("server identity", () => {
+    it("wins over the platform probe, the override and the picker", async () => {
+      serverIdentity({ userId: "0059b00000gUfkFAAS", firstName: "Samuel" });
+      // A remembered actor from a previous person, and a platform hint that
+      // disagrees. Both must lose.
+      setSessionActorOverride({ userId: "005OLD", firstName: "Lena" });
+      (globalThis as Record<string, unknown>).SFDC_ENV = { userId: "005PLATFORM" };
+
+      await expect(resolveAuditActor()).resolves.toEqual({
+        id: "0059b00000gUfkFAAS",
+        type: "staff",
+        displayName: "Samuel",
+      });
+      expect(getAuditActorSource()).toBe("server");
+      // The stale self-attestation is gone, so getAuditActor() cannot prefer it.
+      expect(getSessionActorOverride()).toBeNull();
+      expect(mockedExecute).not.toHaveBeenCalled();
+    });
+
+    it("discards a contradicting remembered actor and keeps a matching one", async () => {
+      setSessionActorOverride({ userId: "005STALE", firstName: "Lena" });
+      serverIdentity({ userId: "0059b00000gUfkFAAS", firstName: "Samuel" });
+
+      await resolveAuditActor();
+      expect(getSessionActorOverride()).toBeNull();
+
+      setSessionActorOverride({ userId: "0059b00000gUfkFAAS", firstName: "Samuel" });
+      resetAuditActorForTests();
+      await resolveAuditActor();
+      expect(getSessionActorOverride()).toEqual({
+        id: "0059b00000gUfkFAAS",
+        type: "staff",
+        displayName: "Samuel",
+      });
+    });
+
+    it("is marked un-switchable so the sidebar hides the dead menu entry", async () => {
+      serverIdentity({ userId: "0059b00000gUfkFAAS", firstName: "Samuel" });
+      await resolveAuditActor();
+      expect(getAuditActorSource()).toBe("server");
+    });
+
+    it("falls through to the rest of the chain when it answers nothing", async () => {
+      serverIdentity(null);
+      mockedExecute.mockResolvedValueOnce(
+        staffResponse([
+          { Id: "0051", FirstName: { value: "Samuel" }, Name: { value: "Samuel D." }, UserType: { value: "Standard" } },
+          { Id: "0052", FirstName: { value: "Lena" }, Name: { value: "Lena M." }, UserType: { value: "Standard" } },
+        ])
+      );
+
+      await expect(resolveAuditActor()).resolves.toEqual(SYSTEM_ACTOR);
+      expect(getAuditActorSource()).toBe("system");
+    });
+  });
+
+  describe("self-attested fallbacks", () => {
+    beforeEach(() => {
+      serverIdentity(null);
+    });
+
+    it("takes the single staff user without asking", async () => {
+      mockedExecute.mockResolvedValueOnce(
+        staffResponse([
+          { Id: "0051", FirstName: { value: "Samuel" }, Name: { value: "Samuel D." }, UserType: { value: "Standard" } },
+          { Id: "0052", FirstName: { value: "Bot" }, Name: { value: "Bot" }, UserType: { value: "AutomatedProcess" } },
+        ])
+      );
+
+      await expect(resolveAuditActor()).resolves.toEqual({
+        id: "0051",
+        type: "staff",
+        displayName: "Samuel",
+      });
+      expect(getAuditActorSource()).toBe("self");
+      expect(getSessionActorOverride()).toEqual({
+        id: "0051",
+        type: "staff",
+        displayName: "Samuel",
+      });
+    });
+
+    it("asks (SYSTEM) when several staff users are ambiguous", async () => {
+      mockedExecute.mockResolvedValueOnce(
+        staffResponse([
+          { Id: "0051", FirstName: { value: "Samuel" }, Name: { value: "Samuel D." }, UserType: { value: "Standard" } },
+          { Id: "0052", FirstName: { value: "Lena" }, Name: { value: "Lena M." }, UserType: { value: "Standard" } },
+        ])
+      );
+
+      await expect(resolveAuditActor()).resolves.toEqual(SYSTEM_ACTOR);
+      expect(getSessionActorOverride()).toBeNull();
+    });
+
+    it("does not re-ask the next session once remembered", async () => {
+      setSessionActorOverride({ userId: "0051", firstName: "Samuel" });
+
+      await expect(resolveAuditActor()).resolves.toEqual({
+        id: "0051",
+        type: "staff",
+        displayName: "Samuel",
+      });
+      expect(mockedExecute).not.toHaveBeenCalled();
+      expect(getAuditActorSource()).toBe("self");
+    });
   });
 
   it("shares one resolution across concurrent callers", async () => {
@@ -152,7 +349,7 @@ describe("listStaffUsers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetAuditActorForTests();
-    sessionStorage.clear();
+    clearStorages();
   });
 
   function staffListResponse() {

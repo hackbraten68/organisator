@@ -25,6 +25,8 @@ export interface SidebarUserProps {
   actor: ActorInfo;
   details: ActorDetails | null;
   resolving: boolean;
+  /** False when the server resolved the actor: there is nothing to switch to. */
+  switchable: boolean;
   onSwitchUser: () => void;
 }
 
@@ -42,7 +44,7 @@ function initials(name: string): string {
   return (first + second).toUpperCase();
 }
 
-export function SidebarUser({ actor, details, resolving, onSwitchUser }: SidebarUserProps) {
+export function SidebarUser({ actor, details, resolving, switchable, onSwitchUser }: SidebarUserProps) {
   if (resolving) {
     return (
       <div className="flex items-center gap-2.5 px-2 py-2" aria-label="Benutzer wird geladen">
@@ -59,9 +61,9 @@ export function SidebarUser({ actor, details, resolving, onSwitchUser }: Sidebar
   const roleLine = details?.profileName ?? (actor.type === "system" ? "System" : "Team");
 
   // Future settings entries append here — same menu, no rebuild.
-  const menuEntries: UserMenuEntry[] = [
-    { key: "switch-user", label: "Benutzer wechseln", icon: Repeat, action: onSwitchUser },
-  ];
+  const menuEntries: UserMenuEntry[] = switchable
+    ? [{ key: "switch-user", label: "Benutzer wechseln", icon: Repeat, action: onSwitchUser }]
+    : [];
 
   return (
     <DropdownMenu>
@@ -97,7 +99,7 @@ export function SidebarUser({ actor, details, resolving, onSwitchUser }: Sidebar
             </span>
           </span>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
+        {menuEntries.length > 0 && <DropdownMenuSeparator />}
         {menuEntries.map((entry) => (
           <DropdownMenuItem key={entry.key} onSelect={entry.action}>
             <entry.icon className="size-4" aria-hidden="true" />

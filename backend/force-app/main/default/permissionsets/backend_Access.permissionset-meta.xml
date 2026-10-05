@@ -5,4 +5,16 @@
         <enabled>true</enabled>
         <name>ApiEnabled</name>
     </userPermissions>
+
+    <!--
+        StaffIdentity is what lets the UI bundle learn who is signed in without
+        asking (the runtime carries no user identity, see the class comment). Apex
+        REST needs an explicit class grant: without this entry a limited internal
+        profile gets 403 on /services/apexrest/staff-identity/me and the backoffice
+        falls back to the actor picker.
+    -->
+    <classAccesses>
+        <apexClass>StaffIdentity</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
 </PermissionSet>

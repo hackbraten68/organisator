@@ -33,6 +33,17 @@
         <name>ApiEnabled</name>
     </userPermissions>
 
+    <!--
+        StaffIdentity is what lets the UI bundle learn who is signed in without
+        asking. Apex REST needs an explicit class grant; without it a coach gets
+        403 on /services/apexrest/staff-identity/me and sees the actor picker on
+        every new tab instead.
+    -->
+    <classAccesses>
+        <apexClass>StaffIdentity</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+
     <!-- read/write -->
     <objectPermissions>
         <allowCreate>true</allowCreate>

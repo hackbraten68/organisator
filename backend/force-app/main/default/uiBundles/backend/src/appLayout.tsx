@@ -131,6 +131,7 @@ export default function AppLayout() {
 								actor={actorInit.actor}
 								details={actorInit.details}
 								resolving={actorInit.phase === "resolving"}
+								switchable={actorInit.switchable}
 								onSwitchUser={() => void actorInit.switchUser()}
 							/>
 						</div>
@@ -168,6 +169,7 @@ export default function AppLayout() {
 									actor={actorInit.actor}
 									details={actorInit.details}
 									resolving={actorInit.phase === "resolving"}
+									switchable={actorInit.switchable}
 									onSwitchUser={() => {
 										closeMobileMenu();
 										void actorInit.switchUser();
