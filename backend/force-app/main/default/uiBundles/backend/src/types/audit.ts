@@ -262,17 +262,36 @@ export const DEFAULT_FIELD_POLICIES: Record<string, AuditFieldPolicyConfig> = {
     Status: { strategy: 'FULL', displayType: 'status' },
     SubmissionTimestamp: { strategy: 'FULL', displayType: 'date' },
   },
+  // Die Schluessel muessen exakt den emittierten Feldnamen entsprechen
+  // (mit __c-Suffix). applyFieldRedaction schlaegt policies[field] nach,
+  // ein Tippfehler erzeugt keinen Fehler, sondern Klartext im Audit-Log.
   absence: {
-    Type: { strategy: 'FULL', displayType: 'status' },
-    StartDate: { strategy: 'FULL', displayType: 'date' },
-    EndDate: { strategy: 'FULL', displayType: 'date' },
-    Reason: { strategy: 'REDACTED', displayType: 'text', allowRedactionByPermission: true },
+    Type__c: { strategy: 'FULL', displayType: 'status' },
+    StartDate__c: { strategy: 'FULL', displayType: 'date' },
+    EndDate__c: { strategy: 'FULL', displayType: 'date' },
+    Status__c: { strategy: 'FULL', displayType: 'status' },
+    // Gesundheitsdaten: begruendet vom Teilnehmer, mit dem Feld selbst
+    // dauerhaft auf Absence__c gespeichert. Im Audit nur als Aenderung
+    // vermerkt, nie im Klartext.
+    Reason__c: { strategy: 'REDACTED', displayType: 'text', allowRedactionByPermission: true },
+    // Ablehnungsbegruendung des Coach. Derselbe Freitextfall wie Reason__c:
+    // im Beispiel Health-Krisen, die im Audit-Log dauerhaft landen.
+    CoachComment__c: { strategy: 'REDACTED', displayType: 'text', allowRedactionByPermission: true },
+    ApprovedBy__c: { strategy: 'REFERENCE', reference: 'User' },
+    ApprovedAt__c: { strategy: 'FULL', displayType: 'date' },
+    RejectedAt__c: { strategy: 'FULL', displayType: 'date' },
+    // Kein Salesforce-Feld: der Audit-Event traegt nur den Dateinamen.
+    Documents: { strategy: 'FULL', displayType: 'text' },
   },
   appointment: {
-    StartTime: { strategy: 'FULL', displayType: 'date' },
-    EndTime: { strategy: 'FULL', displayType: 'date' },
-    Status: { strategy: 'FULL', displayType: 'status' },
-    Attendees: { strategy: 'REFERENCE', reference: 'User' },
+    StartTime__c: { strategy: 'FULL', displayType: 'time' },
+    EndTime__c: { strategy: 'FULL', displayType: 'time' },
+    Status__c: { strategy: 'FULL', displayType: 'status' },
+    Type__c: { strategy: 'FULL', displayType: 'status' },
+    Coach__c: { strategy: 'REFERENCE', reference: 'User' },
+    CorrelationId__c: { strategy: 'FULL', displayType: 'text' },
+    // Freitext, den der Coach beim Absagen mitgibt.
+    CancellationReason__c: { strategy: 'REDACTED', displayType: 'text', allowRedactionByPermission: true },
   },
   classbook: {
     EntryText: { strategy: 'REDACTED', displayType: 'text', allowRedactionByPermission: true },
