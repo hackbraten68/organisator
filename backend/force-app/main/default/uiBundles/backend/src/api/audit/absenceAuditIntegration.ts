@@ -171,7 +171,7 @@ export async function recordAbsenceRejected(options: RecordAbsenceRejectedOption
       changes: [
         { field: "Status__c", oldValue: "Submitted", newValue: "Rejected", redacted: false },
         { field: "RejectedAt__c", oldValue: null, newValue: new Date().toISOString(), redacted: false },
-        { field: "CoachComment__c", oldValue: null, newValue: reason, redacted: false },
+        { field: "CoachComment__c", oldValue: null, newValue: reason, redacted: true },
       ],
       metadata: {
         absenceType: absence.type,

@@ -314,7 +314,7 @@ export async function updateAbsence(
     changes.push({
       field: 'CoachComment__c',
       newValue: patch.coachComment,
-      redacted: false,
+      redacted: true,
     });
 
   if (changes.length > 0) {

@@ -70,23 +70,45 @@ export function compareFieldChanges(
 /**
  * Apply field redaction policy to a list of field changes
  * 
+ * A hand-set `redacted: true` on an incoming change is honoured independently of
+ * the policy: an integration that knows the value is sensitive must not be
+ * overruled by a missing or permissive policy entry. The values are stripped,
+ * not just flagged — a `FULL` policy keeps the value in memory and it would
+ * still be persisted to AuditEvent__c.Changes__c while the UI claims redaction.
+ *
  * @param changes Raw field changes
  * @param domain Domain name (determines policy)
  * @param userPermissions Optional permission flags (e.g., canSeeRedacted)
  * @returns Field changes with values redacted per policy
  */
 export function applyFieldRedaction(
-  changes: Array<{ field: string; oldValue?: unknown; newValue?: unknown }>,
+  changes: Array<{ field: string; oldValue?: unknown; newValue?: unknown; redacted?: boolean }>,
   domain: AuditDomain,
   userPermissions?: { canSeeRedacted?: boolean },
 ): FieldChange[] {
   const policies = DEFAULT_FIELD_POLICIES[domain] ?? {};
 
-  return changes.map(({ field, oldValue, newValue }) => {
+  return changes.map(({ field, oldValue, newValue, redacted: incomingRedacted }) => {
     const policy = policies[field];
     const strategy: AuditFieldStrategy = policy?.strategy ?? 'FULL';
     const displayType = policy?.displayType;
     const reference = policy?.reference;
+
+    if (strategy === 'NONE') {
+      // Do not include this change in audit event
+      return null as unknown as FieldChange;
+    }
+
+    if (incomingRedacted === true) {
+      return {
+        field,
+        oldValue: undefined,
+        newValue: undefined,
+        displayType,
+        redacted: true,
+        reference,
+      };
+    }
 
     let finalOldValue: unknown = oldValue;
     let finalNewValue: unknown = newValue;
@@ -113,10 +135,6 @@ export function applyFieldRedaction(
         finalNewValue = extractIdFromReference(newValue);
         redacted = false;
         break;
-
-      case 'NONE':
-        // Do not include this change in audit event
-        return null as unknown as FieldChange;
     }
 
     return {
@@ -260,9 +278,20 @@ export const auditService = {
     const sensitivity = input.sensitivity ?? DEFAULT_DOMAIN_SENSITIVITY[input.domain];
 
     // 5. Process field changes and apply redaction
+    //
+    // This is the enforcement point for the absence and appointment domains:
+    // neither integration calls applyFieldRedaction itself, both pass their raw
+    // changes through here. Removing this call would be a silent plaintext leak.
+    //
+    // canSeeRedacted is false unconditionally, and that is correct for
+    // persistence: a value that must stay secret must never reach the record,
+    // not even for a user who is allowed to see it. Who may read a redacted
+    // value afterwards is decided by the read path, not here. The flip side is
+    // that allowRedactionByPermission currently has no way to be exercised —
+    // it becomes meaningful once the permission model lands.
     const fieldChanges = input.changes ?? [];
     const redactedChanges = applyFieldRedaction(fieldChanges, input.domain, {
-      canSeeRedacted: false, // TODO: Check user permissions
+      canSeeRedacted: false,
     });
 
     // 6. Validate and sanitize metadata
