@@ -16,6 +16,7 @@ import { auditService } from "./auditService";
 import { EVENT_TYPES } from "@/types/audit";
 import type { ActorInfo } from "@/types/audit";
 import type { AvailabilitySlot } from "@/types/availabilitySlot";
+import { AVAILABILITY_AUDIT_FIELDS as F } from "./emittedFields";
 
 interface SlotContext {
   id: string;
@@ -72,12 +73,12 @@ export async function recordAvailabilitySlotAdded(
       ...baseRecord(slot, actor, correlationId),
       reason: "Verfügbarkeitsslot hinzugefügt",
       changes: [
-        { field: "User__c", newValue: slot.userId, redacted: false, displayType: "reference", reference: "User" },
-        { field: "DayOfWeek__c", newValue: slot.dayOfWeek, redacted: false, displayType: "status" },
-        { field: "StartTime__c", newValue: slot.startTime, redacted: false, displayType: "time" },
-        { field: "EndTime__c", newValue: slot.endTime, redacted: false, displayType: "time" },
-        { field: "Type__c", newValue: slot.type, redacted: false, displayType: "status" },
-        { field: "IsActive__c", newValue: slot.isActive, redacted: false, displayType: "boolean" },
+        { field: F.user, newValue: slot.userId, redacted: false, displayType: "reference", reference: "User" },
+        { field: F.dayOfWeek, newValue: slot.dayOfWeek, redacted: false, displayType: "status" },
+        { field: F.startTime, newValue: slot.startTime, redacted: false, displayType: "time" },
+        { field: F.endTime, newValue: slot.endTime, redacted: false, displayType: "time" },
+        { field: F.type, newValue: slot.type, redacted: false, displayType: "status" },
+        { field: F.isActive, newValue: slot.isActive, redacted: false, displayType: "boolean" },
       ],
     });
   } catch (err) {
@@ -123,10 +124,10 @@ export async function recordAvailabilitySlotDeleted(
       ...baseRecord(slot, actor, correlationId),
       reason: "Verfügbarkeitsslot gelöscht",
       changes: [
-        { field: "User__c", oldValue: slot.userId, newValue: null, redacted: false, displayType: "reference", reference: "User" },
-        { field: "DayOfWeek__c", oldValue: slot.dayOfWeek, newValue: null, redacted: false, displayType: "status" },
-        { field: "StartTime__c", oldValue: slot.startTime, newValue: null, redacted: false, displayType: "time" },
-        { field: "EndTime__c", oldValue: slot.endTime, newValue: null, redacted: false, displayType: "time" },
+        { field: F.user, oldValue: slot.userId, newValue: null, redacted: false, displayType: "reference", reference: "User" },
+        { field: F.dayOfWeek, oldValue: slot.dayOfWeek, newValue: null, redacted: false, displayType: "status" },
+        { field: F.startTime, oldValue: slot.startTime, newValue: null, redacted: false, displayType: "time" },
+        { field: F.endTime, oldValue: slot.endTime, newValue: null, redacted: false, displayType: "time" },
       ],
     });
   } catch (err) {

@@ -292,6 +292,13 @@ export const DEFAULT_FIELD_POLICIES: Record<string, AuditFieldPolicyConfig> = {
     CorrelationId__c: { strategy: 'FULL', displayType: 'text' },
     // Freitext, den der Coach beim Absagen mitgibt.
     CancellationReason__c: { strategy: 'REDACTED', displayType: 'text', allowRedactionByPermission: true },
+    // Offene Entscheidung E9: der Name traegt kein __c und ein Feld dieses
+    // Namens existiert in der Org nicht — es ist ein reines Audit-Label.
+    // Bewusst FULL und nicht REDACTED: der Wert wandert sonst ungeprueft in
+    // die Ausnahmeliste des Schema-Tests, und bei einer Umbenennung auf
+    // RescheduleReason__c muesste auch die Strategie neu entschieden werden.
+    // CancellationReason__c ist der geschwaerzte Freitextfall derselben Domain.
+    RescheduleReason: { strategy: 'FULL', displayType: 'text' },
   },
   classbook: {
     EntryText: { strategy: 'REDACTED', displayType: 'text', allowRedactionByPermission: true },
@@ -308,10 +315,10 @@ export const DEFAULT_FIELD_POLICIES: Record<string, AuditFieldPolicyConfig> = {
     CorrectionReason: { strategy: 'REDACTED', displayType: 'text', allowRedactionByPermission: true },
   },
   learning_path: {
-    Title: { strategy: 'FULL', displayType: 'text' },
+    Title__c: { strategy: 'FULL', displayType: 'text' },
     Order__c: { strategy: 'FULL', displayType: 'numeric' },
     Estimated_Weeks__c: { strategy: 'FULL', displayType: 'numeric' },
-    Status: { strategy: 'FULL', displayType: 'status' },
+    Status__c: { strategy: 'FULL', displayType: 'status' },
   },
   availability: {
     User__c: { strategy: 'REFERENCE', reference: 'User' },
@@ -323,6 +330,14 @@ export const DEFAULT_FIELD_POLICIES: Record<string, AuditFieldPolicyConfig> = {
     ValidFrom__c: { strategy: 'FULL', displayType: 'date' },
     ValidTo__c: { strategy: 'FULL', displayType: 'date' },
   },
+  // Bewusst leer und nicht \"fehlend\": der Abdeckungstest in
+  // fieldPolicyCoverage.test.ts verlangt fuer jede Domain mit Emitter eine
+  // Policy-Zuordnung. Eine leere Map sagt ausdruecklich \"diese Domain
+  // schreibt noch keine Felder\". sessionAudit.ts:31 sendet tatsaechlich
+  // `changes: []` — keine Gesundheits- oder Freitextdaten, nur Login-Zeit
+  // und Methode, und die stehen in `metadata`, das ueber die Allowlist läuft.
+  authentication: {},
+  system: {},
 };
 
 /**

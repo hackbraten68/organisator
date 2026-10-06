@@ -53,7 +53,7 @@ function getFieldLabel(field: string): string {
     Documents: 'Dokumente',
     Coach__c: 'Coach',
     CorrelationId__c: 'Korrelation',
-    Title: 'Titel',
+    Title__c: 'Titel',
     Order__c: 'Position',
     Estimated_Weeks__c: 'Geschätzte Wochen',
     Metadata: 'Metadaten',

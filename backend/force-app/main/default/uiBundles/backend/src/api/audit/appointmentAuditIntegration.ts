@@ -2,6 +2,7 @@ import { auditService } from "./auditService";
 import { EVENT_TYPES } from "@/types/audit";
 import type { ActorInfo } from "@/types/audit";
 import type { Appointment } from "@/types/appointment";
+import { APPOINTMENT_AUDIT_FIELDS as F } from "./emittedFields";
 
 export interface RecordAppointmentCreatedOptions {
   appointment: Appointment;
@@ -58,12 +59,12 @@ export async function recordAppointmentCreated(options: RecordAppointmentCreated
       source: "web",
       reason: "Termin erstellt",
       changes: [
-        { field: "Status__c", oldValue: null, newValue: appointment.status, redacted: false },
-        { field: "Type__c", oldValue: null, newValue: appointment.type, redacted: false },
-        { field: "StartTime__c", oldValue: null, newValue: appointment.startTime, redacted: false },
-        { field: "EndTime__c", oldValue: null, newValue: appointment.endTime, redacted: false },
-        ...(appointment.coachId ? [{ field: "Coach__c", oldValue: null, newValue: appointment.coachId, redacted: false }] : []),
-        ...(appointment.correlationId ? [{ field: "CorrelationId__c", oldValue: null, newValue: appointment.correlationId, redacted: false }] : []),
+        { field: F.status, oldValue: null, newValue: appointment.status, redacted: false },
+        { field: F.type, oldValue: null, newValue: appointment.type, redacted: false },
+        { field: F.startTime, oldValue: null, newValue: appointment.startTime, redacted: false },
+        { field: F.endTime, oldValue: null, newValue: appointment.endTime, redacted: false },
+        ...(appointment.coachId ? [{ field: F.coach, oldValue: null, newValue: appointment.coachId, redacted: false }] : []),
+        ...(appointment.correlationId ? [{ field: F.correlationId, oldValue: null, newValue: appointment.correlationId, redacted: false }] : []),
       ],
       metadata: {
         appointmentType: appointment.type,
@@ -95,10 +96,10 @@ export async function recordAppointmentRescheduled(options: RecordAppointmentRes
       source: "web",
       reason: "Termin verschoben",
       changes: [
-        { field: "StartTime__c", oldValue: oldStartTime, newValue: appointment.startTime, redacted: false },
-        { field: "EndTime__c", oldValue: oldEndTime, newValue: appointment.endTime, redacted: false },
-        { field: "Status__c", oldValue: "Confirmed", newValue: "Finding", redacted: false },
-        ...(reason ? [{ field: "RescheduleReason", oldValue: null, newValue: reason, redacted: false }] : []),
+        { field: F.startTime, oldValue: oldStartTime, newValue: appointment.startTime, redacted: false },
+        { field: F.endTime, oldValue: oldEndTime, newValue: appointment.endTime, redacted: false },
+        { field: F.status, oldValue: "Confirmed", newValue: "Finding", redacted: false },
+        ...(reason ? [{ field: F.rescheduleReason, oldValue: null, newValue: reason, redacted: false }] : []),
       ],
       metadata: {
         oldStartTime,
@@ -131,7 +132,7 @@ export async function recordAppointmentStatusChanged(options: RecordAppointmentS
       source: "web",
       reason: `Termin-Status geändert: ${oldStatus} → ${newStatus}`,
       changes: [
-        { field: "Status__c", oldValue: oldStatus, newValue: newStatus, redacted: false },
+        { field: F.status, oldValue: oldStatus, newValue: newStatus, redacted: false },
       ],
       metadata: {
         oldStatus,
@@ -161,8 +162,8 @@ export async function recordAppointmentCancelled(options: RecordAppointmentCance
       source: "web",
       reason: "Termin abgesagt",
       changes: [
-        { field: "Status__c", oldValue: appointment.status, newValue: "Cancelled", redacted: false },
-        ...(reason ? [{ field: "CancellationReason__c", oldValue: null, newValue: reason, redacted: false }] : []),
+        { field: F.status, oldValue: appointment.status, newValue: "Cancelled", redacted: false },
+        ...(reason ? [{ field: F.cancellationReason, oldValue: null, newValue: reason, redacted: false }] : []),
       ],
       metadata: {
         cancellationReason: reason,
@@ -191,7 +192,7 @@ export async function recordAppointmentAttendanceChanged(options: RecordAppointm
       source: "web",
       reason: `Teilnahme geändert: ${oldStatus} → ${newStatus}`,
       changes: [
-        { field: "Status__c", oldValue: oldStatus, newValue: newStatus, redacted: false },
+        { field: F.status, oldValue: oldStatus, newValue: newStatus, redacted: false },
       ],
       metadata: {
         oldStatus,

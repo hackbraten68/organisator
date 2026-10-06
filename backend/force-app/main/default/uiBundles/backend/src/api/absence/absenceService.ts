@@ -16,6 +16,7 @@ import {
   recordAbsenceDocumentAdded,
 } from '@/api/audit/absenceAuditIntegration';
 import { generateUUID } from '@/api/audit/auditService';
+import { ABSENCE_AUDIT_FIELDS as F } from '@/api/audit/emittedFields';
 
 export type {
   Absence,
@@ -285,34 +286,34 @@ export async function updateAbsence(
     redacted: boolean;
   }> = [];
   if (patch.type !== undefined)
-    changes.push({ field: 'Type__c', newValue: patch.type, redacted: false });
+    changes.push({ field: F.type, newValue: patch.type, redacted: false });
   if (patch.status !== undefined)
     changes.push({
-      field: 'Status__c',
+      field: F.status,
       newValue: patch.status,
       redacted: false,
     });
   if (patch.startDate !== undefined)
     changes.push({
-      field: 'StartDate__c',
+      field: F.startDate,
       newValue: patch.startDate,
       redacted: false,
     });
   if (patch.endDate !== undefined)
     changes.push({
-      field: 'EndDate__c',
+      field: F.endDate,
       newValue: patch.endDate,
       redacted: false,
     });
   if (patch.reason !== undefined)
     changes.push({
-      field: 'Reason__c',
+      field: F.reason,
       newValue: patch.reason,
       redacted: true,
     });
   if (patch.coachComment !== undefined)
     changes.push({
-      field: 'CoachComment__c',
+      field: F.coachComment,
       newValue: patch.coachComment,
       redacted: true,
     });

@@ -1,6 +1,7 @@
 import { auditService } from "./auditService";
 import { EVENT_TYPES } from "@/types/audit";
 import type { ActorInfo } from "@/types/audit";
+import { ABSENCE_AUDIT_FIELDS as F } from "./emittedFields";
 
 export interface RecordAbsenceReportedOptions {
   absence: {
@@ -102,11 +103,11 @@ export async function recordAbsenceReported(options: RecordAbsenceReportedOption
       source: "web",
       reason: "Abwesenheit gemeldet",
       changes: [
-        { field: "Status__c", oldValue: null, newValue: "Submitted", redacted: false },
-        { field: "Type__c", oldValue: null, newValue: absence.type, redacted: false },
-        { field: "StartDate__c", oldValue: null, newValue: absence.startDate, redacted: false },
-        { field: "EndDate__c", oldValue: null, newValue: absence.endDate, redacted: false },
-        ...(absence.reason ? [{ field: "Reason__c", oldValue: null, newValue: absence.reason, redacted: true }] : []),
+        { field: F.status, oldValue: null, newValue: "Submitted", redacted: false },
+        { field: F.type, oldValue: null, newValue: absence.type, redacted: false },
+        { field: F.startDate, oldValue: null, newValue: absence.startDate, redacted: false },
+        { field: F.endDate, oldValue: null, newValue: absence.endDate, redacted: false },
+        ...(absence.reason ? [{ field: F.reason, oldValue: null, newValue: absence.reason, redacted: true }] : []),
       ],
       metadata: {
         absenceType: absence.type,
@@ -137,9 +138,9 @@ export async function recordAbsenceApproved(options: RecordAbsenceApprovedOption
       source: "web",
       reason: "Abwesenheit genehmigt",
       changes: [
-        { field: "Status__c", oldValue: "Submitted", newValue: "Approved", redacted: false },
-        { field: "ApprovedBy__c", oldValue: null, newValue: approver.id, redacted: false },
-        { field: "ApprovedAt__c", oldValue: null, newValue: new Date().toISOString(), redacted: false },
+        { field: F.status, oldValue: "Submitted", newValue: "Approved", redacted: false },
+        { field: F.approvedBy, oldValue: null, newValue: approver.id, redacted: false },
+        { field: F.approvedAt, oldValue: null, newValue: new Date().toISOString(), redacted: false },
       ],
       metadata: {
         absenceType: absence.type,
@@ -169,9 +170,9 @@ export async function recordAbsenceRejected(options: RecordAbsenceRejectedOption
       source: "web",
       reason: "Abwesenheit abgelehnt",
       changes: [
-        { field: "Status__c", oldValue: "Submitted", newValue: "Rejected", redacted: false },
-        { field: "RejectedAt__c", oldValue: null, newValue: new Date().toISOString(), redacted: false },
-        { field: "CoachComment__c", oldValue: null, newValue: reason, redacted: true },
+        { field: F.status, oldValue: "Submitted", newValue: "Rejected", redacted: false },
+        { field: F.rejectedAt, oldValue: null, newValue: new Date().toISOString(), redacted: false },
+        { field: F.coachComment, oldValue: null, newValue: reason, redacted: true },
       ],
       metadata: {
         absenceType: absence.type,
@@ -230,7 +231,7 @@ export async function recordAbsenceCancelled(options: RecordAbsenceCancelledOpti
       source: "web",
       reason: "Abwesenheit storniert",
       changes: [
-        { field: "Status__c", oldValue: "Submitted", newValue: "Cancelled", redacted: false },
+        { field: F.status, oldValue: "Submitted", newValue: "Cancelled", redacted: false },
       ],
       metadata: {
         absenceType: absence.type,
@@ -259,7 +260,7 @@ export async function recordAbsenceDocumentAdded(options: RecordAbsenceDocumentA
       source: "web",
       reason: "Dokument zur Abwesenheit hinzugefügt",
       changes: [
-        { field: "Documents", oldValue: null, newValue: document.fileName, redacted: false },
+        { field: F.documents, oldValue: null, newValue: document.fileName, redacted: false },
       ],
       metadata: {
         documentId: document.id,
