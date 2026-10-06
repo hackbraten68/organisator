@@ -38,9 +38,10 @@ Datenebene geht.
 ## A1. Row-Level-Isolation zwischen Coaches existiert nicht · 🔴 offen
 
 **Befund:** `backend/force-app/main/default/permissionsets/backend_Coach.permissionset-meta.xml`
-setzt `<viewAllRecords>true</viewAllRecords>` auf **alle 13 Objekte**, darunter
-`Participant__c`, `Appointment__c`, `Absence__c`, `Program__c`. Jeder Coach sieht damit
-alle Teilnehmer, alle Termine und alle Abwesenheiten der gesamten Org.
+setzt `<viewAllRecords>true</viewAllRecords>` auf **12 der 15 Objekte** (die Ausnahmen
+sind `User`, `ContentVersion`, `ContentDocumentLink`), darunter `Participant__c`,
+`Appointment__c`, `Absence__c`, `Program__c` und auch `Contact`. Jeder Coach sieht damit
+alle Teilnehmer, alle Termine, alle Abwesenheiten und alle Contacts der gesamten Org.
 
 **Warum das zählt:** Priorität 0 des `next-steps-plan.md` verlangt, dass Coaches **nur
 freigegebene** Contacts sehen. Das ist eine Datenanforderung, die im Permission-Set nicht
