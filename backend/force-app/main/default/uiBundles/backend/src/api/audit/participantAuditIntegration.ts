@@ -19,6 +19,7 @@ import type { Participant } from '@/types/participant';
 import type { AuditActorType, AuditEvent } from '@/types/audit';
 import { EVENT_TYPES } from '@/types/audit';
 import { auditService } from './auditService';
+import { PARTICIPANT_AUDIT_FIELDS as F } from './emittedFields';
 import {
   compareFieldChanges,
   applyFieldRedaction,
@@ -62,7 +63,7 @@ export async function recordParticipantStatusChange(
 ): Promise<AuditEvent> {
   const changes = [
     {
-      field: 'Status__c',
+      field: F.status,
       changed: oldStatus !== newStatus,
       oldValue: oldStatus,
       newValue: newStatus,
@@ -116,15 +117,15 @@ export async function recordParticipantUpdate(
   
   // Map from Participant entity to Salesforce field names
   const fieldMapping: Record<string, string> = {
-    name: 'Name',
-    status: 'Status__c',
-    email: 'Email__c',
-    github: 'GitHub__c',
-    discord: 'Discord__c',
-    startDate: 'StartDate__c',
-    expectedEndDate: 'ExpectedEndDate__c',
-    programId: 'Program__c',
-    coachId: 'Coach_Profile__c',
+    name: F.name,
+    status: F.status,
+    email: F.email,
+    github: F.gitHub,
+    discord: F.discord,
+    startDate: F.startDate,
+    expectedEndDate: F.expectedEndDate,
+    programId: F.program,
+    coachId: F.coachProfile,
   };
 
   const comparisons = compareFieldChanges(beforeObj, afterObj);
@@ -168,15 +169,23 @@ export async function recordParticipantCreation(
   participant: Participant,
   options: AuditOptions,
 ): Promise<AuditEvent> {
-  const changes = [
+  // Explizit typisiert: die Registry-Konstanten sind Literal-Typen, sonst
+  // leitet TypeScript das Array aus den ersten beiden Eintraegen ab und
+  // jedes push() mit einem anderen Feldnamen scheitert.
+  const changes: Array<{
+    field: string;
+    changed: boolean;
+    oldValue?: unknown;
+    newValue?: unknown;
+  }> = [
     {
-      field: 'Name',
+      field: F.name,
       changed: true,
       oldValue: undefined,
       newValue: participant.name,
     },
     {
-      field: 'Status__c',
+      field: F.status,
       changed: true,
       oldValue: undefined,
       newValue: participant.status,
@@ -185,7 +194,7 @@ export async function recordParticipantCreation(
 
   if (participant.email) {
     changes.push({
-      field: 'Email__c',
+      field: F.email,
       changed: true,
       oldValue: undefined,
       newValue: participant.email,
@@ -194,7 +203,7 @@ export async function recordParticipantCreation(
 
   if (participant.programId) {
     changes.push({
-      field: 'Program__c',
+      field: F.program,
       changed: true,
       oldValue: undefined,
       newValue: participant.programId,
@@ -203,7 +212,7 @@ export async function recordParticipantCreation(
 
   if (participant.coachId) {
     changes.push({
-      field: 'Coach_Profile__c',
+      field: F.coachProfile,
       changed: true,
       oldValue: undefined,
       newValue: participant.coachId,

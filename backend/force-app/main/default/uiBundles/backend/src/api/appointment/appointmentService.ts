@@ -9,6 +9,7 @@ import {
   recordAppointmentCancelled,
   recordAppointmentAttendanceChanged,
 } from "@/api/audit/appointmentAuditIntegration";
+import { AVAILABILITY_AUDIT_FIELDS as F } from '@/api/audit/emittedFields';
 import {
   recordAvailabilitySlotAdded,
   recordAvailabilitySlotUpdated,
@@ -589,13 +590,13 @@ export async function updateAvailabilitySlot(id: string, patch: AvailabilitySlot
       changes.push({ field, oldValue, newValue, redacted: false });
     }
   };
-  push("DayOfWeek__c", existing?.dayOfWeek, patch.dayOfWeek);
-  push("StartTime__c", existing?.startTime, patch.startTime);
-  push("EndTime__c", existing?.endTime, patch.endTime);
-  push("Type__c", existing?.type, patch.type);
-  push("IsActive__c", existing?.isActive, patch.isActive);
-  push("ValidFrom__c", existing?.validFrom, patch.validFrom);
-  push("ValidTo__c", existing?.validTo, patch.validTo);
+  push(F.dayOfWeek, existing?.dayOfWeek, patch.dayOfWeek);
+  push(F.startTime, existing?.startTime, patch.startTime);
+  push(F.endTime, existing?.endTime, patch.endTime);
+  push(F.type, existing?.type, patch.type);
+  push(F.isActive, existing?.isActive, patch.isActive);
+  push(F.validFrom, existing?.validFrom, patch.validFrom);
+  push(F.validTo, existing?.validTo, patch.validTo);
 
   if (changes.length > 0) {
     await recordAvailabilitySlotUpdated({

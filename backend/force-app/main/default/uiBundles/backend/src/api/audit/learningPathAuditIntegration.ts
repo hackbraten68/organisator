@@ -21,6 +21,7 @@ import { EVENT_TYPES } from '@/types/audit';
 import { auditService } from './auditService';
 import { compareFieldChanges, applyFieldRedaction } from './auditService';
 import type { AuditOptions } from './participantAuditIntegration';
+import { LEARNING_PATH_AUDIT_FIELDS as F } from './emittedFields';
 
 const SUBJECT_TYPE = 'LearningPathItem__c';
 
@@ -46,14 +47,14 @@ export async function recordLearningPathItemCreated(
   options: AuditOptions,
 ): Promise<AuditEvent> {
   const changes = [
-    { field: 'Title', changed: true, oldValue: undefined, newValue: item.title },
+    { field: F.title, changed: true, oldValue: undefined, newValue: item.title },
     {
-      field: 'Estimated_Weeks__c',
+      field: F.estimatedWeeks,
       changed: true,
       oldValue: undefined,
       newValue: item.estimatedWeeks ?? null,
     },
-    { field: 'Status', changed: true, oldValue: undefined, newValue: item.status },
+    { field: F.status, changed: true, oldValue: undefined, newValue: item.status },
   ];
 
   const redactedChanges = applyFieldRedaction(changes, 'learning_path');
@@ -88,8 +89,8 @@ export async function recordLearningPathItemUpdated(
   options: AuditOptions,
 ): Promise<AuditEvent> {
   const comparisons = compareFieldChanges(
-    { Title: before.title, Estimated_Weeks__c: before.estimatedWeeks ?? null, Status: before.status },
-    { Title: after.title, Estimated_Weeks__c: after.estimatedWeeks ?? null, Status: after.status },
+    { [F.title]: before.title, [F.estimatedWeeks]: before.estimatedWeeks ?? null, [F.status]: before.status },
+    { [F.title]: after.title, [F.estimatedWeeks]: after.estimatedWeeks ?? null, [F.status]: after.status },
   );
 
   const redactedChanges = applyFieldRedaction(comparisons, 'learning_path');
@@ -182,7 +183,7 @@ export async function recordLearningPathItemReordered(
 ): Promise<AuditEvent> {
   const changes = [
     {
-      field: 'Order__c',
+      field: F.order,
       changed: true,
       oldValue: reorder.previousPosition,
       newValue: reorder.newPosition,
