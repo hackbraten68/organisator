@@ -26,6 +26,20 @@ import { LEARNING_PATH_AUDIT_FIELDS as F } from './emittedFields';
 const SUBJECT_TYPE = 'LearningPathItem__c';
 
 /**
+ * Vorher-Zustand eines geloeschten Programmmoduls.
+ *
+ * Genug, um das Modul von Hand wieder anzulegen: das ist der Zweck des
+ * Snapshots. `description` fehlt bewusst — der Allowlist fuer `learning_path`
+ * nimmt keine Freitexte auf, und der Name traegt die Wiedererkennung.
+ */
+export interface LearningPathModuleSnapshot {
+  id: string;
+  programId: string;
+  name: string;
+  order: number;
+}
+
+/**
  * Base metadata snapshot for a learning-path item: readable context at event
  * time. Keys must stay within the learning_path metadata allowlist.
  */
@@ -156,6 +170,47 @@ export async function recordLearningPathItemDeleted(
       previousPosition: snapshot.order,
       estimatedWeeks: snapshot.estimatedWeeks ?? null,
       status: snapshot.status,
+      source: 'program_editor',
+    },
+    correlationId: options.correlationId,
+  });
+}
+
+/**
+ * Ein geloeschtes Programmmodul protokollieren.
+ *
+ * Bewusst OHNE `participantId`. Ein `Module__c` ist eine Vorlage des Programms,
+ * nicht der Lernpfad eines Teilnehmers: `Learning_Path__c` haengt an
+ * `Program__c`, nicht am Modul, und das Loeschen des Moduls loescht keine
+ * Lernpfad-Eintraege. Ein Ereignis an jeden Teilnehmer des Programms zu haengen
+ * waere eine Falschaussage — es waere so, als haette man bei jedem einzelnen
+ * etwas geloescht.
+ *
+ * Deshalb steht das Ereignis nur im Audit-Protokoll und in keiner
+ * Teilnehmer-Timeline. Sichtbar wird es, wenn eine Sicht auf Programmaenderungen
+ * existiert; bis dahin ist es via `AuditEvent__c` mit
+ * `Metadata__c.programId` auswertbar.
+ */
+export async function recordLearningPathModuleDeleted(
+  snapshot: LearningPathModuleSnapshot,
+  options: AuditOptions,
+): Promise<AuditEvent> {
+  return auditService.record({
+    eventType: EVENT_TYPES.LEARNING_PATH_MODULE_DELETED,
+    domain: 'learning_path',
+    action: 'deleted',
+    actorType: options.actor.type,
+    actorId: options.actor.id,
+    actorDisplayNameSnapshot: options.actor.displayName,
+    subjectType: 'Module__c',
+    subjectId: snapshot.id,
+    source: 'web',
+    reason: options.reason,
+    changes: [],
+    metadata: {
+      title: snapshot.name,
+      programId: snapshot.programId,
+      previousPosition: snapshot.order,
       source: 'program_editor',
     },
     correlationId: options.correlationId,

@@ -98,6 +98,11 @@ export const ACTIVITY_PROJECTION_RULES = {
   "learning_path.item_updated": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
   "learning_path.item_deleted": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
   "learning_path.item_reordered": { category: "learning", audiences: COACH_STAFF, includeInActivity: false, technical: false },
+  // Modul = Programmtemplate, nicht teilnehmergebunden. includeInActivity true
+  // heisst: erscheint, sobald eine programbezogene Sicht existiert. In einer
+  // Teilnehmer-Timeline nie sichtbar, weil `participantId` leer ist — korrekt,
+  // denn das Loeschen eines Moduls fasst keinen Lernpfad eines Teilnehmers an.
+  "learning_path.module_deleted": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
 
   // Absence (eigene Kategorie: anderer Prozess, andere Sensitivität als attendance)
   "absence.reported": { category: "absence", audiences: COACH_STAFF_PARTICIPANT, includeInActivity: true, technical: false },

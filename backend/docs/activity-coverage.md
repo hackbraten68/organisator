@@ -10,7 +10,7 @@
 | Domäne | Events | Verdrahtet | Fehlend |
 |--------|--------|------------|---------|
 | Participant | 5 | 5 | 0 |
-| Learning Path | 4 | 4 | 0 |
+| Learning Path | 5 | 5 | 0 |
 | Session/Auth | 1 | 1 | 0 |
 | Portal Access | 4 | 0 | 4 |
 | Absence | 6 | 6 | 0 |
@@ -21,7 +21,7 @@
 | Daily Check-in | 4 | 0 | 4 |
 | Time Entry | 7 | 0 | 7 |
 | System | 1 | 0 | 1 |
-| **Gesamt** | **52** | **27** | **25** |
+| **Gesamt** | **53** | **28** | **25** |
 
 Portal Access ist für Phase 3 des Portalplans eingeplant, nicht implementiert
 (`docs/portal/portal-access-plan.md`).
@@ -48,6 +48,13 @@ Portal Access ist für Phase 3 des Portalplans eingeplant, nicht implementiert
 | `learning_path.item_updated` | ✅ | staff | ❌ | ✅ | ✅ |
 | `learning_path.item_deleted` | ✅ | staff | ❌ | ✅ | ✅ |
 | `learning_path.item_reordered` | ✅ | staff | ❌ | ✅ | ✅ |
+| `learning_path.module_deleted` | ✅ | staff | ❌ | ✅ | ❌ |
+
+`learning_path.module_deleted` betrifft das Programmtemplate, nicht den Lernpfad
+eines Teilnehmers, und laeuft deshalb ohne `participantId`: es erscheint in keiner
+Teilnehmer-Timeline, sondern nur im Audit-Protokoll. Deep-Link gibt es keinen, weil
+das Modul nach dem Loeschen nicht mehr existiert und der Ereignis-Bildschirm sonst
+auf einen toten Link zeigt.
 
 ### Session/Auth (1/1 ✅)
 

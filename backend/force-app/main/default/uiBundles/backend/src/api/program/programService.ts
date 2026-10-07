@@ -32,6 +32,7 @@ import { generateUUID } from "../audit/auditService";
 import {
   recordLearningPathItemCreated,
   recordLearningPathItemDeleted,
+  recordLearningPathModuleDeleted,
   recordLearningPathItemReordered,
   recordLearningPathItemUpdated,
 } from "../audit/learningPathAuditIntegration";
@@ -387,9 +388,29 @@ export async function updateModule(
 }
 
 export async function deleteModule(id: string): Promise<void> {
+  // Snapshot BEFORE the mutation: afterwards the module may be gone, and the
+  // snapshot is what makes an accidental deletion recoverable by hand.
+  const snapshot = await getModuleById(id);
+
   await executeGraphQL<MutationResponse, { id: string }>(DELETE_MODULE, {
     id,
   });
+
+  if (snapshot) {
+    try {
+      await recordLearningPathModuleDeleted(
+        {
+          id: snapshot.id,
+          programId: snapshot.programId,
+          name: snapshot.name,
+          order: snapshot.order,
+        },
+        { actor: getAuditActor() },
+      );
+    } catch (err) {
+      logAuditFailure("learning_path.module_deleted", id, err);
+    }
+  }
   // Order gaps after delete are harmless: lists sort by Order__c and new
   // modules use max(order) + 1.
 }

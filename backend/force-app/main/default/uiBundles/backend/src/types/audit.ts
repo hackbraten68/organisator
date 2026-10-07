@@ -512,6 +512,16 @@ export const EVENT_TYPES = {
   LEARNING_PATH_ITEM_UPDATED: 'learning_path.item_updated' as const,
   LEARNING_PATH_ITEM_DELETED: 'learning_path.item_deleted' as const,
   LEARNING_PATH_ITEM_REORDERED: 'learning_path.item_reordered' as const,
+  /**
+   * Ein Modul des Programmtemplates — NICHT der Lernpfad eines Teilnehmers.
+   *
+   * Bewusst in derselben Domain: `Domain__c` ist eine restricted Picklist ohne
+   * `program`, und sie per Setup zu erweitern waere fuer ein einzelnes Ereignis
+   * der falsche Aufwand. `metadata.programId` traegt die Trennschaerfe.
+   *
+   * `participantId` bleibt leer — siehe `recordLearningPathModuleDeleted`.
+   */
+  LEARNING_PATH_MODULE_DELETED: 'learning_path.module_deleted' as const,
 
   // Verfügbarkeits-Slots (Coach/Staff-Ressource, nicht teilnehmergebunden)
   AVAILABILITY_SLOT_ADDED: 'availability.slot_added' as const,
