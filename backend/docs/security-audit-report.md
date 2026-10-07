@@ -2,7 +2,7 @@
 
 **Datum:** 2026-10-06, Org-Abgleich ergänzt 2026-10-07
 **Umfang:** beide UI-Bundles (Backend 229 Dateien / 51.590 Zeilen, Frontend 82 Dateien / 7.810 Zeilen), alle Apex-Klassen und Trigger beider SFDX-Projekte, alle Permission-Sets, Objekt-Metadaten, `npm audit` beider Bundles, Dependency-Baum bis zu den Blattbibliotheken.
-**Methode:** statische Analyse plus gezielte Ausführung (ein Test wurde zum Beleg der Kernbefunde geschrieben und danach wieder entfernt). Zusätzlich **Gate G1**: die Org-Konfiguration wurde am 2026-10-07 manuell in Salesforce abgelesen (Abschnitt 4).
+**Methode:** statische Analyse plus gezielte Ausführung (ein Test wurde zum Beleg der Kernbefunde geschrieben und danach wieder entfernt). Zusätzlich **Gate G1**: die Org-Konfiguration wurde am 2026-10-07 manuell in Salesforce abgelesen (Abschnitt 4). Ergänzend wurden O3, O4 und O6 am selben Tag **per CLI gegen die Sandbox ausgeführt** — Apex-Testlauf, Sharing-Abfrage und Schreibpfad-Test (Abschnitt 4a).
 **Verwandt:** `.opencode/plans/refactor-security-plan.md` (Berechtigungsmodell E1), `.opencode/plans/security-fixes-plan.md` (Pakete P1–P11), `backend/docs/portal/portal-access-plan.md` (Portal-Zweischichtenmodell), `backend/docs/g1-manual-checklist.md` (Gate G1 als Arbeitsanleitung)
 
 ---
@@ -15,7 +15,7 @@ Zwei Befunde sind neu und beide betreffen **Datenschutz von Gesundheitsdaten**, 
 |---|---|---|---|
 | **S1** | Abwesenheitsgründe (`Absence__c.Reason__c`) landen **unredigiert im Audit-Log** — die Redaktions-Policy greift wegen eines Namensfehlers nicht | 🔴 hoch | ✅ behoben `2c99185` |
 | **S2** | `CoachComment__c` (Ablehnungskommentar, oft vertraulich) ebenfalls unredigiert | 🟠 mittel | ✅ behoben `2c99185` |
-| **S3** | Coaches dürfen `AuditEvent__c` **anlegen** (`allowCreate=true`) — das Audit-Log ist beschreibbar | 🟠 mittel | **neu** |
+| **S3** | Coaches dürfen `AuditEvent__c` **anlegen** (`allowCreate=true`) — das Audit-Log ist beschreibbar. In der Sandbox verifiziert: frei setzbar sind `SubjectType__c`, `SubjectId__c`, `OccurredAt__c`, `EventType__c` — damit lässt sich einem beliebigen Teilnehmer ein rückdatiertes, erfundenes Ereignis an die Timeline hängen | 🟠 mittel | **neu, empirisch eingegrenzt** |
 | **S4** | Coaches dürfen `AuditOutbox__c` **bearbeiten** (`allowEdit=true`), inkl. `Payload__c` und `Error__c` | 🟠 mittel | **neu** |
 | **S5** | `visibility` wird beim Lesen **nirgends durchgesetzt** — nur dekorativ im Drawer angezeigt | 🟠 mittel | **neu** |
 | **S6** | Interner Org-Wide-Default ist **Public Read/Write** — jeder interne User liest/bearbeitet alle `Participant__c`-Zeilen. Die ursprüngliche Diagnose (`defaultSharing` fehle) war falsch gerahmt: der OWD ist nicht deploybar | 🔴 hoch | **gemessen 2026-10-07** |
@@ -127,11 +127,29 @@ AuditEvent__c  allowRead=true  allowCreate=true  allowEdit=false  allowDelete=fa
 
 Ein solcher Fake-Event landet in `GetParticipantActivityTimeline` **neben** den echten und wird in der Aktivitäts-Timeline angezeigt. Ein Admin, der später einen Vorwurf prüft, kann nicht unterscheiden, was passiert ist, von was jemand behauptet hat.
 
+**Empirisch eingegrenzt am 2026-10-07 (Selbsttest in der Sandbox, alle Test-Events wieder gelöscht).** Ich habe mit einem Coach-konformen Benutzer Events über die UI API angelegt, Feld für Feld mit erfundenem Wert:
+
+| Feld | Verhalten bei erfundenem Wert | Konsequenz |
+|---|---|---|
+| `Action__c` | abgelehnt (restricted) | — |
+| `ActorType__c` | abgelehnt (restricted) | — |
+| `Domain__c` | abgelehnt (restricted) | — |
+| `Visibility__c` | abgelehnt (restricted) | — |
+| `Sensitivity__c` | abgelehnt (restricted) | — |
+| `Source__c` | abgelehnt (restricted) | — |
+| `EventType__c` | **angenommen** (freies Textfeld) | Ereignistyp-Vokabular frei erfunden |
+| `SubjectType__c` | **angenommen** (freies Textfeld) | Bezugsobjekt beliebig deklariert |
+| `SubjectId__c` | **angenommen**, freier String, max. 18 Zeichen | Ereignis an beliebige Teilnehmer-ID hängen |
+| `OccurredAt__c` | **angenommen** | Zeitstempel rückdatierbar |
+| `SchemaVersion__c` | **angenommen** | Version des Ereignisschemas fälschlich deklarierbar |
+
+Damit ist S3 nicht „irgendein Log-Eintrag", sondern gezielt: Wer `SubjectType__c`, `SubjectId__c` und `OccurredAt__c` frei wählt, kann einem beliebigen Teilnehmer ein rückdatiertes, erfundenes Ereignis an die Timeline hängen. Die restricted Picklists begrenzen nur die *Beschriftung*, nicht den *Bezug*.
+
 **Erschwerend für den Fix:** Der Coach muss `allowCreate` haben, weil das Audit aus der UI heraus in *seiner* Session geschrieben wird. Der Missbrauch und der legitime Pfad teilen sich dasselbe Recht.
 
 **Fix — aber nicht so billig, wie es aussieht (Korrektur vom 2026-10-06, Umsetzung als Paket P4 in `.opencode/plans/security-fixes-plan.md`):** `allowCreate` auf `false` setzen ist *nicht* möglich, ohne das Audit komplett stillzulegen. Der Audit-Schreibpfad läuft **clientseitig über die Session des angemeldeten Coaches** (`auditApiService.ts:212 createAuditEventRecord` → GraphQL-Mutation `CREATE_AUDIT_EVENT`). Ein Coach braucht also zwingend `allowCreate`, damit der Coach überhaupt ein Audit-Event schreiben kann. Wer `allowCreate` entzieht, löscht das Audit-Log.
 
-Der eigentliche Fix ist ein **serverseitiger Schreibpfad**: eine Apex-Klasse, die das Event in `without sharing`/System-Mode persistiert, den Actor aber aus dem Konstrukt ableitet (nicht aus einem frei setzbaren Parameter). Danach kann `allowCreate` entzogen werden. Aufwand M statt XS, plus Apex-Testklasse.
+Der eigentliche Fix ist ein **serverseitiger Schreibpfad**: eine Apex-Klasse, die das Event in `without sharing`/System-Mode persistiert, den Actor aber aus dem Konstrukt ableitet (nicht aus einem frei setzbaren Parameter). Aus der empirischen Tabelle oben folgt, dass die serverseitige Validierung **nicht** bei `ActorId__c` aufhören darf: auch `SubjectType__c`, `SubjectId__c`, `OccurredAt__c`, `EventType__c` und `SchemaVersion__c` müssen serverseitig gegen eine erlaubte Menge geprüft werden, sonst bleibt die Fälschungsmöglichkeit bestehen, nur ohne UI-Rechte. Danach kann `allowCreate` entzogen werden. Aufwand M statt XS, plus Apex-Testklasse.
 
 ---
 
@@ -425,9 +443,9 @@ Am 2026-10-07 manuell in Salesforce abgelesen. Alles in dieser Tabelle ist **gem
 | ✅ | CSRF-Schutz | GET und POST auf Nicht-Setup-Seiten aktiv (ausgegraut, Werkseinstellung) | keine Abweichung |
 | ⚠️ | Externe Weiterleitungen | **„With user's permission"** | siehe unten |
 | ◐ | OWD der 8 übrigen Custom-Objekte | nicht gemessen | Erwartung Public Read/Write, kein Informationsgewinn |
-| ⬜ | Portal-Sharing-Zeilen pro User | nicht gemessen | `portal-deploy-status.md` dokumentiert zwei User mit Kontakt und Participant-Zeile |
-| ⬜ | Audit-Schreibpfad nach S3-Korrektur | nicht getestet | beide Projekte deployen in dieselbe Org |
-| ⬜ | `sf apex run test` | Auth gegen `techandteach--devhub` fehlt | Org-Host nicht in `~/.sfdx/`, `sf org login web --alias devhub` nötig |
+| ✅ | Portal-Sharing-Zeilen pro User | **2 Zeilen** mit `Read` + RowCause `Portal_Access__c` (SOQL gegen `Participant__Share`) | O6 geschlossen — siehe 4a |
+| ✅ | `sf apex run test` | **59 Tests, 100 % Pass, 0 Fehler**, Lauf `7079X00002J6KP7` | O4 geschlossen — siehe 4a |
+| ✅ | Audit-Schreibpfad | Anlegen **und** Löschen über die UI API funktioniert; Felder teilweise frei (siehe S3) | O3 geschlossen — siehe 4a |
 
 **Korrektur zu einem früheren Befund.** Ich hatte geschlossen, die Sharing Rule `PortalParticipantSeesOwnRecord` existiere nicht und `$User.Id` werde nicht ausgewertet. Das war eine Verwechslung zweier Mechanismen. Die **Formelfelder** (`Participant__c.Portal_User_Id__c` u. a.) werten `$User` tatsächlich nicht aus — das ist in `portal-deploy-status.md` korrekt dokumentiert. **Sharing-Rule-Kriterien** auf einem Lookup-Feld funktionieren dagegen zur Laufzeit, und die Regel existiert (unter anderem Namen; der Kommentar in `Participant_Portal_Access.permissionset-meta.xml:65` ist falsch). Die Portal-Isolation auf `Participant__c` ist damit **dreifach** belegt: OWD Private + Sharing Rule (Read Only an `Portal_Participants`) + Apex Managed Sharing.
 
@@ -439,11 +457,17 @@ Am 2026-10-07 manuell in Salesforce abgelesen. Alles in dieser Tabelle ist **gem
 
 ### 4a. Was weiterhin ungeprüft ist
 
-| # | Offen | Warum es zählt | Wie man es klärt |
+**Die drei offenen Punkte O3, O4 und O6 sind am 2026-10-07 per CLI gegen die Sandbox geschlossen.** Die CLI-Verbindung unter dem Alias `hubSandbox` bestand bereits; meine Annahme, es fehle eine Anmeldung, war falsch (siehe 4b).
+
+| # | Punkt | Ergebnis | Beleg |
 |---|---|---|---|
-| O3 | Funktioniert der Audit-Schreibpfad nach der S3-Korrektur? | Beide Projekte deployen in dieselbe Org — `allowCreate=false` könnte den Schreibpfad treffen | In Sandbox deployen und einen Absenz-Wert melden |
-| O4 | Apex-Tests in der Org (`sf apex run test`) | Testabdeckung der Klassen ist lokal nicht prüfbar | `sf org login web --alias devhub` setzen, dann Testlauf |
-| O6 | Portal-Sharing-Zeilen pro User tatsächlich vorhanden | Ohne die `Portal_Access__c`-Zeile sieht der Portal-User 0 Rows | Sharing-Liste abfragen |
+| O4 | Apex-Tests | **59 Tests, 100 % Pass, 0 Fehler** | `sf apex run test -o hubSandbox -n ParticipantPortalSharingServiceTest -n ParticipantPortalDataTest -n StaffIdentityTest -n UIBundleAuthUtils_Test -n UIBundleSocialLoginConfig_Test` → Lauf `7079X00002J6KP7`, 9,4 s Ausführung |
+| O6 | Portal-Sharing-Zeilen | **2 Zeilen** vorhanden, beide `Read` mit RowCause `Portal_Access__c` | `SELECT ParentId, UserOrGroupId, AccessLevel FROM Participant__Share WHERE RowCause='Portal_Access__c'` → `a0s9X00000bqpfRQAQ`/`0059X00000qeMkQQAU` und `a0s9X00000boVT9QAM`/`0059X00000rOHULQA4` |
+| O3 | Audit-Schreibpfad | **funktioniert, und ist gefährlicher als angenommen** | `sf data create record -s AuditEvent__c` erfolgreich; Feldtest in der S3-Tabelle. Alle Test-Events anschließend gelöscht, Restbestand `SubjectId__c='G1SELBSTTEST2026X'` = 0 |
+
+**Was O4 zusätzlich belegt.** `UIBundleAuthUtils_Test` (8 Tests) und `UIBundleSocialLoginConfig_Test` (9 Tests) prüfen die Open-Redirect-Abwehr serverseitig: absolute URL, `//host`, Backslash-Variante, `@`, Doppelpunkt, Steuerzeichen, kodierter Protocol-Relative-Bypass. Die im Abschnitt 3 als Negativbefund geführte Absicherung ist damit **in der Org laufend verifiziert**, nicht nur im Quelltext gelesen.
+
+**Was an O3 nicht geklärt ist.** Getestet wurde der REST-Pfad der UI API. Der Bundle-Audit nutzt eine **GraphQL-Mutation** (`CREATE_AUDIT_EVENT`, `auditApiService.ts:212`) gegen den UI-Bundle-Endpunkt. Ob genau dieser Mutation-Deploy in der Sandbox existiert, lässt sich per CLI nicht feststellen — dafür bräuchte es einen Bundle-Aufruf im Browser. Die Rechtefrage ist aber dieselbe, also gilt der Befund aus S3 unverändert.
 
 ### 4b. Fallstricke beim Ablesen in Salesforce
 
@@ -453,6 +477,8 @@ Zwei Wege, die ich selbst gegangen bin und die niemandem sonst Zeit kosten sollt
 - **Der Lightning Object Manager hilft dafür nicht.** `Objekt → Details` zeigt nur „Edit Custom Object", keinen OWD-Abschnitt. Der Objektfilter mit App-Präfix existiert nur in Classic — in Lightning gibt es nur ein Suchfeld für Objekte.
 - **Sharing Rules für `Contact` lassen sich nicht anlegen**, solange der OWD `Controlled by Parent` ist; der Bildschirm sagt das wörtlich. Das ist ein Befund, kein Bedienfehler.
 - **Transaktionssicherheitsrichtlinien** sind weder top-level noch unter `Security` auffindbar, wenn die Funktion fehlt. Auch in Classic prüfbar, bevor man auf eine Feature-Abwesenheit schliesst.
+- **Vor jeder Anmelde-Session prüfen, ob überhaupt eine nötig ist.** `~/.sfdx/sfdx-config.json` enthielt nur `{"defaultusername": "hubSandbox"}` und unter `~/.sf/*.json` lag keine Auth-Datei — daraus habe ich auf eine fehlende Anmeldung geschlossen. `sf data query -o hubSandbox` funktionierte jedoch sofort: der CLI findet Auth-Dateien auch im alten Verzeichnis `~/.sfdx/`. Ein Sandbox-Alias kann also völlig intakt sein, ohne dass unter `~/.sf/` etwas zu sehen ist.
+- **`sf org login web` nimmt keinen Login-Host.** Das Flag kennt `-r/--instance-url`, nutzt für den Web-Flow aber immer `login.salesforce.com`. Für eine Sandbox, deren Credentials dort abgelehnt werden, ist der Umweg ein selbst gesetzter OAuth-Aufruf gegen den Instanz-Host mit `redirect_uri=http://localhost:1717/OauthRedirect` (aus dem CLI-Quelltext `authInfo.js:getRedirectUri()`), Empfänger auf Port 1717, Tausch über `POST /services/oauth2/token`. Für dieses Projekt war beides überflüssig (siehe oben).
 
 ---
 
@@ -495,5 +521,6 @@ Alle Zahlen in diesem Report sind gemessen, nicht geschätzt:
 - Secrets in der Historie: `git log --all -p -S "BEGIN RSA"` über 158 Commits → null
 - **Org-Konfiguration (Gate G1):** manuell in Salesforce abgelesen, Anleitung in `g1-manual-checklist.md`. Nicht automatisierbar — der OWD ist über keine API und über kein Metadatum lesbar, nur über die Oberfläche.
 - **Schema-Abgleich:** `npm run schema:check` (Vier Ebenen je Objekt, 92 Felder in 10 Custom-Objekten). Braucht einen interaktiven Browser-Login.
+- **O3/O4/O6 (2026-10-07, CLI gegen `hubSandbox`):** `sf apex run test -o hubSandbox -n …` (5 Klassen, 59 Tests), `sf data query -o hubSandbox -q "… FROM Participant__Share WHERE RowCause='Portal_Access__c'"`, `sf data create record -o hubSandbox -s AuditEvent__c` und `sf data delete record` für den Schreibpfad. Die Selbstanlage schreibt echte Audit-Events; **alle Test-Records wurden anschließend gelöscht und der Restbestand gegengeprüft** (`COUNT(Id) WHERE SubjectId__c='G1SELBSTTEST2026X'` = 0).
 
 **Was an dieser Methode eine Grenze hat:** alle Org-Werte stammen aus einer Sandbox. Ob die Ziel-Org genauso konfiguriert ist, ist unbelegt — der OWD ist beim Anlegen einer neuen Sandbox der wahrscheinlichste Divisor. Vor dem Produktivbetrieb gehört dieselbe Checkliste erneut abgearbeitet.

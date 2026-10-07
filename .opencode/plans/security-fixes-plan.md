@@ -169,11 +169,12 @@ Nur nach Entscheidung **E1**. Aufwand L, mehrere Wochen, kein Commit.
 
 1. Apex-Klasse `AuditEventWriter.cls`, `@AuraEnabled` (bzw. `@RestResource`, wenn der Bundle-Pfad keinen Aura-Kontext hat — das entscheidet die tatsächliche Aufrufstelle), `without sharing` mit begründetem Docstring im Stil von `StaffIdentity.cls`.
 2. **Der Actor wird nicht aus dem Parameter übernommen.** Entweder aus `StaffIdentity` (steht bereits als serverseitige Helper-Klasse bereit) oder als nicht vertrauenswürdiger Input, der serverseitig gegen `UserInfo` geprüft wird. Ein `ActorId__c`-Parameter, den der Client frei setzt, wäre genau die Fälschung, die S3 meldet — nur serverseitig.
+2a. **Nicht nur der Actor.** Der Sandbox-Selbsttest vom 2026-10-07 hat gezeigt, dass sechs Felder als restricted Picklists abgesichert sind (`Action__c`, `ActorType__c`, `Domain__c`, `Visibility__c`, `Sensitivity__c`, `Source__c`), fünf aber **frei setzbar** bleiben: `EventType__c`, `SubjectType__c`, `SubjectId__c`, `OccurredAt__c`, `SchemaVersion__c`. Diese fünf müssen serverseitig validiert werden — `EventType__c` gegen eine erlaubte Menge, `SubjectId__c` gegen die Existenz und Berechtigung des referenzierten Objekts, `OccurredAt__c` gegen „nicht in der Zukunft, nicht älter als X". Sonst bleibt die Fälschung vollständig erhalten, nur eben serverseitig statt clientseitig.
 3. `validateMetadata`/`MAX_METADATA_SIZE = 10000` und die `METADATA_ALLOWLISTS` (`src/types/audit.ts:395`) **serverseitig** spiegeln. Im Client sind sie nur Kosmetik, weil der Client die Quelle der Daten ist.
 4. Testklasse `AuditEventWriterTest.cls` nach dem Muster der vorhandenen Apex-Tests.
 5. `auditApiService.createAuditEventRecord` und `auditOutbox` auf den neuen Pfad umstellen.
 6. **Erst wenn das deployed und getestet ist:** `AuditEvent__c allowCreate=false`, `AuditOutbox__c allowEdit=false` (+ `allowCreate=false`) in `backend_Coach`.
-7. Smoke-Test in der Org: Absenz anlegen, Event in der Timeline prüfen, danach die Rechte entziehen und den Smoke-Test wiederholen.
+7. Smoke-Test in der Org: Absenz anlegen, Event in der Timeline prüfen, danach die Rechte entziehen und den Smoke-Test wiederholen. Für den Gegentest `sf data create record -o hubSandbox -s AuditEvent__c` verwenden — funktioniert heute und muss danach scheitern.
 
 **Aufwand:** M. **Risiko:** hoch, wenn Schritt 6 vor Schritt 5/7 kommt — dann ist das Audit weg. Deshalb wird Schritt 6 in einem **eigenen Commit** gemacht, getrennt von der Server-Implementierung.
 
