@@ -19,7 +19,7 @@ import CREATE_AUDIT_EVENT from './query/CreateAuditEvent.graphql?raw';
 /**
  * Response structure from GetParticipantActivityTimeline query
  */
-interface AuditEventNode {
+export interface AuditEventNode {
   Id: string;
   OccurredAt__c?: { value?: string } | null;
   CreatedDate?: { value?: string } | null;
@@ -68,7 +68,11 @@ interface CreateAuditEventResponse {
 /**
  * Map Salesforce AuditEvent__c node to domain AuditEvent type
  */
-function mapAuditEventNode(node: AuditEventNode): AuditEvent {
+/**
+ * Node -> AuditEvent. Exportiert, weil `availabilityAuditTrail` dieselbe
+ * Abbildung braucht; zwei Mapper wuerden hier still auseinanderlaufen.
+ */
+export function mapAuditEventNode(node: AuditEventNode): AuditEvent {
   const parseJsonField = (value: string | null | undefined): unknown => {
     if (!value) return undefined;
     try {

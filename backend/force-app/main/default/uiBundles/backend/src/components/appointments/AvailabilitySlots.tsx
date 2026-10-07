@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/layout";
 import type { AvailabilitySlot, AvailabilitySlotFilters, AvailabilitySlotType } from "@/types/availabilitySlot";
 import { getAvailabilitySlots, createAvailabilitySlot, updateAvailabilitySlot, deleteAvailabilitySlot } from "@/api/appointment/appointmentService";
+import { AvailabilityHistory } from "./AvailabilityHistory";
 import { toast } from "sonner";
 
 interface AvailabilitySlotsProps {
@@ -278,6 +279,8 @@ export function AvailabilitySlots({ currentUserId }: AvailabilitySlotsProps) {
         </div>
       )}
 
+      <AvailabilityHistory currentUserId={currentUserId} />
+
       {/* Create/Edit Dialog */}
       <Dialog open={showForm} onOpenChange={(open) => { if (!open) { setEditingSlot(null); setShowForm(false); } }}>
         <DialogContent className="max-w-md">
@@ -342,8 +345,8 @@ export function AvailabilitySlots({ currentUserId }: AvailabilitySlotsProps) {
               <div className="grid gap-2">
                 <Label htmlFor="type">Typ</Label>
                 <Select value={formType} onValueChange={(v) => setFormType(v as any)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Typ" />
+                  <SelectTrigger id="type">
+                    <SelectValue placeholder="Typ wählen" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Coaching">Coaching</SelectItem>
