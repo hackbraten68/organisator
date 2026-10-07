@@ -14,6 +14,7 @@ import {
 import { format, parseISO } from "date-fns";
 import type { AppointmentType } from "@/types/appointment";
 import type { AvailabilitySlot } from "@/types/availabilitySlot";
+import { slotDateTimes } from "@/utils/slotDateTime";
 
 interface ProposeSlotsDialogProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export function ProposeSlotsDialog({
   const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
   const [dateFilter, setDateFilter] = useState<string>("");
   const [proposing, setProposing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const formatTime = (timeStr: string) => {
     try {
@@ -62,7 +64,13 @@ export function ProposeSlotsDialog({
       });
   }, [availableSlots, type, dateFilter]);
 
+  // Ohne Datum gibt es keinen vorschlagbaren Termin. Solche Slots werden
+  // angezeigt, aber nicht auswaehlbar — sonst entstaende beim Senden die
+  // nackte Uhrzeit ("09:00") statt eines Datums.
+  const isProposable = (slot: AvailabilitySlot) => slotDateTimes(slot) !== null;
+
   const handleToggleSlot = (slotId: string) => {
+    setError(null);
     setSelectedSlotIds((prev) =>
       prev.includes(slotId) ? prev.filter((id) => id !== slotId) : [...prev, slotId]
     );
@@ -70,26 +78,31 @@ export function ProposeSlotsDialog({
 
   const handlePropose = async () => {
     if (selectedSlotIds.length !== 3) {
-      alert("Bitte genau 3 Slots auswählen");
+      setError("Bitte genau 3 Slots auswählen");
       return;
     }
 
+    const selectedSlots = selectedSlotIds
+      .map((id) => availableSlots.find((s) => s.id === id))
+      .filter((s): s is NonNullable<typeof s> => s !== undefined);
+
+    // Slot koennte zwischen Auswahl und Klick deaktiviert worden sein.
+    const undated = selectedSlots.filter((slot) => !isProposable(slot));
+    if (undated.length > 0) {
+      setError("Ausgewählte Slots haben kein gültiges Datum und können nicht vorgeschlagen werden.");
+      return;
+    }
+
+    const slots = selectedSlots.map((slot) => slotDateTimes(slot) as { startTime: string; endTime: string });
+
     setProposing(true);
+    setError(null);
     try {
-      const selectedSlots = selectedSlotIds.map((id) => availableSlots.find((s) => s.id === id)).filter((s): s is NonNullable<typeof s> => s !== undefined);
-      const slots = selectedSlots.map((slot) => ({
-        startTime: slot.validFrom
-          ? `${slot.validFrom}T${slot.startTime}`
-          : slot.startTime,
-        endTime: slot.validFrom
-          ? `${slot.validFrom}T${slot.endTime}`
-          : slot.endTime,
-      }));
       await onPropose(slots);
       onClose();
     } catch (err) {
       console.error("Propose failed", err);
-      alert("Fehler beim Vorschlagen der Slots");
+      setError("Fehler beim Vorschlagen der Slots");
     } finally {
       setProposing(false);
     }
@@ -155,13 +168,15 @@ export function ProposeSlotsDialog({
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {slots.map((slot) => {
                         const isSelected = selectedSlotIds.includes(slot.id);
+                        const proposable = isProposable(slot);
                         return (
                           <button
                             key={slot.id}
                             type="button"
                             onClick={() => handleToggleSlot(slot.id)}
-                            disabled={proposing}
-                            className={`p-3 rounded-lg border-2 transition-all text-left ${
+                            disabled={proposing || !proposable}
+                            aria-pressed={isSelected}
+                            className={`p-3 rounded-lg border-2 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed ${
                               isSelected
                                 ? "border-primary bg-primary/5"
                                 : "border-border hover:border-primary/50 hover:bg-accent"
@@ -172,7 +187,15 @@ export function ProposeSlotsDialog({
                               {isSelected && <Check className="size-4 text-primary" />}
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
-                              {slot.type}
+                              {proposable ? (
+                                <>
+                                  {slot.type}
+                                  {" · "}
+                                  {format(parseISO(slotDateTimes(slot)!.startTime), "dd.MM.yyyy")}
+                                </>
+                              ) : (
+                                "Kein Datum hinterlegt — nicht vorschlagbar"
+                              )}
                             </div>
                           </button>
                         );
@@ -185,6 +208,12 @@ export function ProposeSlotsDialog({
           </div>
 
           <Separator />
+
+          {error && (
+            <p className="text-small text-destructive" role="alert">
+              {error}
+            </p>
+          )}
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onClose} disabled={proposing}>
