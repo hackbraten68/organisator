@@ -2,6 +2,32 @@
 
 Stand 2026-10-07. Zielorg `hubSandbox` (`https://techandteach--devhub.sandbox.my.salesforce.com`).
 
+> ### ✅ Gate G1 ist durchgelaufen — Ergebnis vom 2026-10-07
+>
+> Diese Liste ist als Arbeitsanleitung geschrieben worden und wurde danach vollständig
+> abgearbeitet. Die Ergebnisse sind in `security-audit-report.md` **Abschnitt 4** festgehalten.
+> Kurzfassung, damit niemand die Liste erneut von vorn abarbeitet:
+>
+> | Punkt | Ergebnis |
+> |---|---|
+> | Sharing Reason `Portal_Access__c` | vorhanden auf `Participant__c` **und** `Learning_Path__c` |
+> | OWD `Participant__c` | intern **Public Read/Write**, extern Private — *nicht* Private, siehe S6 |
+> | OWD `Audit-Event` | intern **Private** — einziges Sonderfall, `viewAllRecords` ist dort tragend |
+> | OWD `Contact` / `Account` | Controlled by Parent / intern Public Read/Write — siehe S7 |
+> | Sharing Rule `Participant__c` | **existiert und wirkt** (`Portal User = $User.Id` → `Portal_Participants`, Read Only) |
+> | Sharing Rule `Account` | keine |
+> | Coach-Profil | **existiert nicht** — Coaches hängen an `Standardbenutzer AM` (S8) |
+> | Transaktionssicherheitsrichtlinie | in dieser Org nicht vorhanden |
+> | Clickjack / CSRF | Werkseinstellung, aktiv, nicht änderbar |
+> | Externe Weiterleitungen | „With user's permission" — Konvention in `AGENTS.md` hinterlegt |
+> | `npm run schema:check` | grün, 92 Felder in 10 Objekten |
+>
+> **Vier Fehlwege, die Zeit gekostet haben und im Bericht unter 4b stehen:** Im Lightning
+> Object Manager gibt es keinen OWD-Abschnitt (nur „Edit Custom Object"); ein Objektfilter mit
+> App-Präfix existiert nur in Classic; Sharing Rules auf `Contact` sind bei „Controlled by
+> Parent" nicht anlegbar; Transaktionssicherheitsrichtlinien fehlen komplett, wenn die Funktion
+> in der Org nicht aktiviert ist.
+
 Gate G1 steht vor zwei Dingen: Paket P3 (`defaultSharing`/`AppointmentRequest__c`) aus
 `.opencode/plans/security-fixes-plan.md` und Plan-Schritt 1 aus
 `.opencode/plans/appointment-request-plan.md`. Beide setzen Organ-Wissen voraus, das nicht
@@ -16,14 +42,22 @@ im Repo steht.
    sondern ein Setup-Schritt in dieser Liste. Genau deshalb konnte die Aussage in
    `frontend/.../participantApi.ts:9-13` („Participant__c has an external org-wide default of
    `Private`") nicht aus dem Repo belegt werden.
-2. **Die Sharing Rule `PortalParticipantSeesOwnRecord` ist nicht der Weg — sie wurde
-   gemessen und verworfen.** Sie kommt im Repo nur als Kommentar in
-   `frontend/force-app/main/default/permissionsets/Participant_Portal_Access.permissionset-meta.xml:65`
-   vor. In `portal-deploy-status.md` ist live dokumentiert: die Org speichert und zeigt den
-   Wert, **wertet `$User…` aber nicht aus** — beide Varianten (`$User.Id` und
-   `$User.UserRecord.Id`) lieferten 404, jede Variante mit statischer User-ID 200. Der
-   Portal-Zugang läuft über **Apex Managed Sharing** mit dem Sharing Reason `Portal_Access__c`.
-   Der Kommentar im Permission Set ist damit irreführend und sollte korrigiert werden.
+2. **⚠️ Nachtrag 2026-10-07: die erste Fassung dieser Notiz war falsch.** Sie lautete
+   „die Sharing Rule existiert nicht, weil die Org `$User…` nicht auswertet". Das war eine
+   Verwechslung zweier Mechanismen, und Gate G1 hat sie aufgedeckt:
+
+   - **Formelfelder** werten `$User` tatsächlich nicht aus. `portal-deploy-status.md` ist
+     korrekt: beide Varianten (`$User.Id`, `$User.UserRecord.Id`) liefern 404, statische
+     User-ID 200.
+   - **Sharing-Rule-Kriterien** auf einem Lookup-Feld werten zur Laufzeit aus. Die Regel
+     existiert, heisst nur anders als der Kommentar in
+     `Participant_Portal_Access.permissionset-meta.xml:65` behauptet:
+     `Portal User = $User.Id` → Gruppe `Portal_Participants`, **Read Only**.
+
+   Der Portal-Zugang ist damit dreifach abgesichert: OWD Private + Sharing Rule + Apex
+   Managed Sharing (`Portal_Access__c`). **Der Kommentar im Permission Set bleibt trotzdem
+   irreführend und sollte korrigiert werden** — er nennt einen Regelnamen, den es nicht
+   gibt, und legt damit einen falschen Reparaturpfad nahe.
 
 ---
 

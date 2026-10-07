@@ -14,7 +14,8 @@ Dieser Plan enthält nur die Behebung der Sicherheitsbefunde S1–S6, A1–A3, D
 |---|---|---|---|---|---|
 | **P1** OK | Feld-Policies auf emittierte Namen umstellen + Hand-Flag respektieren | S1, S2 | S | nein | erledigt `2c99185` |
 | **P2** OK | Strukturschutz: Abdeckungstest „jedes emittierte Feld hat eine Policy" | S1 (Struktur) | S | nein | erledigt `e8b949d` |
-| **P3** | `defaultSharing>Private` in 9 Custom-Objekten | S6 | XS | **ja** (Gate G1) | — |
+| ~~P3~~ | ~~`defaultSharing>Private`~~ | ~~S6~~ | — | ❌ **nein** | **ersetzt durch P3a (Setup-Schritt), 2026-10-07** |
+| **P3a** | OWD-Plan: `Account`/`Contact`/`Participant__c` auf Private, Sharing-Struktur für Coaches, Bestandsprüfung | S6, S7 | **L** | ❌ nein, nur Setup | **Gate G1 beantwortet — jetzt messbar** |
 | **P4** | Serverseitiger Audit-Schreibpfad, dann Rechte entziehen | S3, S4 | M | **ja** | P5 |
 | **P5** | Outbox: Replay bauen oder Verzicht dokumentieren | S4 | M | ja | P4 |
 | **P6** OK | `shadcn` von `dependencies` nach `devDependencies` in beiden Bundles | D1 | XS | nein | erledigt 2026-10-06 |
@@ -30,15 +31,21 @@ Dieser Plan enthält nur die Behebung der Sicherheitsbefunde S1–S6, A1–A3, D
 
 ---
 
-## Gate G1 — Org-Zugang
+## Gate G1 — Org-Zugang · ✅ beantwortet 2026-10-07
 
-P3, P4, P5, P7, P10 setzen eine Sandbox voraus. Vor P3 sind drei Fragen zu beantworten, sonst baue ich auf einer Annahme:
+**Das Gate ist geschlossen. Alle Fragen sind gemessen, nicht angenommen.** Arbeitsanleitung: `backend/docs/g1-manual-checklist.md`, Ergebnisse: `backend/docs/security-audit-report.md` Abschnitt 4.
 
-- **G1a** Hat `Participant__c` in der Sandbox tatsächlich `defaultSharing=Private`? Falls **nein**, gibt es heute org-weiten Lesezugriff auf Teilnehmer — das wäre ein eigenständiger Befund und ändert die Reihenfolge (dann vor P1 sofort melden).
-- **G1b** Existiert die Sharing Rule `PortalParticipantSeesOwnRecord` in der Org? Sie wird von `Participant_Portal_Access` referenziert, liegt aber in **keinem** der beiden Projekte (`find` bestätigt: kein `sharingRules`-Ordner). Fehlt sie in der Org, sieht das Portal 0 Rows und P3 nimmt dem Portal die letzte Datengrundlage.
-- **G1c** Gibt es Profile oder Sharing Rules außerhalb unserer Permission-Sets, die Objekte org-weit freigeben?
+| Frage | Antwort | Folge |
+|---|---|---|
+| **G1a** `Participant__c` Private? | **Nein** — intern **Public Read/Write**, extern Private | Neuer Befund **S6**. Jeder interne User liest und bearbeitet alle Teilnehmerzeilen. Der Portalpfad bleibt intakt. |
+| **G1b** Sharing Rule vorhanden? | **Ja**, auf `Participant__c`: `Portal User = $User.Id` → `Portal_Participants`, Read Only. Sie heisst anders als der Kommentar behauptet | **Korrektur** eines früheren Befunds: Formelfelder werten `$User` nicht aus, Rule-Kriterien schon. Portalabsicherung dreifach belegt. |
+| **G1c** Profile/Sharing Rules ausserhalb der Sets? | **Ein eigenes Coach-Profil existiert nicht.** Coaches hängen an `Standardbenutzer AM`. Auf `Account` keine Rule, auf `Contact` nicht anlegbar (OWD Controlled by Parent) | Neuer Befund **S8**. Blockiert die saubere FLS-Lösung aus `coach-fls-checkliste.md`. |
 
-**Einfachste Prüfung:** `sf sobject describe --sobject Participant__c --target-org organiser-dev` und `sf data query --use-tooling-api "SELECT TableDefine, DurableId FROM EntityParticle"` — bzw. der Objekt-Export der gesamten Sharing-Konfiguration. Liegt die Antwort nicht in einer Stunde vor, bleiben P1/P2/P6/P8/P11 das Tagesprogramm und der Rest wartet.
+**Nachgemessen, nicht ursprünglich gefragt:** OWD von `Audit-Event` (intern **Private** — der einzige Sonderfall, damit ist `viewAllRecords` dort tragend), `Account` (intern Public Read/Write), `Contact` (Controlled by Parent). Daraus folgt der zweite neue Befund **S7**: der Contact-Zugriff hängt an `Account`, nicht am Contact — der E1-Kern.
+
+**Weitere Gate-Ergebnisse:** Transaktionssicherheitsrichtlinie in dieser Org nicht vorhanden (weder top-level noch unter Security noch in Session Settings); Clickjack- und CSRF-Schutz auf Werkseinstellung und nicht änderbar; externe Weiterleitungen auf „With user's permission". `npm run schema:check` grün — 92 Felder in 10 Objekten, Repo und Org identisch.
+
+**Konsequenz für die Reihenfolge:** P3 ist als Deploy gegenstandslos und durch **P3a** (Setup-Arbeit, Aufwand L) ersetzt. P10 ist bis dahin kosmetisch.
 
 ---
 
@@ -113,24 +120,42 @@ Im gleichen Zug Block `appointment` (`:271-276`): `StartTime` → `StartTime__c`
 
 ---
 
-## P3 — `defaultSharing>Private` (S6)
+## P3 — ~~`defaultSharing>Private`~~ → P3a: Org-Wide-Default (S6, S7) · 🔴 umgeschrieben 2026-10-07
 
-**Warum:** Die gesamte Sicherheitsarchitektur des Portals hängt daran, dass `Participant__c` `Private` ist. Diese Information steht nur in einem Kommentar in `frontend/.../participantApi.ts:9-13` — nicht in deploybarer Form. Ein Deploy in eine saubere Org erzeugt öffentliche Objekte.
+**Dieser Abschnitt war falsch und wird nicht mehr ausgeführt.** Er empfahl: `<defaultSharing>Private</defaultSharing>` in neun Custom-Objekt-Metadaten eintragen, deployen, Problem gelöst (XS). Gate G1 hat diese Empfehlung in drei Punkten widerlegt:
 
-**Betroffen:** alle **9** Custom-Objekte unter `backend/force-app/main/default/objects/`:
-`Absence__c`, `Appointment__c`, `AuditEvent__c`, `AuditOutbox__c`, `AvailabilitySlot__c`, `Coach_Profile__c`, `Learning_Path__c`, `Module__c`, `Participant__c`, `Program__c`
+1. **Der Org-Wide-Default ist über die Metadata API nicht deploybar.** Es existiert kein `<defaultSharing>`-Element für `CustomObject`. Ein Eintrag im Repo wäre Kommentar — ein grüner Deploy hätte nichts geändert und trotzdem Erfolg gemeldet. **Ein Deploy ist hier kein Nachweis.**
+2. **`<sharingModel>` im Objekt-Metadatum ist nicht der OWD.** Es ist das interne Default-Level für Standard-Lookups. `AuditEvent__c` trägt `<sharingModel>Private</sharingModel>`, was nur `private` für Custom Objects bedeutet. Genau diese Verwechslung hat den ursprünglichen Befund plausibel wirken lassen — sie steht jetzt auch im Report (S6).
+3. **Die vermutete Ursache war nicht die Ursache.** G1a ist beantwortet: `Participant__c` ist intern **Public Read/Write**, nicht Private. Der externe Default ist Private — der Kommentar in `frontend/.../participantApi.ts:9-13` war also richtig, aber unvollständig.
 
-Verifiziert: kein Objekt hat ein `<defaultSharing>`-Element. (`Account` ist ein Standardobjekt — die Org-Default-Sharing-Rolle dafür können wir nicht per Metadaten setzen; das gehört in die Liste der Punkte, die wir dem Chef bzw. dem Admin geben.)
+**Was G1 stattdessen gemessen hat:**
 
-**Schritte**
+| Objekt | Default Internal | Default External | Sharing Rules |
+|---|---|---|---|
+| `Participant__c` | **Public Read/Write** | Private | 1 (Portal, Read Only) — existiert und wirkt |
+| `Account` | **Public Read/Write** | Private | keine |
+| `Audit-Event` | **Private** | Private | keine |
+| `Contact` | Controlled by Parent | Controlled by Parent | nicht anlegbar |
+| 8 weitere Custom | nicht gemessen | nicht gemessen | — |
 
-1. **Gate G1a/G1b beantworten.** Ohne diese Antwort kein Deploy — sonst nehmen wir dem Portal die Datengrundlage, ohne es zu merken.
-2. In jeder `*-meta.xml` `<defaultSharing>Private</defaultSharing>` ergänzen (Schema-Position: nach `<label>`, vor `<deploymentStatus>` — die exakte Reihenfolge beim ersten Mal an der Salesforce-DTD-Prüfung verifizieren, nicht aus dem Gedächtnis).
-3. Sharing Rule `PortalParticipantSeesOwnRecord` **ins Repo holen** (Retrieve aus der Org) oder als fehlend dokumentieren. Ein Permission-Set, das eine nicht existierende Rule referenziert, ist eine stille Fehlkonfiguration.
-4. In dieser Reihenfolge deployen: erst Objekte, dann Rules/Permission-Sets. Nicht in einem `sf project deploy` vermischen — sonst ist bei einem Fehler nicht mehr klar, was schon Teil des Teil-Deploys war.
+**G1b ist ebenfalls beantwortet und die Antwort ist die gute:** Die Sharing Rule existiert (auf `Participant__c`, Kriterium `Portal User = $User.Id` → Gruppe `Portal_Participants`, Read Only). Sie heisst nur anders als der Kommentar in `Participant_Portal_Access.permissionset-meta.xml:65` behauptet. Der Portalpfad ist damit dreifach abgesichert: OWD Private + Sharing Rule + Apex Managed Sharing.
 
-**Verifikation:** `sf sobject describe --sobject Participant__c --target-org organiser-dev` zeigt `sharingModel` wie erwartet; danach als Coach und als Portal-User je einen Smoke-Test (Absenz anlegen, Teilnehmer sehen, Portal öffnen).
-**Aufwand:** XS nach G1. **Risiko:** mittel, wenn G1b falsch beantwortet ist — dann sieht das Portal 0 Rows.
+**Ebenfalls beantwortet:** Es gibt **kein** eigenes Coach-Profil (neuer Befund S8), und `Session Settings` enthält **keine** Transaktionssicherheitsrichtlinien — der Export-Schutz ist in dieser Org nicht konfigurierbar, fällt aber praktisch weg, weil `backend_Coach` kein `Report`-Permission kennt.
+
+### P3a — Was tatsächlich zu tun ist
+
+Nur nach Entscheidung **E1**. Aufwand L, mehrere Wochen, kein Commit.
+
+1. **Bestandsprüfung Contact/Account.** Wie viele Contacts sind über Accounts mit abweichendem Zugriff erreichbar? Ohne diese Zahl kann niemand sagen, was ein OWD-Wechsel kappt. Query über `Account.Sharing` / `Account.SharingRules` und eine Stichprobe.
+2. **Zielbild für den internen Zugriff auf `Contact` festlegen.** Der Vorschlag, der zum Rest des Bestands passt: `Contact` auf Private und gezielte Freigabe über Apex Managed Sharing — dasselbe Muster wie `Participant__c` (`Portal_Access__c`, `without sharing`, `User.ContactId`-Filter). Dann braucht der Backoffice-Bereich eine eigene Grants-Logik für Coaches.
+3. **`Participant__c` auf Private.** Das Portal bleibt dabei intakt (dreifach abgesichert), der Backoffice-Bereich braucht Rows für Coaches. `Coach_Profile__c` hängt an der Contact-Auflösung in `participantService.ts` — beide Wege prüfen.
+4. **`Account` zuerst oder gar nicht.** `Contact` erbt von `Account` („Controlled by Parent"). `Account` auf Private zu ziehen ist der teuerste Schritt und betrifft Adressdaten, Rechnungen und später den Lead-Pfad (den es laut `AGENTS.md` ausdrücklich nicht geben wird). Deshalb: **erst die Bestandsprüfung, dann die Entscheidung, ob `Account` überhaupt angefasst wird.**
+5. **Jede Stufe mit einem Rollback-Pfad.** Der OWD-Wechsel ist in Setup ein Klick zurück; der Datenstand nach dem Wechsel ist es nicht.
+6. **Neue Objekte brauchen eine Onboarding-Regel.** Der OWD überlebt keinen Sandbox-Refresh. Wer ein neues Custom-Objekt anlegt, muss es in Setup selbst auf Private setzen — das gehört als Schritt in die Objektanlage, nicht in ein Ticket.
+
+**Verifikation:** dieselbe `g1-manual-checklist.md`, danach `sf apex run test` und der Browser-Negativtest (`fetch('/organisatorv1/sf/api/services/apexrest/participant-portal/me')` → `NO_CONTACT_IDENTITY`). **Nicht** mit REST-Bearer-Token testen, das liefert immer `INVALID_SESSION_ID` und damit ein falsches Grün.
+
+**Aufwand:** L. **Risiko:** hoch (datenrelevant, kein Rollback im Repo). **Gate:** E1.
 
 ---
 
@@ -226,7 +251,11 @@ Solange A1 (P10) offen ist, erzeugt jede Umsetzung von (a) falsche Sicherheit. I
 
 `viewAllRecords=true` auf 12 von 15 Objekten. Blockiert durch Chef-Entscheidung E1; die Nachricht liegt vor, die Antwort steht aus. Umsetzung hängt an den Varianten aus `.opencode/plans/refactor-security-plan.md` und am Zugang zu Rollen/Portal-Sharing-Zeilen.
 
-Reihenfolge innerhalb von P10, sobald E1 beantwortet ist: erst die Sharing-Grundlage (`defaultSharing`, P3), dann object-level Rechte, dann field-level, dann `viewAllRecords` pro Objekt zurückbauen. Nicht umgekehrt — sonst gibt es ein Fenster, in dem Coaches weder sehen noch schreiben können.
+Reihenfolge innerhalb von P10, sobald E1 beantwortet ist: erst die Sharing-Grundlage (OWD, **P3a** — nicht P3, der ist gegenstandslos), dann object-level Rechte, dann field-level, dann `viewAllRecords` pro Objekt zurückbauen. Nicht umgekehrt — sonst gibt es ein Fenster, in dem Coaches weder sehen noch schreiben können.
+
+**⚠️ Korrektur vom 2026-10-07:** Auf zehn der zwölf Objekte ist `viewAllRecords` **wirkungslos**, weil der interne OWD bereits Public Read/Write ist. Ein Umbau des Permission-Sets ändert dort nichts — P10 ist erst nach P3a sinnvoll, vorher ist es kosmetische Arbeit. Tragend ist `viewAllRecords` nur bei `Audit-Event` (OWD Private); dieses Objekt hat Priorität und gehört mit P4 zusammen behandelt.
+
+**Ergänzung:** Die FLS-31-Felder aus `coach-fls-checkliste.md` setzen ein Profil voraus, das es nicht gibt (S8). Vor P10 ist zu entscheiden: eigenes `Coach`-Profil in Setup anlegen, oder die Felder auf `Standardbenutzer AM` legen und damit die Warnung der eigenen Checkliste auslösen.
 
 ---
 
@@ -260,7 +289,7 @@ Nach `backend/docs/AGENTS.md` und der bisherigen Branch-Historie: eine Sache pro
 ```
 fix(audit):Policy-Schlüssel auf emittierte Feldnamen umstellen        (P1)
 test(audit): Abdeckungstest für Feld-Policies                       (P2)
-chore(metadata): defaultSharing Private für alle Custom-Objekte    (P3)   ← nach G1
+chore(metadata): defaultSharing Private für alle Custom-Objekte    (P3)   ← STRIKT: gegenstandslos, nicht ausführen
 feat(audit): serverseitiger Schreibpfad für Audit-Events            (P4a)
 fix(perms): Schreibrechte auf AuditEvent__c/AuditOutbox__c entziehen (P4b) ← eigener Commit, nach 4a getestet
 chore(deps): shadcn aus den Runtime-Abhängigkeiten entfernen        (P6)

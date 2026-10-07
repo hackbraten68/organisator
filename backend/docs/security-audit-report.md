@@ -1,9 +1,9 @@
 # Security-Audit — Gesamter Codebestand
 
-**Datum:** 2026-10-06
+**Datum:** 2026-10-06, Org-Abgleich ergänzt 2026-10-07
 **Umfang:** beide UI-Bundles (Backend 229 Dateien / 51.590 Zeilen, Frontend 82 Dateien / 7.810 Zeilen), alle Apex-Klassen und Trigger beider SFDX-Projekte, alle Permission-Sets, Objekt-Metadaten, `npm audit` beider Bundles, Dependency-Baum bis zu den Blattbibliotheken.
-**Methode:** statische Analyse plus gezielte Ausführung (ein Test wurde zum Beleg der Kernbefunde geschrieben und danach wieder entfernt). Kein Zugriff auf eine Sandbox-Org — wo das nötig war, steht es als **ORG** dabei.
-**Verwandt:** `.opencode/plans/refactor-security-plan.md` (Berechtigungsmodell E1), `backend/docs/portal/portal-access-plan.md` (Portal-Zweischichtenmodell)
+**Methode:** statische Analyse plus gezielte Ausführung (ein Test wurde zum Beleg der Kernbefunde geschrieben und danach wieder entfernt). Zusätzlich **Gate G1**: die Org-Konfiguration wurde am 2026-10-07 manuell in Salesforce abgelesen (Abschnitt 4).
+**Verwandt:** `.opencode/plans/refactor-security-plan.md` (Berechtigungsmodell E1), `.opencode/plans/security-fixes-plan.md` (Pakete P1–P11), `backend/docs/portal/portal-access-plan.md` (Portal-Zweischichtenmodell), `backend/docs/g1-manual-checklist.md` (Gate G1 als Arbeitsanleitung)
 
 ---
 
@@ -18,8 +18,10 @@ Zwei Befunde sind neu und beide betreffen **Datenschutz von Gesundheitsdaten**, 
 | **S3** | Coaches dürfen `AuditEvent__c` **anlegen** (`allowCreate=true`) — das Audit-Log ist beschreibbar | 🟠 mittel | **neu** |
 | **S4** | Coaches dürfen `AuditOutbox__c` **bearbeiten** (`allowEdit=true`), inkl. `Payload__c` und `Error__c` | 🟠 mittel | **neu** |
 | **S5** | `visibility` wird beim Lesen **nirgends durchgesetzt** — nur dekorativ im Drawer angezeigt | 🟠 mittel | **neu** |
-| **S6** | `defaultSharing` fehlt in allen vier Custom-Objekten des Backend-Projekts | 🟠 mittel | **neu** |
-| **A1** | `viewAllRecords` auf 12 von 15 Objekten — kein Row-Level-Modell für Coaches | 🔴 hoch | bekannt (E1) |
+| **S6** | Interner Org-Wide-Default ist **Public Read/Write** — jeder interne User liest/bearbeitet alle `Participant__c`-Zeilen. Die ursprüngliche Diagnose (`defaultSharing` fehle) war falsch gerahmt: der OWD ist nicht deploybar | 🔴 hoch | **gemessen 2026-10-07** |
+| **S7** | Contact-Zugriff hängt an `Account` (intern Public Read/Write, Contact „Controlled by Parent") — **jeder Coach sieht und bearbeitet alle Contacts**. Eine Freigabe am Permission Set kann nichts ändern | 🔴 hoch | **gemessen 2026-10-07** |
+| **S8** | Es gibt **kein eigenes Coach-Profil**; Coaches hängen an `Standardbenutzer AM` — dem Profil, vor dem die eigene FLS-Checkliste warnt | 🟠 mittel | **gemessen 2026-10-07** |
+| **A1** | `viewAllRecords` auf 12 von 15 Objekten — bei 10 davon **wirkungslos**, weil der interne OWD schon offen ist; tragend nur bei `Audit-Event` | 🔴 hoch | bekannt (E1), verschärft 2026-10-07 |
 | **A2** | `backend_Access` ohne Objekt-/Feldrechte, `backend_Coach` trägt alles | 🟡 niedrig | bekannt (E1) |
 | **A3** | Frontend-Auth-Pfad (830 Zeilen Session-Logik) mit 15 Tests ungesichert | 🟡 niedrig | bekannt |
 | **D1** | `shadcn` steht in `dependencies`, wird nirgends importiert, zieht 6 high-CVEs | 🟠 mittel | behoben 2026-10-06 |
@@ -27,7 +29,13 @@ Zwei Befunde sind neu und beide betreffen **Datenschutz von Gesundheitsdaten**, 
 
 **Sauber geprüft und unauffällig:** keine Secrets im Repo (inkl. Historie), keine XSS-Vektoren, keine GraphQL-Injection, kein dynamisches SOQL, kein Open Redirect, keine CSRF-Lücke, saubere Fehlerkonvention in Apex (kein Exception-Leak nach außen).
 
-**Wichtigste Nachricht:** S1 und S2 sind billig zu beheben (Namensangleich, kein Refactor) und betreffen genau die Datenkategorie, für die in der Org eine Bestätigungspflicht gilt. Ich würde sie vor allem anderen anfassen.
+**Wichtigste Nachricht (Stand 2026-10-07, nach Gate G1):** Die ursprüngliche Priorisierung hat sich verschoben. S1/S2 waren die billigsten Befunde — sie sind behoben. Was Gate G1 zutage gefördert hat, ist die eigentliche Ursache: **die Berechtigungen werden vom Org-Wide-Default getragen, nicht vom Permission Set.** Deshalb ist
+
+1. jede Massnahme am `backend_Coach`-Set für zehn der zwölf Objekte **wirkungslos** (S6/A1),
+2. die Priorität-0-Anforderung „Coach sieht nur freigegebene Contacts" **nicht im Permission Set lösbar** (S7),
+3. der preiswerteste Fix ein manueller Org-Schritt und **kein Commit** — P3 ist entsprechend umgeschrieben.
+
+Vor diesem Hintergrund sind S3 und S4 (beschreibbares Audit-Log) die einzigen Berechtigungsbefunde, die ein Commit tatsächlich beheben kann, weil dort der OWD Private ist.
 
 **Nachtrag 2026-10-06:** S1 und S2 sind behoben (`2c99185`, Paket P1 in `.opencode/plans/security-fixes-plan.md`). Die Beschreibung unten ist der **Auditbefund vor dem Fix** und bleibt unverändert stehen, damit der Befund nachvollziehbar bleibt. Drei Punkte, die erst beim Umsetzen sichtbar wurden:
 
@@ -121,7 +129,7 @@ Ein solcher Fake-Event landet in `GetParticipantActivityTimeline` **neben** den 
 
 **Erschwerend für den Fix:** Der Coach muss `allowCreate` haben, weil das Audit aus der UI heraus in *seiner* Session geschrieben wird. Der Missbrauch und der legitime Pfad teilen sich dasselbe Recht.
 
-**Fix — aber nicht so billig, wie es aussieht (Korrektur vom 2026-10-06, siehe Abschnitt 7):** `allowCreate` auf `false` setzen ist *nicht* möglich, ohne das Audit komplett stillzulegen. Der Audit-Schreibpfad läuft **clientseitig über die Session des angemeldeten Coaches** (`auditApiService.ts:212 createAuditEventRecord` → GraphQL-Mutation `CREATE_AUDIT_EVENT`). Ein Coach braucht also zwingend `allowCreate`, damit der Coach überhaupt ein Audit-Event schreiben kann. Wer `allowCreate` entzieht, löscht das Audit-Log.
+**Fix — aber nicht so billig, wie es aussieht (Korrektur vom 2026-10-06, Umsetzung als Paket P4 in `.opencode/plans/security-fixes-plan.md`):** `allowCreate` auf `false` setzen ist *nicht* möglich, ohne das Audit komplett stillzulegen. Der Audit-Schreibpfad läuft **clientseitig über die Session des angemeldeten Coaches** (`auditApiService.ts:212 createAuditEventRecord` → GraphQL-Mutation `CREATE_AUDIT_EVENT`). Ein Coach braucht also zwingend `allowCreate`, damit der Coach überhaupt ein Audit-Event schreiben kann. Wer `allowCreate` entzieht, löscht das Audit-Log.
 
 Der eigentliche Fix ist ein **serverseitiger Schreibpfad**: eine Apex-Klasse, die das Event in `without sharing`/System-Mode persistiert, den Actor aber aus dem Konstrukt ableitet (nicht aus einem frei setzbaren Parameter). Danach kann `allowCreate` entzogen werden. Aufwand M statt XS, plus Apex-Testklasse.
 
@@ -142,7 +150,7 @@ Feldrechte: CorrelationId__c, Error__c, NextRetryAt__c, ParticipantId__c,
 
 Das ist primär ein Korrektheitsproblem, sekundär ein Sicherheitsproblem: der Pfad, über den die Rechte vergeben sind, ist gleichzeitig der Pfad, der nie läuft. Wer S3/S4 entschärft, sollte sich bewusst sein, dass der Ausfall-Pfad derzeit nur aus einem Log-Eintrag besteht.
 
-**Fix:** Siehe Abschnitt 7 — dieselbe Klippe wie bei S3: Die Outbox wird ebenfalls clientseitig geschrieben (`auditOutbox.ts:95 AuditOutbox__cCreate`, `:151 Update`). `allowEdit` kann erst entzogen werden, wenn ein serverseitiger Schreibpfad existiert. Parallel zu entscheiden: Wird die Outbox überhaupt replayed (aktuell nein), oder wird der bewusste Verzicht dokumentiert (ADR-14)? Der jetzige Zustand ist weder das eine noch das andere.
+**Fix:** Siehe Paket P4 in `.opencode/plans/security-fixes-plan.md` — dieselbe Klippe wie bei S3: Die Outbox wird ebenfalls clientseitig geschrieben (`auditOutbox.ts:95 AuditOutbox__cCreate`, `:151 Update`). `allowEdit` kann erst entzogen werden, wenn ein serverseitiger Schreibpfad existiert. Parallel zu entscheiden: Wird die Outbox überhaupt replayed (aktuell nein), oder wird der bewusste Verzicht dokumentiert (ADR-14)? Der jetzige Zustand ist weder das eine noch das andere.
 
 ---
 
@@ -172,17 +180,72 @@ Dieselbe Lücke bei `sensitivity` (gleiche Datei, gleiches Muster).
 
 ---
 
-### S6 — `defaultSharing` fehlt in allen Custom-Objekten 🟠
+### S6 — Der interne Org-Wide-Default ist öffentlich 🔴 (neu gefasst 2026-10-07)
 
-`backend/force-app/main/default/objects/{Participant,Absence,Appointment,AuditEvent}__c` enthalten **kein** `<defaultSharing>`-Element.
+**Der ursprüngliche Befund dieses Abschnitts war falsch gerahmt.** Er lautete: „`<defaultSharing>` fehlt in den Custom-Objekt-Metadaten, ein Deploy in eine saubere Org erzeugt öffentliche Objekte, also `<defaultSharing>Private</defaultSharing>` nachtragen (XS)." Zwei Dinge widerlegen die Handlungsanweisung:
 
-Ohne dieses Element gilt der Salesforce-Default für Custom Objects: `ReadWrite` bzw. `PublicReadWrite` — das Modell, das die Frontend-Dokumentation ausdrücklich als **falsch** beschreibt:
+1. **Der Org-Wide-Default ist über die Metadata API nicht deploybar.** Es gibt kein `<defaultSharing>`-Element für `CustomObject`; der OWD ist eine rein organisatorische Einstellung in Setup. Ein Eintrag im Repo wäre Kommentar, keine Invariante — ein grüner Deploy hätte nichts geändert und false confidence erzeugt.
+2. **`<sharingModel>` im Objekt-Metadatum ist nicht der OWD.** Es ist das interne Default-Level für Standard-Lookups. `AuditEvent__c` trägt `<sharingModel>Private</sharingModel>`, was lediglich `private` für Custom Objects bedeutet — **nicht** org-weit. Diese Verwechslung hat den ursprünglichen Befund plausibel wirken lassen.
 
-> `Participant__c` has an external org-wide default of `Private` (aus `frontend/.../participantApi.ts:9-13`)
+**Was tatsächlich gilt (gemessen, Gate G1):**
 
-Der aktuelle Sandboxzustand ist offenbar `Private` (die Portal-Doku stützt sich darauf), aber er steht **nirgends im Repo**. Ein `sf project deploy` in eine saubere oder neue Org erzeugt Objekte mit öffentlichem Lesezugriff. Dasselbe gilt für `AuditEvent__c`: ohne `defaultSharing` sind Audit-Events org-weit lesbar, sobald ein Benutzer `allowRead` auf das Objekt hat.
+| Objekt | Default Internal | Default External | Grant via Hierarchies |
+|---|---|---|---|
+| `Participant__c` | **Public Read/Write** | Private | ✓ |
+| `Account` | **Public Read/Write** | Private | ✓ |
+| `Audit-Event` | **Private** | Private | ✓ |
+| `Contact` | Controlled by Parent | Controlled by Parent | ✓ |
+| 8 weitere Custom-Objekte | nicht gemessen | nicht gemessen | — |
 
-**Fix (XS):** `<defaultSharing>Private</defaultSharing>` in alle vier (bzw. alle sieben Custom-Objekt-Metadaten) eintragen und mitdeployen. Damit wird der Ist-Zustand zurdeploybaren Invariante.
+`Participant__c` ist also **nicht** Private. Der Kommentar in `frontend/.../features/participant/api/participantApi.ts:9-13` —
+
+> `Participant__c has an external org-wide default of `Private`
+
+— ist **richtig**, aber unvollständig: er sagt nichts über den internen Default. Genau die Auslassung lässt den Eindruck entstehen, das Objekt sei abgeschottet.
+
+Das ist der eigentliche Befund: **jeder interne User — Coach oder nicht — darf alle `Participant__c`-Zeilen lesen und bearbeiten.** `viewAllRecords` im `backend_Coach`-Set ist dafür nicht einmal nötig (siehe A1). Das Portal ist davon unberührt, weil es über `User.ContactId` und Managed Sharing läuft; der Backoffice-Bereich nicht.
+
+**Wirkung von `<defaultSharing>` im Repo:** keine. **Wirkung des Setup-Schritts:** sehr groß, aber mit Preis (siehe S7). Der former als XS geführte Punkt P3 ist damit **kein Commit, sondern ein manueller Org-Schritt** — mit Erstaufwand in Stunden und dauerhafter Pflege bei jedem neuen Objekt.
+
+---
+
+### S7 — Contact-Zugriff hängt an `Account`, nicht am Contact 🔴 (gemessen 2026-10-07)
+
+Dieser Befund ist die belegte Fassung von „E1 ist nicht machbar" — und er ist schlechter als die Planung annahm.
+
+```text
+Account   Default Internal Access = Public Read/Write
+   └─► Contact   Default Internal Access = Controlled by Parent
+          └─► jeder interne User: lesen + bearbeiten alle Contacts
+```
+
+`Contact` erbt den Zugriff vom übergeordneten Account (`Controlled by Parent`). Weil `Account` intern offen ist, gilt das für praktisch jeden Contact der Org. Ausnahme wäre nur ein Account, der selbst wieder „Controlled by Parent" ist — bei den vier kundeneigenen Profilen nicht der Fall.
+
+Drei Konsequenzen, in dieser Reihenfolge wichtig:
+
+1. **Eine Freigabe von `Contact` am Permission Set bewirkt nichts.** Siehe A1 — bei internem Public Read/Write ist `viewAllRecords` wirkungslos. Der UI-Filter im Backoffice-Bundle wäre die dritte Schranke, nicht die erste.
+2. **`Account` ist das eigentliche Ventil, und es ist teuer.** `Contact` hängt daran, `Participant__c` hängt am Contact, die Portal-Sharing Rule setzt eine Contact-Zeile voraus. Ein OWD-Wechsel reißt die Kette an drei Stellen und bricht jede interne Nutzung, die heute still über den OWD läuft — im Bundle etwa die Contact-Auflösung in `participantService.ts` und `Coach_Profile__c`. Dafür braucht es eine Sharing-Struktur für Coaches (Rollen-Hierarchie oder Rule nach Rolle) plus eine Bestandsprüfung, wie viele Contacts über abweichend berechtigte Accounts erreichbar sind. Ohne diese Zahl kann niemand sagen, was der Wechsel kappt.
+3. **Für `Contact` sind Sharing Rules nicht anlegbar.** Salesforce erlaubt sie nur bei OWD `Public Read Only` / `Public Read/Write` / `Private`; der Bildschirm meldet für Contact wörtlich *„You cannot create sharing rules for this item."* Auf `Account` ist es möglich, dort steht aber *„No sharing rules specified"* — die Kette hängt also tatsächlich rein am OWD. Gemessen, nicht vermutet.
+
+**Der saubere Weg wäre `Contact` auf Private plus Apex Managed Sharing** — dasselbe Muster, mit dem das Portal heute schon arbeitet (`Portal_Access__c`, `without sharing`, `User.ContactId`-Filter), konsistent mit `Participant__c` und `Learning_Path__c`, die genau so abgesichert sind. Aufwand M, Entscheidung E1.
+
+**Entlastend:** extern bleibt alles dicht. `Account` extern Private → `Contact` extern Controlled by Parent → keine externen Contacts. Die Portal-Isolation ist unabhängig von der internen Lage intakt.
+
+---
+
+### S8 — Es gibt kein eigenes Coach-Profil 🟠 (gemessen 2026-10-07)
+
+Die FLS-Architektur des Projekts setzt voraus, dass Coaches eine eigene Profilrolle bekommen. In der Sandbox gibt es sie nicht.
+
+Belegte Profile: `Standardbenutzer AM` (Salesforce-Lizenz, **die Coaches**), `Standardbenutzer Sales`, `Knowledge-Manager`, `Read Only`, `Service-Supervisor`, `Serviceagent`, `Trainer` (Customer Community Plus), `Trainer Login`, `Salesforce API Only System Integrations`. Sonst nichts Eigenes.
+
+Damit hängen die Coaches an `Standardbenutzer AM` — genau dem Profil, vor dem `backend/docs/coach-fls-checkliste.md` warnt:
+
+> Wenn diese Freigaben auf `Standardbenutzer AM` landen, bekommen **alle** User mit diesem Profil Zugriff auf sämtliche Teilnehmerdaten — auch die, die keine Coaches werden sollen.
+
+Die Checkliste empfiehlt 31 required Felder für das Coach-Profil und stellt selbst fest, dass Permission Sets das nicht leisten können (`You cannot deploy to a required field: AuditOutbox__c.RetryCount__c`). Profile werden nie deployed — reine Handarbeit in Setup.
+
+**Die Entscheidung ist organisatorisch, nicht technisch:** 31 Felder auf `Standardbenutzer AM` legen (schnell, aber die Freigabe hängt an einem geteilten Profil und jeder Nicht-Coach mit diesem Profil erbt sie) oder zuerst ein eigenes `Coach`-Profil anlegen (einmalig ~10 Minuten, danach sauber trennbar — aber alle Coaches müssen neu zugewiesen werden, und `scripts/org-setup.config.json` weist ohnehin nur `backend_Access` zu; `backend_Coach` wird pro Coach manuell vergeben).
 
 ---
 
@@ -215,6 +278,18 @@ Detaillierte Aufschlüsselung (neu, für die Chef-Vorlage nützlich):
 Bemerkenswert: `ContentVersion` hat `allowCreate=true` bei `viewAllRecords=false` — das ist der Datei-Upload-Pfad der Abwesenheitsdokumente (`AbsenceDocuments.tsx`), also gewollt.
 
 **Kernproblem:** Die Priorität-0-Anforderung „Coach sieht nur freigegebene Contacts" ist im Permission-Set nicht abbildbar. Ein UI-Filter ist kosmetisch; Report, Flow und Apex-Query eines Coaches umgehen ihn. → Entscheidung E1, Chef-Nachricht liegt vor.
+
+**Verschärfung durch den gemessenen OWD (Gate G1, 2026-10-07):** Bei zehn der zwölf Objekte ist `viewAllRecords` **wirkungslos**, weil der interne OWD bereits Public Read/Write ist — der Org-Default gibt jedem internen User ohnehin Vollzugriff, das Permission Set fügt nichts hinzu. Es gibt genau eine Ausnahme:
+
+| Objekt | interne OWD | Wirkung von `viewAllRecords` |
+|---|---|---|
+| `Audit-Event` | **Private** | **tragend** — die einzige Zugriffstür überhaupt |
+| `Participant__c`, `Account`, 8 weitere Custom | Public Read/Write | wirkungslos |
+| `Contact` | Controlled by Parent | wirkungslos |
+
+Damit sitzt die eigentliche Exposition beim Audit-Log: jeder Coach kann **alle** Audit-Events der Org lesen (`Participant__c`, `ActorId__c`, `EventType__c`, Zeitstempel im Klartext) und mit `allowCreate=true` eigene erzeugen (S3). Zwei Fehlerrichtungen in einem Objekt. Und `Participant__c` trägt als einziges Objekt personenbezogene Daten im Klartext.
+
+**Konsequenz für E1:** „Permission-Set umbauen" ist als Massnahme **wirkungslos**. Das einzige Ventil ist der OWD-Wechsel auf Private — und der ist bei `Account`/`Participant__c` ein migrationsrelevanter Eingriff (siehe S7). Die Chef-Vorlage ist entsprechend neu geschrieben.
 
 ---
 
@@ -331,41 +406,78 @@ Diese Prüfungen sind **negativ** ausgegangen. Sie aufzunehmen ist Absicht — e
 
 ---
 
-## 4. Was ich nicht prüfen konnte
+## 4. Gate G1 — Org-Konfiguration, gemessen
 
-Diese Punkte sind als **ORG** markiert. Ohne Org-Zugang sind das Vermutungen, keine Befunde — ich behaupte hier nichts, was ich nicht gemessen habe.
+Am 2026-10-07 manuell in Salesforce abgelesen. Alles in dieser Tabelle ist **gemessen**, nicht aus Metadaten abgeleitet. Das Gate selbst ist als Arbeitsanleitung in `backend/docs/g1-manual-checklist.md` dokumentiert.
+
+| # | Punkt | Ergebnis | Aussage |
+|---|---|---|---|
+| ✅ | Sharing Reason `Portal_Access__c` | vorhanden auf `Participant__c` **und** `Learning_Path__c` | Portal-Absicherung trägt auf beiden Objekten |
+| ✅ | OWD `Participant__c` | intern **Public Read/Write**, extern Private, Hierarchien ✓ | siehe S6 — das Portal hängt daran, der Backoffice-Bereich nicht |
+| ✅ | OWD `Audit-Event` | intern **Private**, extern Private | einziges Private-Objekt; `viewAllRecords` ist hier tragend |
+| ✅ | OWD `Contact` | Controlled by Parent (beide Richtungen) | keine Sharing Rules anlegbar |
+| ✅ | OWD `Account` | intern **Public Read/Write**, extern Private | Wurzel der Contact-Kette, siehe S7 |
+| ✅ | Sharing Rule `Participant__c` | `Portal User = $User.Id` → Gruppe `Portal_Participants`, **Read Only** | **existiert und wirkt** — siehe Korrektur unten |
+| ✅ | Sharing Rule `Account` | keine | Contact-Kette hängt rein am OWD |
+| ✅ | Coach-Profil | **existiert nicht** | siehe S8 |
+| ✅ | Transaktionssicherheitsrichtlinie | **nicht vorhanden** | Menüpunkt fehlt in Setup **und** in Session Settings; zusätzlich fehlt das `Report`-Permission in `backend_Coach`, Coaches können also ohnehin keine Reports ausführen |
+| ✅ | Clickjack-Schutz | Setup- und Nicht-Setup-Seiten aktiv (ausgegraut, Werkseinstellung) | keine Abweichung |
+| ✅ | CSRF-Schutz | GET und POST auf Nicht-Setup-Seiten aktiv (ausgegraut, Werkseinstellung) | keine Abweichung |
+| ⚠️ | Externe Weiterleitungen | **„With user's permission"** | siehe unten |
+| ◐ | OWD der 8 übrigen Custom-Objekte | nicht gemessen | Erwartung Public Read/Write, kein Informationsgewinn |
+| ⬜ | Portal-Sharing-Zeilen pro User | nicht gemessen | `portal-deploy-status.md` dokumentiert zwei User mit Kontakt und Participant-Zeile |
+| ⬜ | Audit-Schreibpfad nach S3-Korrektur | nicht getestet | beide Projekte deployen in dieselbe Org |
+| ⬜ | `sf apex run test` | Auth gegen `techandteach--devhub` fehlt | Org-Host nicht in `~/.sfdx/`, `sf org login web --alias devhub` nötig |
+
+**Korrektur zu einem früheren Befund.** Ich hatte geschlossen, die Sharing Rule `PortalParticipantSeesOwnRecord` existiere nicht und `$User.Id` werde nicht ausgewertet. Das war eine Verwechslung zweier Mechanismen. Die **Formelfelder** (`Participant__c.Portal_User_Id__c` u. a.) werten `$User` tatsächlich nicht aus — das ist in `portal-deploy-status.md` korrekt dokumentiert. **Sharing-Rule-Kriterien** auf einem Lookup-Feld funktionieren dagegen zur Laufzeit, und die Regel existiert (unter anderem Namen; der Kommentar in `Participant_Portal_Access.permissionset-meta.xml:65` ist falsch). Die Portal-Isolation auf `Participant__c` ist damit **dreifach** belegt: OWD Private + Sharing Rule (Read Only an `Portal_Participants`) + Apex Managed Sharing.
+
+**Nebenbefund:** Die Rule gewährt **Read Only**. Portal-User können über die UI API keine `Participant__c`-Zeilen schreiben. Das passt zum heutigen reinen Lese-Zugriff; ein künftiger Portal-Schreibpfad würde hier brechen.
+
+**Externe Weiterleitungen auf „With user's permission".** Das ist eine Freigabestufe, keine Abschaltung — User mit Erlaubnis dürfen aus Flows oder Apex-Redirects an beliebige externe URLs springen, ohne Whitelist. Unser Login-Pfad ist doppelt abgesichert (`authHelpers.ts:54-60` clientseitig, `UIBundleLogin.cls:26` → `UIBundleAuthUtils.getSanitizedStartUrl` serverseitig, dekodiert vor der Prüfung) und beide Stellen sind verdrahtet. Die Lücke liegt in der **Organisation**: jeder künftige Loginweg, der nicht über diese beiden Funktionen läuft, entscheidet an der Org-Einstellung und nicht an unserem Code. Als Konvention in `backend/docs/AGENTS.md` hinterlegt.
+
+**✅ Schema-Abgleich Repo gegen Org (2026-10-07):** `npm run schema:check` grün — 92 Felder in 10 Custom-Objekten, Repo und Org identisch, `soqlFailures=0`, `newObjFailures=0`, `insertFailures=0`, `missingObjects=0`. Damit ist bestätigt, dass die manuell in Setup angelegten Felder (`Participant__c.Portal_User__c`, `Portal_User_Id__c`) real existieren. `Account` wird übersprungen, weil das Repo dort keine Custom-Felder deklariert. **Merke:** das Skript startet eine Browser-Session, es braucht also einen interaktiven Login.
+
+### 4a. Was weiterhin ungeprüft ist
 
 | # | Offen | Warum es zählt | Wie man es klärt |
 |---|---|---|---|
-| O1 | Ist `Participant__c` in der Sandbox tatsächlich `Private`? | Die gesamte Portal-Sicherheitsarchitektur hängt daran (siehe S6) | `sf org describe` bzw. Objekt-Metadaten aus der Org ziehen |
-| O2 | Zusätzliche Profile/Sharing Rules über die Permission-Sets hinaus | Ein Profil mit `viewAllRecords` würde A1 verschlimmern, eins mit `Private`-Default würde es mildern | Sharing-Konfiguration aus der Org exportieren |
 | O3 | Funktioniert der Audit-Schreibpfad nach der S3-Korrektur? | Beide Projekte deployen in dieselbe Org — `allowCreate=false` könnte den Schreibpfad treffen | In Sandbox deployen und einen Absenz-Wert melden |
-| O4 | Apex-Tests in der Org (`sf apex run test`) | Testabdeckung der Klassen ist lokal nicht prüfbar | Testlauf gegen Sandbox |
-| O5 | Sind die Transaktionssicherheitsrichtlinien aktiv? | `sfdc_default_ReportExport_Protection` liegt als Metadaten im Repo, die Aktivierung in der Org ist ein separates Thema | `TransactionSecurityPolicies` in der Org prüfen |
+| O4 | Apex-Tests in der Org (`sf apex run test`) | Testabdeckung der Klassen ist lokal nicht prüfbar | `sf org login web --alias devhub` setzen, dann Testlauf |
 | O6 | Portal-Sharing-Zeilen pro User tatsächlich vorhanden | Ohne die `Portal_Access__c`-Zeile sieht der Portal-User 0 Rows | Sharing-Liste abfragen |
+
+### 4b. Fallstricke beim Ablesen in Salesforce
+
+Zwei Wege, die ich selbst gegangen bin und die niemandem sonst Zeit kosten sollten:
+
+- **Der OWD steht nicht in den Objekt-Metadaten.** `<sharingModel>` ist nicht der Org-Wide-Default (siehe S6), und ein `<defaultSharing>`-Element gibt es nicht. Nur ablesbar in `Setup → Security → Sharing Settings`, Spalten *Default Internal Access* / *Default External Access*.
+- **Der Lightning Object Manager hilft dafür nicht.** `Objekt → Details` zeigt nur „Edit Custom Object", keinen OWD-Abschnitt. Der Objektfilter mit App-Präfix existiert nur in Classic — in Lightning gibt es nur ein Suchfeld für Objekte.
+- **Sharing Rules für `Contact` lassen sich nicht anlegen**, solange der OWD `Controlled by Parent` ist; der Bildschirm sagt das wörtlich. Das ist ein Befund, kein Bedienfehler.
+- **Transaktionssicherheitsrichtlinien** sind weder top-level noch unter `Security` auffindbar, wenn die Funktion fehlt. Auch in Classic prüfbar, bevor man auf eine Feature-Abwesenheit schliesst.
 
 ---
 
 ## 5. Empfohlene Reihenfolge
 
-Nach Risiko, dann Aufwand. Die oberen vier Zeilen kosten zusammen unter einer Stunde.
+Nach Risiko, dann Aufwand — **nach** dem Org-Abgleich vom 2026-10-07. Die Spalte „Kann ein Commit das lösen?" ist neu und beantwortet die Frage, die sich bei jedem Punkt stellt: der Berechtigungszustand wird vom OWD getragen, nicht vom Permission Set.
 
-| Prio | Befund | Aufwand | Warum jetzt |
-|---|---|---|---|
-| **1** | ✅ S1 + S2 — Policy-Schlüssel auf `__c` umstellen, `CoachComment__c` ergänzen, eingehendes `redacted`-Flag respektieren, 9 Tests | erledigt | Gesundheitsdaten im Klartext. Der Code **behauptet** bereits Redaktion — der Fix stellt die Absicht wieder her |
-| **2** | S6 — `defaultSharing>Private` in alle Custom-Objekte | XS | Deploybare Invariante statt undokumentiertem Org-Zustand |
-| **3** | S3 + S4 — serverseitiger Audit-Schreibpfad (Apex), danach `allowCreate`/`allowEdit` entziehen | **M** (nicht XS, s. Abschnitt 7) | Log muss unveränderbar sein, sonst ist S1 nur Kosmetik |
-| **4** | D1 — `shadcn` nach `devDependencies` verschieben | XS | 6 high-CVEs weniger, `npm audit` wird wieder lesbar |
-| **5** | A2 — Kommentar im `backend_Access`-Permission-Set | XS | Verhindert den Fehlgebrauch, den der Name nahelegt |
-| **6** | A3 — Tests für `sessionTimeService` und `isValidRedirect` | M | Schließt die Lücke, bevor jemand am Pfad ändert |
-| **7** | S5 — `visibility` durchsetzen oder ehrlich dokumentieren | S | Folge von A1; jetzt zu lösen verhindert falsche Sicherheit |
-| **8** | S4-Teil 2 — Outbox: Replay bauen oder Verzicht dokumentieren | M | Derzeit weder das eine noch das andere |
-| **9** | A1 — Berechtigungsmodell | M + O1/O2 | Entscheidung liegt beim Chef, Umsetzung braucht Org-Zugang |
-| **10** | D2 — `undici`/`source-map-js`/`jsforce` per Override schließen, Rest dokumentieren | XS | **erledigt 2026-10-06** |
+| Prio | Befund | Aufwand | Commit? | Warum jetzt |
+|---|---|---|---|---|
+| **1** | ✅ S1 + S2 — Policy-Schlüssel auf `__c` umstellen, `CoachComment__c` ergänzen, Werte strippen statt nur Flag setzen, 9 Tests | erledigt | ✅ `2c99185` | Gesundheitsdaten im Klartext. Der Code **behauptete** bereits Redaktion — der Fix stellte die Absicht wieder her |
+| **2** | S3 + S4 — serverseitiger Audit-Schreibpfad (Apex), danach `allowCreate`/`allowEdit` entziehen | **M** | ✅ ja | Einziger Berechtigungsbefund, den ein Commit wirklich behebt — weil `Audit-Event` als einziges Objekt intern `Private` steht. Ohne das ist S1 nur Kosmetik |
+| **3** | S5 — `visibility` beim Lesen durchsetzen oder ehrlich dokumentieren | S | ✅ ja | Folge von A1; als Undokumentiertes erzeugt es falsche Sicherheit |
+| **4** | A2 — Kommentar im `backend_Access`-Permission-Set | XS | ✅ ja | Verhindert den Fehlgebrauch, den der Name nahelegt |
+| **5** | ✅ A3 — Tests für `sessionTimeService` und `isValidRedirect` | erledigt | ✅ `7168439` | 35 Tests gegen 830 Zeilen Session-Logik |
+| **6** | S6/S7 — OWD-Plan: `Account`/`Participant__c`/`Contact` auf Private, Sharing-Struktur für Coaches, Bestandsprüfung | **L** | ❌ **Setup** | Der eigentliche Befund. Ein Repo-Commit kann ihn nicht beheben, und ein `<defaultSharing>`-Eintrag wäre wirkungsloses Kosmetik-Metadatum. Entscheidung E1, Aufwand mehrere Wochen |
+| **7** | S8 — eigenes `Coach`-Profil oder FLS auf `Standardbenutzer AM` | XS–M | ❌ **Setup** | Profile werden nie deployed. Entscheidung organisatorisch, blockiert die saubere FLS-Lösung |
+| **8** | S4-Teil 2 — Outbox: Replay bauen oder Verzicht dokumentieren | M | ✅ ja | Derzeit weder das eine noch das andere |
+| **9** | ⚠️ Redirect-Konvention: jeder Loginweg über `UIBundleAuthUtils.getSanitizedStartUrl` | XS | ✅ ja | Org erlaubt untrusted Redirects („with user's permission"); die Absicherung hängt an der Verdrahtung, nicht an der Org |
+| **10** | ✅ D1 + D2 — `shadcn` nach `devDependencies`, `undici`/`source-map-js`/`jsforce` per Override | erledigt | ✅ `a2c942b`, `82e4cde` | 28 → 15 Lücken je Bundle, Rest nicht behebbar |
 
-Punkt 9 bleibt blockiert, bis E1 entschieden ist. Punkt 3 sollte nicht vor O3 laufen.
+**Umnummerierung gegenüber 2026-10-06:** Punkt 2 der alten Liste (`defaultSharing>Private`, XS) ist gestrichen — er war als Deploy formuliert und ist damit gegenstandslos. Er ist als Punkt 6 wieder da, aber als Setup-Arbeit mit anderer Einordnung. Punkt 9 der alten Liste (A1/E1) ist in 6 und 7 aufgegangen.
 
-Punkt 1 ist als `2c99185` umgesetzt. Die Prioritätenliste ist als Plan in `.opencode/plans/security-fixes-plan.md` fortgeschrieben (Pakete P1–P11, offene Entscheidungen E1–E9); dieser Abschnitt bleibt als Befund-Snapshot stehen.
+Punkt 2 sollte nicht vor O3 laufen (beide Projekte deployen in dieselbe Org, der Schreibpfad muss vorher verifiziert sein). Punkt 6 und 7 bleiben blockiert, bis E1 entschieden ist.
+
+Die Paketliste ist als Plan in `.opencode/plans/security-fixes-plan.md` fortgeschrieben (P1–P11, offene Entscheidungen E1–E9); dieser Abschnitt bleibt als Befund-Snapshot mit Reihenfolge stehen.
 
 ---
 
@@ -379,5 +491,9 @@ Alle Zahlen in diesem Report sind gemessen, nicht geschätzt:
 - S1/S2: Test gegen `applyFieldRedaction` mit den realen Feldnamen, danach entfernt. Die Ausgabe steht wörtlich in S1.
 - `dist/`-Prüfung: `grep -rl` gegen `dist/assets` — kein Treffer für `micromatch`, `ts-morph`, `protobuf`
 - Outbox ohne Verarbeiter: `grep -rn "processOutboxOnce"` über `src` → nur `auditOutbox.test.ts`
-- `shadcn` ungenutzt: `grep -rn "from ['\"]shadcn"` → null Treffer
+- `shadcn` ungenutzt: `grep -rn "from ['"]shadcn"` → null Treffer
 - Secrets in der Historie: `git log --all -p -S "BEGIN RSA"` über 158 Commits → null
+- **Org-Konfiguration (Gate G1):** manuell in Salesforce abgelesen, Anleitung in `g1-manual-checklist.md`. Nicht automatisierbar — der OWD ist über keine API und über kein Metadatum lesbar, nur über die Oberfläche.
+- **Schema-Abgleich:** `npm run schema:check` (Vier Ebenen je Objekt, 92 Felder in 10 Custom-Objekten). Braucht einen interaktiven Browser-Login.
+
+**Was an dieser Methode eine Grenze hat:** alle Org-Werte stammen aus einer Sandbox. Ob die Ziel-Org genauso konfiguriert ist, ist unbelegt — der OWD ist beim Anlegen einer neuen Sandbox der wahrscheinlichste Divisor. Vor dem Produktivbetrieb gehört dieselbe Checkliste erneut abgearbeitet.

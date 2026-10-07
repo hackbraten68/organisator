@@ -45,6 +45,75 @@ are in `docs/portal/architecture-decisions.md`.
 
 ---
 
+## Security conventions (binding)
+
+Three rules that no compiler, no test and no deploy enforces. All three were violated or
+nearly violated in this codebase; they exist because of that. Measured basis:
+`security-audit-report.md` (Abschnitt 4, Gate G1 vom 2026-10-07).
+
+### 1. The org-wide default is not deployable — never trust a green deploy on it
+
+The org-wide default (OWD) of an object is **organisational configuration**. It has no
+`<defaultSharing>` element in `CustomObject` metadata and cannot be set by `sf project
+deploy`. `<sharingModel>` in an object file is **not** the OWD — it is the internal default
+level for standard lookups. Reading it as the OWD already produced one wrong security
+finding in this repo.
+
+Consequences that must hold:
+
+- Any statement about who can see what is **only** valid after reading the OWD in
+  `Setup → Security → Sharing Settings`. Until then it is an assumption, and assumptions
+  about sharing are labelled as such.
+- A green deploy says nothing about sharing. For the same reason, a field that was created
+  manually in Setup can be missing from the org while `describe` still reports success
+  (see `schema-repair-checklist.md`, finding 9, and finding 12 for `npm run schema:check`).
+- New custom objects get their OWD set **by hand in Setup**. That step is not tracked by
+  this repo and does not survive a sandbox refresh. It belongs to the checklist that
+  creates the object, not to a ticket afterwards.
+
+### 2. Every login path goes through `UIBundleAuthUtils.getSanitizedStartUrl`
+
+The org is configured with *"Allow redirections to untrusted external URLs: With user's
+permission"* — that is a permission level, not a block. Any Salesforce-side redirect
+(flow, Apex `redirect()`, Experience Cloud page) is therefore only as safe as the code that
+performs it.
+
+- Client side: `authHelpers.ts` → `isValidRedirect`, reachable only through `getStartUrl`.
+- Server side: `UIBundleAuthUtils.getSanitizedStartUrl` — decodes **before** validating,
+  and rejects anything that is not a plain absolute path (`//`, `\`, `@`, `:`, control
+  characters).
+
+**If you add a third login path, it must call `getSanitizedStartUrl`.** Validating in the
+bundle is not enough — a bundle-only path can always be bypassed by hitting the Apex class
+directly.
+
+### 3. `backend_Coach` is not a row-level model
+
+Coaches currently have `viewAllRecords` on 12 of 15 objects, and on ten of them it has **no
+effect** because the internal OWD is Public Read/Write. Removing it from the permission set
+would change nothing for those ten. Do not treat the permission set as the place where
+coach scoping lives; it currently is not. Decision pending: E1.
+
+Field-level security does not fit in permission sets either — the 31 required fields in
+`coach-fls-checkliste.md` cannot be deployed (`You cannot deploy to a required field: …`).
+They need a profile, and **no profile for coaches exists** (they sit on `Standardbenutzer
+AM`). Profiles are never deployed; they are handwork in Setup.
+
+### 4. Sharing rules and formula fields resolve `$User` differently
+
+Both behaviours were observed in the same org on the same object, and confusing them
+produced a wrong conclusion:
+
+- **Formula fields** like `Participant__c.Portal_User_Id__c` do **not** evaluate `$User`.
+  They store static values or stay empty (`portal-deploy-status.md`).
+- **Sharing rule criteria** on a lookup field, e.g. `Participant: Portal User equals
+  $User.Id`, **do** resolve at runtime.
+
+So a broken formula is not evidence that sharing rules are broken, and a working sharing
+rule is not evidence that formulas work. Check the specific mechanism.
+
+---
+
 ## The UI Bundle cannot learn who is signed in
 
 The runtime carries no user identity. `SFDC_ENV` has `orgUrl`, `apiPath`, `basePath`,
