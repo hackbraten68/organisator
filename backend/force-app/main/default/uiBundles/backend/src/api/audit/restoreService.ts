@@ -126,11 +126,21 @@ export async function restoreFromEvent(event: AuditEvent): Promise<RestoreResult
       );
     }
 
-    const item = await addLearningPathItem(event.participantId as string, programId, {
-      title,
-      estimatedWeeks: readNumber(metadata.estimatedWeeks),
-      status,
-    });
+    // `audit: false`: `recordLearningPathRestored` schreibt das einzige
+    // Ereignis. Ohne das stuenden fuer einen Klick zwei Zeilen in der
+    // Timeline, und die koennte nicht mehr sagen, welche davon die
+    // Wiederherstellung ist — genau das Problem, das aus dem Sandbox-Test
+    // entstanden ist.
+    const item = await addLearningPathItem(
+      event.participantId as string,
+      programId,
+      {
+        title,
+        estimatedWeeks: readNumber(metadata.estimatedWeeks),
+        status,
+      },
+      { audit: false },
+    );
     await recordRestoreEvent(event, {
       id: item.id,
       title,

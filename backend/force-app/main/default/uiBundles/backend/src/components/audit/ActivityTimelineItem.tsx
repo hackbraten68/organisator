@@ -81,6 +81,9 @@ export function ActivityTimelineItem({
               onClick={onToggleExpand}
               className="mt-1"
               aria-expanded={isExpanded}
+              // Der Knopf hat sonst keinen Namen: das Chevron ist ein Icon, und
+              // ein Icon ohne Text ist fuer Screenreader und Tastatur nichts.
+              aria-label={isExpanded ? 'Details einklappen' : 'Details ausklappen'}
             >
               <ChevronDown
                 className={`h-4 w-4 transition-transform ${

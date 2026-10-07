@@ -616,6 +616,17 @@ function logAuditFailure(eventType: string, subjectId: string, err: unknown) {
 export async function addLearningPathItem(  participantId: string,
   programId: string,
   input: LearningPathItemInput,
+  /**
+   * `audit: false` unterdrueckt das `learning_path.item_created`-Ereignis.
+   *
+   * Nur die Wiederherstellung aus dem Audit-Protokoll braucht das: sie
+   * schreibt stattdessen `learning_path.item_restored` mit der correlationId
+   * des Loeschungsereignisses. Ohne die Unterdrueckung stuenden in der
+   * Timeline zwei neue Zeilen fuer einen Klick — einmal "erstellt", einmal
+   * "wiederhergestellt" — und die Timeline koennte nicht mehr unterscheiden,
+   * welche davon welche ist.
+   */
+  options: { audit?: boolean } = {},
 ): Promise<LearningPathItem> {
   const existing = await listLearningPath(participantId);
   const maxOrder = existing.reduce((max, item) => Math.max(max, item.order), 0);
@@ -646,10 +657,12 @@ export async function addLearningPathItem(  participantId: string,
 
   // Audit is a side process (ADR-14): best-effort after the confirmed
   // read-back, never blocking the mutation.
-  try {
-    await recordLearningPathItemCreated(created, { actor: getAuditActor() });
-  } catch (err) {
-    logAuditFailure("learning_path.item_created", created.id, err);
+  if (options.audit !== false) {
+    try {
+      await recordLearningPathItemCreated(created, { actor: getAuditActor() });
+    } catch (err) {
+      logAuditFailure("learning_path.item_created", created.id, err);
+    }
   }
   return created;
 }

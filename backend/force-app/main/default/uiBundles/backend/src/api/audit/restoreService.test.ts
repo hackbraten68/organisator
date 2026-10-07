@@ -121,11 +121,21 @@ describe("restoreFromEvent — Lernpfad-Eintrag", () => {
     const result = await restoreFromEvent(deletedItem());
 
     expect(result).toEqual({ kind: "learning_path_item", newId: "lp-new" });
-    expect(mockedAddItem).toHaveBeenCalledWith("p-1", "prog-1", {
-      title: "Einführung",
-      estimatedWeeks: 3,
-      status: "In Progress",
-    });
+    expect(mockedAddItem).toHaveBeenCalledWith(
+      "p-1",
+      "prog-1",
+      { title: "Einführung", estimatedWeeks: 3, status: "In Progress" },
+      { audit: false },
+    );
+  });
+
+  it("unterdrueckt das zweite Anlege-Ereignis", async () => {
+    // Kern der Sorge aus dem Sandbox-Test: ein Klick, zwei Zeilen in der
+    // Timeline, beide mit derselben Bezeichnung.
+    await restoreFromEvent(deletedItem());
+
+    expect(mockedAddItem.mock.calls[0]![3]).toEqual({ audit: false });
+    expect(mockedRecordRestored).toHaveBeenCalledTimes(1);
   });
 
   it("verknuepft Wiederherstellung und Loeschung ueber die correlationId", async () => {
@@ -146,7 +156,6 @@ describe("restoreFromEvent — Lernpfad-Eintrag", () => {
     await expect(restoreFromEvent(event)).rejects.toThrow(/nicht mehr anlegbar/);
     expect(mockedAddItem).not.toHaveBeenCalled();
   });
-
   it("kommt ohne Dauer aus, wenn der Snapshot keine hatte", async () => {
     const event = deletedItem({
       metadata: { ...deletedItem().metadata, estimatedWeeks: null },
@@ -158,6 +167,7 @@ describe("restoreFromEvent — Lernpfad-Eintrag", () => {
       "p-1",
       "prog-1",
       expect.objectContaining({ estimatedWeeks: undefined }),
+      { audit: false },
     );
   });
 });

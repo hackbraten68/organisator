@@ -239,7 +239,12 @@ export async function recordLearningPathRestored(
         ? EVENT_TYPES.LEARNING_PATH_MODULE_RESTORED
         : EVENT_TYPES.LEARNING_PATH_ITEM_RESTORED,
     domain: 'learning_path',
-    action: 'created',
+    // `restored`, nicht `created`: die Timeline beschriftet Ereignisse als
+    // "<SubjectType> <Aktion>". Mit `created` stand dort nach der
+    // Wiederherstellung ein zweites "LearningPathItem erstellt" neben dem
+    // urspruenglichen — zwei Zeilen, die gleich aussahen und doch verschiedene
+    // Vorgaenge waren. `restored` steht in der restricted Picklist Action__c.
+    action: 'restored',
     actorType: options.actor.type,
     actorId: options.actor.id,
     actorDisplayNameSnapshot: options.actor.displayName,

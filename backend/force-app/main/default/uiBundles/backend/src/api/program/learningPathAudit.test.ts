@@ -7,6 +7,7 @@ import {
   updateLearningPathItem,
 } from "./programService";
 import { filterForAudience } from "../audit/activityProjection";
+import { recordLearningPathRestored } from "../audit/learningPathAuditIntegration";
 import type { AuditEvent } from "@/types/audit";
 
 vi.mock("../graphqlClient", () => ({
@@ -380,5 +381,81 @@ describe("learning path audit", () => {
     for (const audience of ["coach", "staff", "supervisor", "auditor", "participant"] as const) {
       expect(filterForAudience([unknown], audience)).toEqual([]);
     }
+  });
+});
+
+/**
+ * Die Wiederherstellung aus dem Audit-Protokoll.
+ *
+ * Gefunden beim Testen in der Sandbox: nach dem Wiederherstellen standen in der
+ * Timeline zwei Zeilen mit derselben Bezeichnung "LearningPathItem erstellt".
+ * Ursache war die `Action__c` der Wiederherstellung (`created`). Der Test
+ * sichert beide Haelften ab — die richtige Action und den Weg in die Timeline.
+ */
+describe("recordLearningPathRestored", () => {
+  const deletedEvent = {
+    id: "evt-deleted",
+    eventType: "learning_path.item_deleted",
+    participantId: "p-1",
+  } as AuditEvent;
+
+  beforeEach(() => {
+    store = [];
+    auditShouldFail = false;
+    mockedExecute.mockReset();
+    mockedExecute.mockImplementation(async (op: string, raw?: unknown) => {
+      if (op.includes("AuditEvent__cCreate")) {
+        return auditRecordFromVariables((raw ?? {}) as Record<string, unknown>) as never;
+      }
+      return { uiapi: { query: { Learning_Path__c: { edges: [] } } } } as never;
+    });
+  });
+
+  it("schreibt die Aktion restored, nicht created", async () => {
+    await recordLearningPathRestored(
+      deletedEvent,
+      { id: "lp-new", title: "Einführung", programId: "prog-1", participantId: "p-1" },
+      { actor: { type: "staff", id: "005x", displayName: "Coach" } },
+    );
+
+    const [, variables] = auditCalls()[0]!;
+    expect(variables.eventType).toBe("learning_path.item_restored");
+    expect(variables.action).toBe("restored");
+    expect(variables.participantId).toBe("p-1");
+    // Die Verknuepfung zur Loeschung: correlationId traegt deren ID.
+    expect(variables.correlationId).toBe("evt-deleted");
+    expect(String(variables.reason)).toContain("evt-deleted");
+  });
+
+  it("ersetzt bei einem Modul das Ereignis und laesst den Teilnehmer leer", async () => {
+    await recordLearningPathRestored(
+      { ...deletedEvent, eventType: "learning_path.module_deleted" } as AuditEvent,
+      { id: "m-new", title: "Vertiefung", programId: "prog-1" },
+      { actor: { type: "staff", id: "005x", displayName: "Coach" } },
+    );
+
+    const [, variables] = auditCalls()[0]!;
+    expect(variables.eventType).toBe("learning_path.module_restored");
+    expect(variables.subjectType).toBe("Module__c");
+    expect(variables.participantId ?? null).toBeNull();
+  });
+
+  it("erscheint in der Timeline", async () => {
+    await recordLearningPathRestored(
+      deletedEvent,
+      { id: "lp-new", title: "Einführung", programId: "prog-1", participantId: "p-1" },
+      { actor: { type: "staff", id: "005x", displayName: "Coach" } },
+    );
+
+    const [, variables] = auditCalls()[0]!;
+    const event = {
+      ...JSON.parse(String(variables.metadata)),
+      eventType: variables.eventType,
+      domain: variables.domain,
+      action: variables.action,
+      participantId: variables.participantId,
+    } as unknown as AuditEvent;
+
+    expect(filterForAudience([event], "staff")).toHaveLength(1);
   });
 });
