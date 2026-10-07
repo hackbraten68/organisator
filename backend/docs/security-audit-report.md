@@ -22,8 +22,8 @@ Zwei Befunde sind neu und beide betreffen **Datenschutz von Gesundheitsdaten**, 
 | **A1** | `viewAllRecords` auf 12 von 15 Objekten — kein Row-Level-Modell für Coaches | 🔴 hoch | bekannt (E1) |
 | **A2** | `backend_Access` ohne Objekt-/Feldrechte, `backend_Coach` trägt alles | 🟡 niedrig | bekannt (E1) |
 | **A3** | Frontend-Auth-Pfad (830 Zeilen Session-Logik) mit 15 Tests ungesichert | 🟡 niedrig | bekannt |
-| **D1** | `shadcn` steht in `dependencies`, wird nirgends importiert, zieht 8 high-CVEs | 🟠 mittel | bekannt, verschärft |
-| **D2** | `protobufjs` critical + `@salesforce/platform-sdk` high, transitiv, `fixAvailable: false` | 🟡 niedrig | nicht behebbar |
+| **D1** | `shadcn` steht in `dependencies`, wird nirgends importiert, zieht 6 high-CVEs | 🟠 mittel | behoben 2026-10-06 |
+| **D2** | `protobufjs` critical + `@salesforce/platform-sdk` high, transitiv, `fixAvailable: false` | 🟡 niedrig | Rest nicht behebbar, Rest geschlossen |
 
 **Sauber geprüft und unauffällig:** keine Secrets im Repo (inkl. Historie), keine XSS-Vektoren, keine GraphQL-Injection, kein dynamisches SOQL, kein Open Redirect, keine CSRF-Lücke, saubere Fehlerkonvention in Apex (kein Exception-Leak nach außen).
 
@@ -240,32 +240,52 @@ Der Code selbst ist solide — `isValidRedirect` (`authHelpers.ts:54-60`) prüft
 
 ---
 
-### D1 — `shadcn` als Laufzeit-Abhängigkeit 🟠 (bekannt, verschärft)
+### D1 — `shadcn` als Laufzeit-Abhängigkeit 🟠 (behoben 2026-10-06)
 
 `shadcn@^3.8.5` steht in `dependencies` beider Bundles und wird **nirgends importiert** (verifiziert: `grep -rn "from ['\"]shadcn"` → null Treffer). Es ist ein CLI-Tool und gehört in `devDependencies`.
 
-Es verursacht 8 der 19 high-CVEs im Backend-Bundle (`shadcn` → `ts-morph` → `@ts-morph/common` → `fast-glob` → `micromatch` → `braces` → `brace-expansion`).
+Über `shadcn` (`→ ts-morph → @ts-morph/common → fast-glob`) sind 6 high-Einträge des `--omit=dev`-Berichts entfallen; `micromatch` und `braces` bleiben, weil `@salesforce/ui-bundle` sie unabhängig von `shadcn` ebenfalls zieht (siehe D2).
 
-**Entwarnung, verifiziert:** Keines dieser Pakete landet im ausgelieferten Bundle. `dist/` (1,3 MB) enthält keinen Treffer für `micromatch`, `ts-morph` oder `protobuf`. Die CVEs sind damit **kein Runtime-Risiko für Endnutzer**, wohl aber eines für die Build-Umgebung und für die Aufmerksamkeit, die echte Treffer kosten.
+**Entwarnung, verifiziert:** Keines dieser Pakete landet im ausgelieferten Bundle. `dist/` (1,3 MB) enthält keinen Treffer für `micromatch`, `ts-morph` oder `protobuf`. **Nachtrag:** `micromatch` und `braces` bleiben nach der Verschiebung im Produktionsbaum, weil `@salesforce/ui-bundle` sie selbst zieht — siehe D2. Die CVEs sind damit **kein Runtime-Risiko für Endnutzer**, wohl aber eines für die Build-Umgebung und für die Aufmerksamkeit, die echte Treffer kosten.
 
-**Fix (XS):** `npm uninstall shadcn` in beiden Bundles. `npm audit --omit=dev` fällt von 25 auf ~17 Lücken.
+**Fix (XS, umgesetzt 2026-10-06):** `shadcn` von `dependencies` nach `devDependencies` verschieben — **nicht deinstallieren**. Ein Uninstall hätte dieselbe Audit-Wirkung, würde aber die gepinnte `^3.8.5` mitnehmen, sodass `npx shadcn add` die neueste Major-Version zöge und Komponenten für ein neueres Tailwind/React generierte. Gemessen: `npm audit --omit=dev` Backend 28 → 19 Lücken (21 → 15 high), Frontend → 18 (14 high). `shadcn@3.8.5` bleibt gepinnt, Builds grün.
 
 ---
 
-### D2 — Nicht behebbare Transitiv-CVEs 🟡
+### D2 — Transitiv-CVEs: geschlossen, was schließbar war 🟡→behoben
+
+**Geschlossen am 2026-10-06 (P11) über `overrides` in beiden Bundles:**
+
+| Paket | vorher | jetzt | Wirkung |
+|---|---|---|---|
+| `undici` | 7.29.0 (high) | 7.30.0 | geschlossen |
+| `source-map-js` | 1.2.1 (high) | 1.2.2 | geschlossen |
+| `@jsforce/jsforce-node` | 3.10.24 (moderate) | 3.10.28 | geschlossen |
+| `csv-parse` | 5.6.0 (moderate) | 7.0.3 | geschlossen — folgt aus dem jsforce-Patch, nicht aus einem erzwungenen Major |
+
+`csv-parse` war nur scheinbar ein eigener Fall: die CVE-Klasse `<7.0.2` ließ sich nicht innerhalb der 5.x auflösen, aber `jsforce-node@3.10.28` bringt sie selbst mit. Der Patch-Bump löst beide.
+
+**Bilanz gemessen:** `npm audit --omit=dev` von 28 Lücken / 21 high / 1 critical auf **15 / 13 / 1** je Bundle. Alles Behebbare ist behoben.
+
+**Bleibt offen — und zwar ausschließlich, weil Salesforce es so ausliefert:**
 
 ```
-CRITICAL protobufjs   Prototype Pollution + Arbitrary code execution   fixAvailable: false
-HIGH     @salesforce/platform-sdk                                          fixAvailable: false
-HIGH     @conduit-client/*  (8 Pakete)                                    fixAvailable: false
-HIGH     o11y                                                                 fixAvailable: false
+CRITICAL protobufjs      Prototype Pollution + Arbitrary code execution   fixAvailable: false
+HIGH     @salesforce/platform-sdk                                           fixAvailable: false
+HIGH     @salesforce/ui-bundle                                              fixAvailable: false
+HIGH     o11y                                                                fixAvailable: false
+HIGH     @conduit-client/*  (8 Pakete)                                     fixAvailable: false
+HIGH     micromatch  3.1.7/4.0.8 → über @salesforce/ui-bundle              fixAvailable: false
+HIGH     braces     3.0.3     → über micromatch                            fixAvailable: false
 ```
 
-Kette: `@salesforce/platform-sdk → o11y → protobufjs`. Über `@salesforce/platform-sdk@11.71.5` hängen zwei `o11y`-Instanzen (252.7.0 → protobufjs 7.2.4, und 266.17.0 → protobufjs 7.5.6).
+Kette: `@salesforce/platform-sdk → o11y → protobufjs`. Über `platform-sdk@11.71.5` hängen zwei `o11y`-Instanzen (252.7.0 → protobufjs 7.2.4, 266.17.0 → protobufjs 7.5.6).
 
-Bewertung: keine Handlungsoption ohne Plattform-Upgrade. Der Code ist Browser-Code, der protobuf nur zur Serialisierung der Telemetrie nutzt, nicht zur Deserialisierung fremder Eingaben — das verwundbare Muster (Parsen bösartiger Payloads) wird im Bundle nicht erreicht. Als **akzeptiert dokumentieren**, nicht als offenes Risiko führen.
+**Korrektur zur D1-Zuordnung:** `braces` und `micromatch` stehen in der Produktions-Auflösung **nicht** unter `shadcn`, sondern unter `@salesforce/ui-bundle → micromatch@4.0.8 → braces@3.0.3`. Nach der Verschiebung von `shadcn` (siehe D1) bleiben sie deshalb im Produktionsbaum stehen. Die Wirkung der Verschiebung war real — der Audit-Zähler fiel von 28 auf 19 —, die Begründung „ausschließlich über `shadcn`" war es nicht.
 
-`undici` (2 high, `fixAvailable: true`) lässt sich dagegen per Lockfile-Update schließen.
+**Bewertung des Rests:** keine Handlungsoption ohne Plattform-Upgrade. Der Bundle-Code nutzt protobuf zur Serialisierung der Telemetrie, nicht zur Deserialisierung fremder Eingaben — das verwundbare Muster (Parsen bösartiger Payloads) wird im Bundle nicht erreicht. `dist/` enthält nachweislich weder `protobufjs` noch `ts-morph`. Als **akzeptiert dokumentieren**, nicht als offenes Risiko führen.
+
+**Bewusst nicht geschlossen:** `fast-uri` (moderate, 3.1.7, `fixAvailable: true`). Der Fix wäre `fast-uri@4.x`, also ein Major-Sprung in `ajv@8.20.0`s Abhängigkeit, die über `@salesforce/core` aus `@salesforce/ui-bundle` kommt. Ein erzwungener Major in Salesforces Baum ohne Testabdeckung des betroffenen Pfads (URI-Validierung in der GraphQL-Codegen-Kette) ist schlechter als ein dokumentiertes moderate-Risiko. Beim nächsten SDK-Bump neu bewerten.
 
 ---
 
@@ -335,13 +355,13 @@ Nach Risiko, dann Aufwand. Die oberen vier Zeilen kosten zusammen unter einer St
 | **1** | ✅ S1 + S2 — Policy-Schlüssel auf `__c` umstellen, `CoachComment__c` ergänzen, eingehendes `redacted`-Flag respektieren, 9 Tests | erledigt | Gesundheitsdaten im Klartext. Der Code **behauptet** bereits Redaktion — der Fix stellt die Absicht wieder her |
 | **2** | S6 — `defaultSharing>Private` in alle Custom-Objekte | XS | Deploybare Invariante statt undokumentiertem Org-Zustand |
 | **3** | S3 + S4 — serverseitiger Audit-Schreibpfad (Apex), danach `allowCreate`/`allowEdit` entziehen | **M** (nicht XS, s. Abschnitt 7) | Log muss unveränderbar sein, sonst ist S1 nur Kosmetik |
-| **4** | D1 — `npm uninstall shadcn` | XS | 8 CVEs weniger, `npm audit` wird wieder lesbar |
+| **4** | D1 — `shadcn` nach `devDependencies` verschieben | XS | 6 high-CVEs weniger, `npm audit` wird wieder lesbar |
 | **5** | A2 — Kommentar im `backend_Access`-Permission-Set | XS | Verhindert den Fehlgebrauch, den der Name nahelegt |
 | **6** | A3 — Tests für `sessionTimeService` und `isValidRedirect` | M | Schließt die Lücke, bevor jemand am Pfad ändert |
 | **7** | S5 — `visibility` durchsetzen oder ehrlich dokumentieren | S | Folge von A1; jetzt zu lösen verhindert falsche Sicherheit |
 | **8** | S4-Teil 2 — Outbox: Replay bauen oder Verzicht dokumentieren | M | Derzeit weder das eine noch das andere |
 | **9** | A1 — Berechtigungsmodell | M + O1/O2 | Entscheidung liegt beim Chef, Umsetzung braucht Org-Zugang |
-| **10** | D2 — `undici` per Lockfile-Update schließen, Rest dokumentieren | XS | Der Rest ist nicht behebbar |
+| **10** | D2 — `undici`/`source-map-js`/`jsforce` per Override schließen, Rest dokumentieren | XS | **erledigt 2026-10-06** |
 
 Punkt 9 bleibt blockiert, bis E1 entschieden ist. Punkt 3 sollte nicht vor O3 laufen.
 

@@ -12,17 +12,17 @@ Dieser Plan enthält nur die Behebung der Sicherheitsbefunde S1–S6, A1–A3, D
 
 | Prio | Paket | Befund | Aufwand | Braucht Org? | Blockiert |
 |---|---|---|---|---|---|
-| **P1** | ✅ Feld-Policies auf emittierte Namen umstellen + Hand-Flag respektieren | S1, S2 | S | nein | — |
-| **P2** | Strukturschutz: Abdeckungstest „jedes emittierte Feld hat eine Policy" | S1 (Struktur) | S | nein | — |
+| **P1** OK | Feld-Policies auf emittierte Namen umstellen + Hand-Flag respektieren | S1, S2 | S | nein | erledigt `2c99185` |
+| **P2** OK | Strukturschutz: Abdeckungstest „jedes emittierte Feld hat eine Policy" | S1 (Struktur) | S | nein | erledigt `e8b949d` |
 | **P3** | `defaultSharing>Private` in 9 Custom-Objekten | S6 | XS | **ja** (Gate G1) | — |
 | **P4** | Serverseitiger Audit-Schreibpfad, dann Rechte entziehen | S3, S4 | M | **ja** | P5 |
 | **P5** | Outbox: Replay bauen oder Verzicht dokumentieren | S4 | M | ja | P4 |
-| **P6** | `npm uninstall shadcn` in beiden Bundles | D1 | XS | nein | — |
+| **P6** OK | `shadcn` von `dependencies` nach `devDependencies` in beiden Bundles | D1 | XS | nein | erledigt 2026-10-06 |
 | **P7** | Kommentar im `backend_Access`-Permission-Set | A2 | XS | ja (Deploy) | — |
 | **P8** | Tests für `sessionTimeService` und `isValidRedirect` | A3 | M | nein | — |
 | **P9** | `visibility`/`sensitivity` durchsetzen oder ehrlich dokumentieren | S5 | S | nein | A1 |
 | **P10** | Berechtigungsmodell umsetzen | A1 | M | ja | Chef-Entscheidung E1 |
-| **P11** | `undici` per Lockfile schließen, Rest dokumentieren | D2 | XS | nein | — |
+| **P11** OK | `undici`/`source-map-js`/`jsforce` per Override schließen, Rest dokumentieren | D2 | XS | nein | erledigt 2026-10-06 |
 
 **P1, P2, P6, P8, P11 sind sofort machbar** — kein Org-Zugang, kein Warten auf eine Entscheidung.
 
@@ -102,9 +102,13 @@ Im gleichen Zug Block `appointment` (`:271-276`): `StartTime` → `StartTime__c`
 3. Test `fieldPolicySuffix.test.ts`: jeder Policy-Schlüssel einer Domain, die `__c`-Objekte abbildet, endet auf `__c`. Ausnahme: Felder ohne Suffix, die tatsächlich emittiert werden, sind über eine explizite Allowlist im Test benannt — mit einem Kommentar, warum. Bereits heute in der Allowlist: `Documents` (kein Salesforce-Feld, der Audit-Event trägt nur den Dateinamen) sowie `workbook`, `classbook`, `daily_checkin` und `time_tracking`, deren Policies noch auf alte, ungesuffixte Namen lauten und im Rahmen dieses Pakets mit umgestellt werden.
 4. **`RescheduleReason` entscheiden** (`appointmentAuditIntegration.ts:101`). Der Name trägt kein `__c`, und ein Feld dieses Namens existiert in der Org nicht — es ist ein reines Audit-Label. Drei Wege: auf `RescheduleReason__c` umbenennen und ein Policy anlegen, als bewusste Ausnahme in die Allowlist aus Schritt 3 aufnehmen, oder ganz aus `changes` streichen (der Wert landet ohnehin nur über `metadata.rescheduleReason` und fällt dort an der Allowlist durch). **Vom Auftraggeber zurückgestellt** — die Allowlist in Schritt 3 muss den Fall also als offene Frage ausweisen, nicht stillschweigend als erledigt behandeln.
 5. **Die `authentication`-Domain mitdenken:** `DEFAULT_FIELD_POLICIES` hat keinen Eintrag für `authentication` und `system`. `sessionAudit.ts:31` schreibt derzeit `changes: []`, also entsteht heute kein Leck — der Moment, in dem jemand `metadata: { authMethod }` zu einem Feld macht, ist aber schon da. Aufgabe im Plan: entweder leere Policies `{ authentication: {}, system: {} }` anlegen (macht die Lücke explizit) oder im `authentication`-Abschnitt von `types/audit.ts` dokumentieren, warum die Domain feldlos bleibt. Ich nehme die leeren Maps — sie kosten zwei Zeilen und der Abdeckungstest aus Schritt 2 verlangt sonst jedes Feld.
-4. **Die `authentication`-Domain mitdenken:** `DEFAULT_FIELD_POLICIES` hat keinen Eintrag für `authentication` und `system`. `sessionAudit.ts:31` schreibt derzeit `changes: []`, also entsteht heute kein Leck — der Moment, in dem jemand `metadata: { authMethod }` zu einem Feld macht, ist aber schon da. Aufgabe im Plan: entweder leere Policies `{ authentication: {}, system: {} }` anlegen (macht die Lücke explizit) oder im `authentication`-Abschnitt von `types/audit.ts` dokumentieren, warum die Domain feldlos bleibt. Ich nehme die leeren Maps — sie kosten zwei Zeilen und der Abdeckungstest aus Schritt 2 verlangt sonst jedes Feld.
 
-**Verifikation:** Der Test schlägt fehl, wenn ich absichtlich `CoachComment__c2` in die Feldliste aufnehme; danach wieder entfernen (dieselbe Technik wie beim Probe-Test im Audit).
+**Status 2026-10-06: umgesetzt** in `2c99185` (P1) und `e8b949d` (P2). Die beiden Tests aus Schritt 2 und 3 liegen zusammen in `src/api/audit/fieldPolicyCoverage.test.ts` (ein Dateiname statt zwei), die Emitter-Registry in `src/api/audit/emittedFields.ts`. Der Test prüft zusätzlich gegen die Objekt-Metadaten, dass jeder emittierte Feldname wirklich einem Feld in der Org entspricht — das fängt den Fall `RescheduleReason` (Schritt 4) strukturell ab, solange die Entscheidung E9 offen ist.
+
+**Verifikation (gemessen 2026-10-06):** `tsc --noEmit` 0 Fehler · `vitest run` 37 Dateien / 305 Tests grün (vorher 35 / 270) · `eslint src` 0 Fehler, 16 Warnungen (unverändert, Paket B6) · Mutationsprobe: ein absichtlich eingetragenes Feld `CoachComment__cProbe` lässt zwei Tests fehlschlagen („fehlt in DEFAULT_FIELD_POLICIES" und „existiert nicht in der Org"). Der Test beißt.
+
+
+**Verifikation:** siehe Status oben — der Test wurde mit einer absichtlich eingetragenen Mutante geprüft.
 **Aufwand:** S. **Risiko:** keins — reiner Test + zwei leere Maps.
 
 ---
@@ -164,15 +168,23 @@ Meine Empfehlung: **(b)**, solange kein produktiver Anlass für (a) benannt ist.
 
 `shadcn@^3.8.5` steht in `dependencies` beider Bundles und wird nirgends importiert. Es ist ein CLI-Tool für die Komponentenerzeugung — das es nutzt, ist `components.json` plus die fertigen Dateien.
 
-```
-cd backend/.../uiBundles/backend && npm uninstall shadcn
-cd frontend/.../uiBundles/frontend && npm uninstall shadcn
+**Maßnahme: verschieben, nicht deinstallieren.** `shadcn` bleibt, wandert aber nach `devDependencies`. Ein Uninstall hätte dieselbe Audit-Wirkung, würde aber die gepinnte `^3.8.5` mitnehmen — `npx shadcn add` zöge dann die neueste Major-Version, die Komponenten für ein neueres Tailwind/React generiert und den Build zerschießen kann. Die Verschiebung kostet nichts und behält die Pin.
+
+```bash
+# in beiden Bundles: Eintrag von "dependencies" nach "devDependencies" verschieben
+cd backend/force-app/main/default/uiBundles/backend && npm install
+cd frontend/force-app/main/default/uiBundles/frontend && npm install
 ```
 
-Danach `npx shadcn add …` geht nicht mehr ohne `npx shadcn@latest` — das ist der Preis und soll in `backend/docs/AGENTS.md` bei den shadcn-Komponenten (Paket B7 des Refactor-Plans) stehen.
+**Nicht** `npm install --save-dev shadcn` — das löst die *neueste* Version auf. Im ersten Versuch zog das `shadcn@4.21.3` statt 3.8.5 (Major-Sprung) und schrieb 882 Lockfile-Zeilen um. Der Eintrag wird von Hand verschoben, `npm install` übernimmt nur die `dev: true`-Markierung.
 
-**Verifikation:** `npx tsc --noEmit` und `npm run build` in beiden Bundles; `npm audit --omit=dev` fällt von 25 auf ~17 (Backend) bzw. 23 auf ~15 (Frontend).
-**Aufwand:** XS. **Risiko:** keins, sofern `npm run build` durchläuft — das Build-Skript ist die eigentliche Absicherung, nicht `tsc`.
+**Erwartete Wirkung, gemessen:** `shadcn → ts-morph → @ts-morph/common → fast-glob → micromatch → braces` sind 6 high-CVEs, ausschließlich über `shadcn` erreichbar, mit Null Überschneidung zur `o11y`-Kette. Die CVEs selbst sind ReDoS in Glob-Code, der nur beim lokalen `shadcn add` läuft — kein Runtime-Risiko, `dist/` enthält nachweislich keinen dieser Bäume. Der Wert dieses Pakets ist die Audit-Signalqualität, nicht die Behebung eines ausnutzbaren Fehlers.
+
+**Verifikation (gemessen 2026-10-06):** `npm audit --omit=dev` Backend 28 → **19** Lücken (21 → 15 high, 1 critical) · Frontend → **18** Lücken (14 high, 1 critical) · `shadcn@3.8.5` in beiden Bundles weiterhin installiert und gepinnt · `tsc --noEmit` sauber, `npm run build` grün, Tests 305 (Backend) / 15 (Frontend).
+
+Die kritische `protobufjs`-Lücke und die high-CVEs über `@salesforce/platform-sdk → o11y` bleiben unberührt — sie sind transitiv und nicht behebbar (P11).
+
+**Aufwand:** XS. **Risiko:** keins. Der `npm run build` ist die eigentliche Absicherung, nicht `tsc`.
 
 ---
 
@@ -218,11 +230,26 @@ Reihenfolge innerhalb von P10, sobald E1 beantwortet ist: erst die Sharing-Grund
 
 ---
 
-## P11 — Dependency-Hygiene (D2)
+## P11 — Dependency-Hygiene (D2) ✅
 
-`undici` (2 high, `fixAvailable: true`) per Lockfile-Update schließen. Der Rest — `protobufjs` critical, `@salesforce/platform-sdk` high, `@conduit-client/*` — ist transitiv und nicht behebbar (`fixAvailable: false`). Nicht in `dependencies` festnageln, sondern als bewusste Entscheidung im Security-Report führen, mit dem Hinweis, dass `dist/` keines dieser Pakete enthält (verifiziert) und das verwundbare Muster (Deserialisierung fremder Payloads) im Bundle nicht erreicht wird.
+**Erledigt 2026-10-06.** Drei `overrides` in beiden Bundles, alle auf Patch- oder Minor-Ebene innerhalb derselben Major:
 
-**Aufwand:** XS.
+```json
+"overrides": {
+  "@jsforce/jsforce-node": "^3.10.28",
+  "lodash": "^4.18.1",
+  "source-map-js": "^1.2.2",
+  "undici": "^7.30.0"
+}
+```
+
+`csv-parse` musste nicht erzwungen werden: `jsforce-node@3.10.28` bringt `csv-parse@7.0.3` selbst mit, womit sich auch diese moderate CVE ohne Major-Sprung auflöst.
+
+**Gemessen:** `npm audit --omit=dev` je Bundle von 28 Lücken / 21 high / 1 critical auf **15 / 13 / 1**. `tsc --noEmit` sauber, Builds grün, Tests 305 / 15 unverändert.
+
+**Bewusst nicht geschlossen: `fast-uri` (moderate).** Fix wäre `fast-uri@4.x`, ein Major-Sprung in `ajv@8.20.0`s Abhängigkeit unter `@salesforce/core`. Ein erzwungener Major in Salesforces Baum ohne Testabdeckung der URI-Validierung ist schlechter als ein dokumentiertes moderate-Risiko. Beim nächsten SDK-Bump neu bewerten.
+
+**Was bleibt, ist nicht behebbar** und im Report als akzeptierte Entscheidung begründet: `protobufjs` critical, `@salesforce/platform-sdk`, `@salesforce/ui-bundle`, `o11y`, 8× `@conduit-client/*`, `micromatch`, `braces` — sämtlich `fixAvailable: false` und von Salesforce ausgeliefert.
 
 ---
 

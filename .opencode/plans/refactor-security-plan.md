@@ -126,7 +126,24 @@ Damit klar ist, was **nicht** angefasst werden muss:
 
 # Teil B — Refactor
 
-## B1. Verschachtelter Dialog · 🔴 echter Bug, kein Refactor
+## B1. Verschachtelter Dialog · 🔴 echter Bug, kein Refactor — ✅ behoben 2026-10-06
+
+**Erledigt.** `ParticipantAppointmentsTab.tsx` rendert `AppointmentFormDialog` jetzt direkt,
+der umschließende `<Dialog>`-Block ist weg. Zwei Tests in
+`ParticipantAppointmentsTab.test.tsx` sichern das ab — der `role="dialog"`-Assert muss
+über `document.querySelectorAll` laufen, nicht über `getAllByRole`, weil Radix `aria-hidden`
+auf den äußeren Dialog setzt und die a11y-Abfrage den Bug nicht sieht. Der Titel-Assert
+(`getAllByText("Termin anlegen", { selector: "h2" })`) war der aussagekräftigere.
+
+<details><summary>Ursprüngliche Beschreibung</summary>
+
+`components/appointments/ParticipantAppointmentsTab.tsx:368-380` umhüllt
+`<AppointmentFormDialog>` in einem zweiten `<Dialog><DialogContent>`, obwohl
+`AppointmentFormDialog.tsx:139` selbst ein vollständiges `<Dialog>` rendert.
+
+**Folge:** doppeltes Portal, doppelter Header („Termin anlegen" zweimal sichtbar),
+doppelte Fokus-Falle für Screenreader.
+</details>
 
 `components/appointments/ParticipantAppointmentsTab.tsx:368-380` umhüllt
 `<AppointmentFormDialog>` in einem zweiten `<Dialog><DialogContent>`, obwohl
@@ -170,7 +187,33 @@ verspricht dann das, was er liefert. Langfristig: Terminvindung (`Finding`-Statu
 modellieren, dann alle drei Sätze persistieren. Beides braucht eine Produktentscheidung
 (siehe E2).
 
-## B4. ISO-Datum-Bau ohne `validFrom` · 🔴 Datenqualität
+## B4. ISO-Datum-Bau ohne `validFrom` · 🔴 Datenqualität — ✅ behoben 2026-10-06
+
+**Erledigt.** Neue reine Funktion `src/utils/slotDateTime.ts` (`slotProposeDate`,
+`slotDateTimes`) mit 9 Tests in `src/utils/slotDateTime.test.ts`. `ProposeSlotsDialog`
+nutzt sie und macht datumlose Slots **nicht auswählbar** („Kein Datum hinterlegt"), statt
+sie durchzureichen.
+
+**Zwei Abweichungen von der ursprünglichen Planung, beide bewusst:**
+1. Kein `lib/datetime` vorhanden — die Annahme im Plan war falsch. Eigene kleine Funktion
+   statt einem Datumsmodul für genau einen Aufrufer.
+2. `dayOfWeek` + `validFrom` wird **nicht** zu einem Datum in der Kalenderwoche aufgelöst.
+   Der Slot ohne `validFrom`/`validTo` hat kein eindeutiges Datum, und Raten erzeugt
+   Termine am falschen Tag. Stattdessen: `validFrom`, sonst `validTo`, sonst **nicht
+   anbieten**. Die Frage, welche Woche gemeint ist, gehört zu E2 (Terminfindung).
+
+Nebenbei: die beiden `alert()`-Aufrufe wurden durch einen `role="alert"`-Text ersetzt
+(B5 teilweise).
+
+<details><summary>Ursprüngliche Beschreibung</summary>
+
+`components/appointments/ProposeSlotsDialog.tsx:80-87`:
+```ts
+startTime: slot.validFrom ? `${slot.validFrom}T${slot.startTime}` : slot.startTime
+```
+Ohne `validFrom` entsteht der Wert `"09:00T10:00"` — kein ISO-Datum. Der Wert geht so in
+die Mutation.
+</details>
 
 `components/appointments/ProposeSlotsDialog.tsx:80-87`:
 ```ts
