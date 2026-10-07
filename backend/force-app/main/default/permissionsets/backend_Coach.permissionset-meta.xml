@@ -209,6 +209,16 @@
         <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
 
+    <!-- Contact: 1 read-only. Freigeschaltet__c steuert die Sichtbarkeit unter
+         /contacts und wird in Salesforce manuell gesetzt, nie im Backend — daher
+         nicht editierbar. Ohne diesen Eintrag schlaegt die where-Bedingung in
+         ListContacts.graphql mit FIELD_INTEGRITY fehl. -->
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Contact.Freigeschaltet__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
     <!-- Participant__c: 9 editable, 0 read-only -->
     <fieldPermissions>
         <editable>true</editable>

@@ -15,6 +15,12 @@ export interface Contact {
   phone?: string;
   accountId?: string;
   accountName?: string;
+  /**
+   * `Freigeschaltet__c` — der bewusste Freischalt-Schritt aus Salesforce.
+   * `listContacts` liefert nur Kontakte mit `true`; das Feld steht hier, damit
+   * die Seite den Unterschied erklaeren kann, wenn die Liste leer ist.
+   */
+  freigeschaltet?: boolean;
   /** The participant this contact already holds, if any. Drives the action area. */
   participantId?: string | null;
   participantName?: string | null;

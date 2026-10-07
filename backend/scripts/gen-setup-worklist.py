@@ -38,6 +38,11 @@ TYPE_LABEL = {
     'MasterDetail': 'Master-Detail Relationship',
 }
 
+# Standardobjekte: existieren in jeder Org, koennen nicht angelegt werden.
+# Sie stehen trotzdem in der Liste, weil ihre Custom-Felder von Hand
+# entstehen muessen — bei Contact ist Freigeschaltet__c genau das.
+PREEXISTING = {'Account', 'Contact'}
+
 # Lookup-Aufloesung "Related To" steht in Setup unter diesem Feld.
 DELETE_LABEL = {'Restrict': 'Restrict', 'SetNull': 'Set null', 'Cascade': 'Cascade'}
 
@@ -120,16 +125,9 @@ def field_rows(root, name):
     return '\n'.join(out)
 
 
-def object_block(obj, oroot, fields):
-    namefield = oroot.find('m:nameField', NS)
-    rn_type = txt(namefield, 'type') if namefield is not None else ''
-    rn_format = txt(namefield, 'displayFormat') if namefield is not None else ''
-
-    out = [f'## {obj}', '']
-    out.append(f'**Fields:** {len(fields)} &nbsp;&nbsp; **Record Name:** {rn_type or "Text"}')
-    out.append('')
-
-    out.append('### Step 1 — Create the object')
+def create_object_block(obj, oroot, rn_type, rn_format):
+    """Step 1 und Step 2: Objekt und Tab anlegen. Nur fuer neue Custom Objects."""
+    out = ['### Step 1 — Create the object']
     out.append('')
     out.append('`Setup → Object Manager → Create → Custom Object`')
     out.append('')
@@ -160,7 +158,8 @@ def object_block(obj, oroot, fields):
                'offered in the new-object form in current releases, so treat it as something '
                'to confirm afterwards, not something to click now. For the portal this matters: '
                'a non-private value would let external users see the object through a sharing '
-               'rule without one. Check in Object Manager after creating all ten objects.')
+               'rule without one. Check in Object Manager after creating every object '
+               'in this list that is not a standard object.')
     out.append('')
 
     out.append('### Step 2 — Create the tab')
@@ -181,13 +180,33 @@ def object_block(obj, oroot, fields):
                'fixed by it. Whatever category you pick, keep it the same for all ten '
                'objects so the tabs end up together.')
     out.append('')
+    return out
+
+
+def object_block(obj, oroot, fields):
+    namefield = oroot.find('m:nameField', NS)
+    rn_type = txt(namefield, 'type') if namefield is not None else ''
+    rn_format = txt(namefield, 'displayFormat') if namefield is not None else ''
+
+    out = [f'## {obj}', '']
+    label = txt(oroot, 'label') or obj
+    preexisting = obj in PREEXISTING
+    out.append(f'**Fields:** {len(fields)}' + ('' if preexisting else f' &nbsp;&nbsp; **Record Name:** {rn_type or "Text"}'))
+    out.append('')
+
+    if preexisting:
+        out.append(f'{obj} is a standard object and already exists. Only its custom '
+                   'fields are created here — Steps 1 and 2 do not apply.')
+        out.append('')
+    else:
+        out += create_object_block(obj, oroot, rn_type, rn_format)
 
     out.append(f'### Step 3 — Fields ({len(fields)})')
     out.append('')
     for i, (api, froot) in enumerate(fields, 1):
         out.append(f'#### {i}. `{api}`')
         out.append('')
-        out.append(f'`Object Manager → {txt(oroot, "label")} → Fields & Relationships → New`')
+        out.append(f'`Object Manager → {label} → Fields & Relationships → New`')
         out.append('')
         out.append(field_rows(froot, api))
         out.append('')
@@ -198,22 +217,37 @@ def object_block(obj, oroot, fields):
     return '\n'.join(out)
 
 
+def collect_fields(objdir):
+    """Die __c-Felder eines Objektordners, ohne Lookups zuerst."""
+    fields = []
+    for f in sorted(glob.glob(f'{objdir}fields/*.field-meta.xml')):
+        api = os.path.basename(f).replace('.field-meta.xml', '')
+        if not api.endswith('__c'):
+            continue
+        fields.append((api, ET.parse(f).getroot()))
+    # Nicht-Lookups zuerst: sie lassen sich anlegen, bevor die Zielfelder
+    # existieren. Innerhalb der Gruppen alphabetisch fuer Nachvollziehbarkeit.
+    fields.sort(key=lambda kv: (1 if txt(kv[1], 'referenceTo') else 0, kv[0]))
+    return fields
+
+
 def collect():
     objects = []
     for d in sorted(glob.glob(f'{ROOT}/*/')):
         obj = os.path.basename(d.rstrip('/'))
-        if obj == 'Account':
+        if obj in PREEXISTING:
+            # Kein object-meta.xml noetig: das Objekt existiert, nur die Felder
+            # sind neu. Leere Wurzel, damit txt() nichts findet.
+            oroot = ET.Element('CustomObject')
+            fields = collect_fields(d)
+            if fields:
+                objects.append((obj, oroot, fields))
             continue
         opath = f'{d}{obj}.object-meta.xml'
         if not os.path.exists(opath):
             continue
         oroot = ET.parse(opath).getroot()
-        fields = []
-        for f in sorted(glob.glob(f'{d}fields/*.field-meta.xml')):
-            api = os.path.basename(f).replace('.field-meta.xml', '')
-            if not api.endswith('__c'):
-                continue
-            fields.append((api, ET.parse(f).getroot()))
+        fields = collect_fields(d)
         # Nicht-Lookups zuerst: sie lassen sich anlegen, bevor die Zielfelder
         # existieren. Innerhalb der Gruppen alphabetisch fuer Nachvollziehbarkeit.
         fields.sort(key=lambda kv: (1 if txt(kv[1], 'referenceTo') else 0, kv[0]))
@@ -264,7 +298,7 @@ keinen Weg daran vorbei.
 ## Reihenfolge
 
 Lookups erzwingen eine Reihenfolge: ein Lookup-Feld laesst sich erst anlegen, wenn
-sein Zielfeld existiert. Die vier Wurzelobjekte sind unabhaengig.
+sein Zielfeld existiert. Die __WURZEL__ Wurzelobjekte sind unabhaengig.
 
 | # | Objekt | Felder | Lookup-Voraussetzung |
 | - | ------ | -----: | ------------------- |
@@ -278,7 +312,7 @@ cd backend
 npm run schema:check
 ```
 
-Exit 0 heisst: alle 90 Felder sind im Runtime-Schema und per SOQL abfragbar. **Achtung:**
+Exit 0 heisst: alle __FELDER__ Felder sind im Runtime-Schema und per SOQL abfragbar. **Achtung:**
 `schema-check` prueft nur die *Existenz* der Felder, nicht ihre Attribute. `required`,
 `unique`, Picklist-Werte, Laengen und Descriptions sind damit nicht abgedeckt.
 
@@ -310,8 +344,14 @@ def main():
     objects = collect()
     order = dependency_order(objects)
     by_name = {o: (o, r, f) for o, r, f in objects}
+    total = sum(len(f) for _, _, f in objects)
+    n_roots = sum(
+        1
+        for o, r, f in objects
+        if not {txt(fr, 'referenceTo') for _, fr in f} & set(by_name)
+    )
 
-    parts = [HEADER]
+    parts = [HEADER.replace('__WURZEL__', str(n_roots))]
     for i, obj in enumerate(order, 1):
         o, r, f = by_name[obj]
         refs = sorted({txt(fr, 'referenceTo') for _, fr in f if txt(fr, 'referenceTo')})
@@ -328,13 +368,12 @@ def main():
         parts.append(object_block(obj, r, f))
         parts.append('\n---\n\n')
 
-    parts.append(FOOTER)
+    parts.append(FOOTER.replace('__FELDER__', str(total)))
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, 'w', encoding='utf-8') as fh:
         fh.write(''.join(parts))
 
-    total = sum(len(f) for _, _, f in objects)
     print(f'  geschrieben: {OUT}')
     print(f'  {len(objects)} Objekte, {total} Felder')
 

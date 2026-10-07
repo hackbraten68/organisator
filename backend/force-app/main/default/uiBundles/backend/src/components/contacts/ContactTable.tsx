@@ -103,11 +103,11 @@ export default function ContactTable({
           <div className="p-6">
             <EmptyState
               icon={<Users className="size-12" />}
-              title={query ? 'Keine Treffer' : 'Keine Contacts vorhanden'}
+              title={query ? 'Keine Treffer' : 'Keine freigeschalteten Contacts'}
               description={
                 query
                   ? `Keine Contacts gefunden für "${query}"`
-                  : 'Es wurden noch keine Contacts angelegt.'
+                  : 'Ein Contact erscheint hier erst, wenn er in Salesforce freigeschaltet wurde: am Contact-Datensatz das Feld "Freigeschaltet" anhaken. Kontakte ohne Haken bleiben ausgeblendet.'
               }
             />
           </div>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Freigeschaltet__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Steuert, ob der Kontakt im Backend unter /contacts auftaucht. Der Haken wird in Salesforce manuell gesetzt und ist der bewusste Freischalt-Schritt vor "Als Teilnehmer anlegen". Ohne Haken bleibt der Kontakt im Backend unsichtbar, auch wenn er in Salesforce existiert. Haken im Setup setzen: Objekte &gt; Contact &gt; Felder &gt; Neues Feld &gt; Checkbox.</description>
+    <externalId>false</externalId>
+    <label>Freigeschaltet</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+    <unique>false</unique>
+</CustomField>

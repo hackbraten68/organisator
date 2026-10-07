@@ -27,6 +27,7 @@ interface ContactNode {
   Phone?: ScalarValue<string>;
   AccountId?: ScalarValue<string>;
   Account?: { Name?: ScalarValue<string> } | null;
+  Freigeschaltet__c?: ScalarValue<boolean>;
 }
 
 interface ContactsResponse {
@@ -53,9 +54,18 @@ function mapContact(node: ContactNode): Contact {
     phone: node.Phone?.value ?? undefined,
     accountId: node.AccountId?.value ?? undefined,
     accountName: node.Account?.Name?.value ?? undefined,
+    freigeschaltet: node.Freigeschaltet__c?.value ?? false,
   };
 }
 
+/**
+ * Nur freigeschaltete Kontakte.
+ *
+ * Der Filter sitzt in `ListContacts.graphql` auf `Freigeschaltet__c: { eq: true }`
+ * und damit serverseitig: ein Kontakt ohne Haken wird nie uebertragen, also auch
+ * nicht kurzzeitig im Browser sichtbar. `eq: false` waere die falsche Richtung —
+ * die orgweite Zahl der Kontakte steht im Setup unter Kontakte.
+ */
 export async function listContacts(): Promise<Contact[]> {
   const data = await executeGraphQL<ContactsResponse>(LIST_CONTACTS);
   const edges = data.uiapi?.query?.Contact?.edges ?? [];

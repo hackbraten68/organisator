@@ -122,7 +122,10 @@ describe('ContactTable', () => {
 
   it('shows the empty state without contacts', () => {
     renderTable({ contacts: [] });
-    expect(screen.getByText('Keine Contacts vorhanden')).toBeInTheDocument();
+    expect(screen.getByText('Keine freigeschalteten Contacts')).toBeInTheDocument();
+    // Der Leerzustand muss erklaeren, wie ein Kontakt herueberkommt — sonst
+    // liest sich "leer" als "keine Kontakte vorhanden".
+    expect(screen.getByText(/Freigeschaltet/)).toBeInTheDocument();
   });
 
   it('surfaces a load error', () => {

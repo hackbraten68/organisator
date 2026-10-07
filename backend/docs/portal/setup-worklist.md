@@ -21,20 +21,21 @@ keinen Weg daran vorbei.
 ## Reihenfolge
 
 Lookups erzwingen eine Reihenfolge: ein Lookup-Feld laesst sich erst anlegen, wenn
-sein Zielfeld existiert. Die vier Wurzelobjekte sind unabhaengig.
+sein Zielfeld existiert. Die 5 Wurzelobjekte sind unabhaengig.
 
 | # | Objekt | Felder | Lookup-Voraussetzung |
 | - | ------ | -----: | ------------------- |
 | 1 | `AuditOutbox__c` | 9 | — (Wurzelobjekt) |
 | 2 | `AvailabilitySlot__c` | 8 | — (Wurzelobjekt) |
 | 3 | `Coach_Profile__c` | 6 | — (Wurzelobjekt) |
-| 4 | `Program__c` | 3 | — (Wurzelobjekt) |
-| 5 | `Module__c` | 3 | `Program__c` |
-| 6 | `Participant__c` | 9 | `Coach_Profile__c`, `Program__c` |
-| 7 | `Absence__c` | 11 | `Participant__c` |
-| 8 | `Appointment__c` | 13 | `Participant__c` |
-| 9 | `AuditEvent__c` | 22 | `Participant__c` |
-| 10 | `Learning_Path__c` | 6 | `Participant__c`, `Program__c` |
+| 4 | `Contact` | 1 | — (Wurzelobjekt) |
+| 5 | `Program__c` | 3 | — (Wurzelobjekt) |
+| 6 | `Module__c` | 3 | `Program__c` |
+| 7 | `Participant__c` | 11 | `Coach_Profile__c`, `Contact`, `Program__c` |
+| 8 | `Absence__c` | 11 | `Participant__c` |
+| 9 | `Appointment__c` | 13 | `Participant__c` |
+| 10 | `AuditEvent__c` | 22 | `Participant__c` |
+| 11 | `Learning_Path__c` | 6 | `Participant__c`, `Program__c` |
 
 ---
 
@@ -62,7 +63,7 @@ sein Zielfeld existiert. Die vier Wurzelobjekte sind unabhaengig.
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `AuditOutbox__c`. If it differs, the object cannot be renamed — delete it and redo.
 >
-> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
 
 ### Step 2 — Create the tab
 
@@ -243,7 +244,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `AvailabilitySlot__c`. If it differs, the object cannot be renamed — delete it and redo.
 >
-> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
 
 ### Step 2 — Create the tab
 
@@ -413,7 +414,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `Coach_Profile__c`. If it differs, the object cannot be renamed — delete it and redo.
 >
-> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
 
 ### Step 2 — Create the tab
 
@@ -525,6 +526,29 @@ Values — enter **Value** and **Display Value** separately:
 
 ---
 
+## Contact
+
+**Fields:** 1
+
+Contact is a standard object and already exists. Only its custom fields are created here — Steps 1 and 2 do not apply.
+
+### Step 3 — Fields (1)
+
+#### 1. `Freigeschaltet__c`
+
+`Object Manager → Contact → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Checkbox |
+| Field Label | Freigeschaltet |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Steuert, ob der Kontakt im Backend unter /contacts auftaucht. Der Haken wird in Salesforce manuell gesetzt und ist der bewusste Freischalt-Schritt vor "Als Teilnehmer anlegen". Ohne Haken bleibt der Kontakt im Backend unsichtbar, auch wenn er in Salesforce existiert. Haken im Setup setzen: Objekte > Contact > Felder > Neues Feld > Checkbox. |
+
+---
+
 ## Program__c
 
 **Fields:** 3 &nbsp;&nbsp; **Record Name:** Text
@@ -547,7 +571,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `Program__c`. If it differs, the object cannot be renamed — delete it and redo.
 >
-> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
 
 ### Step 2 — Create the tab
 
@@ -642,7 +666,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `Module__c`. If it differs, the object cannot be renamed — delete it and redo.
 >
-> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
 
 ### Step 2 — Create the tab
 
@@ -713,7 +737,7 @@ Values — enter **Value** and **Display Value** separately:
 
 ## Participant__c
 
-**Fields:** 9 &nbsp;&nbsp; **Record Name:** Text
+**Fields:** 11 &nbsp;&nbsp; **Record Name:** Text
 
 ### Step 1 — Create the object
 
@@ -733,7 +757,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `Participant__c`. If it differs, the object cannot be renamed — delete it and redo.
 >
-> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
 
 ### Step 2 — Create the tab
 
@@ -750,7 +774,7 @@ Values — enter **Value** and **Display Value** separately:
 >
 > The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for all ten objects so the tabs end up together.
 
-### Step 3 — Fields (9)
+### Step 3 — Fields (11)
 
 #### 1. `Discord__c`
 
@@ -806,7 +830,21 @@ Values — enter **Value** and **Display Value** separately:
 | External ID | unchecked |
 | Description | Github Username |
 
-#### 5. `StartDate__c`
+#### 5. `Portal_User_Id__c`
+
+`Object Manager → Participant → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Text |
+| Field Label | Portal-User-ID |
+| Length |  |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Portal-User-ID als Text. Existiert nur fuer die Sharing Rule PortalParticipantSeesOwnRecord: Salesforce wertet $User.UserRecord.Id in einem Kriterium auf dem Lookup-Feld Portal_User__c nicht dynamisch aus, sondern vergleicht literal. Ueber ein Textfeld ist der Vergleich auswertbar. Nicht pflegen - Formel auf Portal_User__c. |
+
+#### 6. `StartDate__c`
 
 `Object Manager → Participant → Fields & Relationships → New`
 
@@ -819,7 +857,7 @@ Values — enter **Value** and **Display Value** separately:
 | External ID | unchecked |
 | Description | Student's Start Date |
 
-#### 6. `Status__c`
+#### 7. `Status__c`
 
 `Object Manager → Participant → Fields & Relationships → New`
 
@@ -844,7 +882,7 @@ Values — enter **Value** and **Display Value** separately:
 | `Placed` | Placed |  |
 | `Dropped` | Dropped |  |
 
-#### 7. `Coach_Profile__c`
+#### 8. `Coach_Profile__c`
 
 `Object Manager → Participant → Fields & Relationships → New`
 
@@ -860,7 +898,7 @@ Values — enter **Value** and **Display Value** separately:
 | What happens when the related record is deleted | Set null |
 | Description | Betreuender Coach. Null ist zulaessig und bedeutet noch keine Betreuung zugewiesen, nicht unbekannt. |
 
-#### 8. `Contact__c`
+#### 9. `Contact__c`
 
 `Object Manager → Participant → Fields & Relationships → New`
 
@@ -878,7 +916,23 @@ Values — enter **Value** and **Display Value** separately:
 
 > **Set "Restrict delete" now.** It cannot be changed to a weaker setting later — only tightened.
 
-#### 9. `Program__c`
+#### 10. `Portal_User__c`
+
+`Object Manager → Participant → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Portal User |
+| Related To | User |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Portal_User |
+| What happens when the related record is deleted | Set null |
+| Description | Portal-Login dieses Teilnehmers. Fuellt die Sharing Rule PortalParticipantSeesOwnRecord und verlegt die Zugriffsgrenze des Portals damit vom Apex-Code auf ein Feld: der Portal-User liest genau seine eigene Row. Nicht selbst pflegen - wird aus User.ContactId abgeleitet. |
+
+#### 11. `Program__c`
 
 `Object Manager → Participant → Fields & Relationships → New`
 
@@ -920,7 +974,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `Absence__c`. If it differs, the object cannot be renamed — delete it and redo.
 >
-> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
 
 ### Step 2 — Create the tab
 
@@ -1150,7 +1204,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `Appointment__c`. If it differs, the object cannot be renamed — delete it and redo.
 >
-> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
 
 ### Step 2 — Create the tab
 
@@ -1258,6 +1312,9 @@ Values — enter **Value** and **Display Value** separately:
 
 | Value (API name) | Display Value | Default |
 | --- | --- | --- |
+| `OnSite` | Vor Ort  <- different! | yes |
+| `Phone` | Telefon  <- different! |  |
+| `Hybrid` | Hybrid |  |
 | `Discord` | Discord |  |
 | `Zoom` | Zoom |  |
 | `Teams` | Teams |  |
@@ -1420,7 +1477,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `AuditEvent__c`. If it differs, the object cannot be renamed — delete it and redo.
 >
-> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
 
 ### Step 2 — Create the tab
 
@@ -1866,7 +1923,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > The API name is generated from the Label. After saving, Object Manager must show the API name `Learning_Path__c`. If it differs, the object cannot be renamed — delete it and redo.
 >
-> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating all ten objects.
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
 
 ### Step 2 — Create the tab
 
@@ -1993,7 +2050,7 @@ cd backend
 npm run schema:check
 ```
 
-Exit 0 heisst: alle 90 Felder sind im Runtime-Schema und per SOQL abfragbar. **Achtung:**
+Exit 0 heisst: alle 93 Felder sind im Runtime-Schema und per SOQL abfragbar. **Achtung:**
 `schema-check` prueft nur die *Existenz* der Felder, nicht ihre Attribute. `required`,
 `unique`, Picklist-Werte, Laengen und Descriptions sind damit nicht abgedeckt.
 

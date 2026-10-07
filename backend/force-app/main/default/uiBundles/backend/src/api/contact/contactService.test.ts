@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { executeGraphQL } from '../graphqlClient';
+import LIST_CONTACTS from './query/ListContacts.graphql?raw';
 import {
   getContact,
   listContacts,
@@ -27,6 +28,7 @@ const node = (
   Phone: { value: null },
   AccountId: { value: accountName ? 'a01b0000000001AAA' : null },
   Account: accountName ? { Name: { value: accountName } } : null,
+  Freigeschaltet__c: { value: true },
 });
 
 const listResponse = (nodes: unknown[]) => ({
@@ -51,6 +53,7 @@ describe('listContacts', () => {
         phone: undefined,
         accountId: undefined,
         accountName: undefined,
+        freigeschaltet: true,
         participantId: undefined,
         participantName: undefined,
       },
@@ -76,6 +79,43 @@ describe('listContacts', () => {
     const [contact] = await listContacts();
 
     expect(contact.name).toBe('Weber');
+  });
+});
+
+/**
+ * Der Freischalt-Schritt. Ohne diesen Test fällt der Filter still aus: die
+ * GraphQL-Abfrage antwortet dann mit allen Kontakten der Org und niemand merkt
+ * es, weil die Liste plausibel aussieht.
+ */
+describe('Freischaltung', () => {
+  it('filtert die Abfrage serverseitig auf freigeschaltete Kontakte', () => {
+    expect(LIST_CONTACTS).toMatch(
+      /where:\s*\{\s*Freigeschaltet__c:\s*\{\s*eq:\s*true\s*\}\s*\}/
+    );
+  });
+
+  it('fragt das Hakenfeld ab', () => {
+    expect(LIST_CONTACTS).toContain('Freigeschaltet__c @optional');
+  });
+
+  it('meldet den Haken je Kontakt', async () => {
+    mockedExecute.mockResolvedValueOnce(
+      listResponse([{ ...node('003a', 'A', 'B', 'a@example.com'), Freigeschaltet__c: { value: true } }])
+    );
+
+    expect((await listContacts())[0].freigeschaltet).toBe(true);
+  });
+
+  it('behandelt ein fehlendes Feld als "nicht freigeschaltet"', async () => {
+    const { Freigeschaltet__c: _omitted, ...ohneFeld } = node(
+      '003a',
+      'A',
+      'B',
+      'a@example.com'
+    );
+    mockedExecute.mockResolvedValueOnce(listResponse([ohneFeld]));
+
+    expect((await listContacts())[0].freigeschaltet).toBe(false);
   });
 });
 
