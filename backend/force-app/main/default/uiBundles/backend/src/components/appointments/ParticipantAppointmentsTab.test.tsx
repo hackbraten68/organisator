@@ -113,4 +113,13 @@ describe("ParticipantAppointmentsTab – Termin-Formular", () => {
     // zwei Titel bedeuten zwei Header und damit zwei Screenreader-Regionen.
     expect(screen.getAllByText("Termin anlegen", { selector: "h2" })).toHaveLength(1);
   });
+
+  it("bietet kein unerreichbares Bearbeiten an", async () => {
+    await openForm();
+
+    // "Termin bearbeiten" gab es im Dialogtitel, aber editingAppointment
+    // wurde nirgends gesetzt. Der Titel bleibt weg, bis das Bearbeiten
+    // entweder verdrahtet oder als Produktentscheidung gestrichen ist.
+    expect(screen.queryByText("Termin bearbeiten")).not.toBeInTheDocument();
+  });
 });

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Plus, Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -15,7 +14,6 @@ import type { Appointment, AppointmentInput, AppointmentFilters } from "@/types/
 import { AppointmentListCard } from "./AppointmentListCard";
 import { AppointmentFormDialog } from "./AppointmentFormDialog";
 import { ProposeSlotsDialog } from "./ProposeSlotsDialog";
-import { SelectSlotDialog } from "./SelectSlotDialog";
 import { AvailabilitySlots } from "./AvailabilitySlots";
 import { AppointmentListCardSkeleton } from "./AppointmentSkeleton";
 import { EmptyState } from "@/components/ui/layout";
@@ -36,9 +34,7 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
   const [filterType, setFilterType] = useState<Appointment["type"] | "all">("all");
   const [weekOffset, setWeekOffset] = useState(0);
   const [showForm, setShowForm] = useState(false);
-  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [proposeSlotsFor, setProposeSlotsFor] = useState<Appointment | null>(null);
-  const [selectSlotFor, setSelectSlotFor] = useState<Appointment | null>(null);
   const [availableCoaches, setAvailableCoaches] = useState<AssignableUser[]>([]);
   const [availableSlots, setAvailableSlots] = useState<import("@/types/availabilitySlot").AvailabilitySlot[]>([]);
 
@@ -144,14 +140,6 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
     toast.success("Slots vorgeschlagen");
     fetchAppointments();
     setProposeSlotsFor(null);
-  };
-
-  const handleSelectSlot = async (slot: { startTime: string; endTime: string }) => {
-    if (!selectSlotFor) return;
-    await rescheduleAppointment(selectSlotFor.id, slot.startTime, slot.endTime, selectSlotFor.correlationId);
-    toast.success("Slot ausgewählt");
-    fetchAppointments();
-    setSelectSlotFor(null);
   };
 
   const handleCancel = async (id: string) => {
@@ -367,16 +355,19 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
       {/* Create/Edit Dialog — AppointmentFormDialog rendert selbst ein volles
           Dialog. Ein umschliessendes Dialog wuerde ein zweites Portal, einen
           zweiten Header und eine zweite Fokusfalle erzeugen; der aeussere
-          Dialog bliebe sichtbar, aber nicht bedienbar. */}
+          Dialog bliebe sichtbar, aber nicht bedienbar.
+
+          Das Bearbeiten ist bewusst nicht verdrahtet: setEditingAppointment
+          wurde nirgends aufgerufen, "Termin bearbeiten" war unerreichbar.
+          Ob Terminbearbeitung kommt, ist eine Produktentscheidung. */}
       <AppointmentFormDialog
         isOpen={showForm}
-        onClose={() => { setShowForm(false); setEditingAppointment(null); }}
+        onClose={() => setShowForm(false)}
         onSubmit={handleCreate}
         participantId={participantId}
         participantName={participantName}
-        initialData={editingAppointment ?? undefined}
         availableCoaches={availableCoaches}
-        title={editingAppointment ? "Termin bearbeiten" : "Termin anlegen"}
+        title="Termin anlegen"
       />
 
       {/* Propose Slots Dialog (Coach) */}
@@ -387,33 +378,6 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
         type={proposeSlotsFor?.type || "Coaching"}
         availableSlots={availableSlots}
       />
-
-      {/* Select Slot Dialog (Participant) */}
-      <SelectSlotDialog
-        isOpen={!!selectSlotFor}
-        onClose={() => setSelectSlotFor(null)}
-        onSelect={handleSelectSlot}
-        proposedSlots={selectSlotFor ? [
-          { startTime: "2026-01-15T10:00:00", endTime: "2026-01-15T11:00:00" },
-          { startTime: "2026-01-16T14:00:00", endTime: "2026-01-16T15:00:00" },
-          { startTime: "2026-01-17T09:00:00", endTime: "2026-01-17T10:00:00" },
-        ] : []}
-        type={selectSlotFor?.type || "Coaching"}
-        participantId={participantId}
-        coachName={selectSlotFor?.coachName}
-      />
-
-      {/* Coach Self-Service Availability (in separate dialog for coach view) */}
-      {canManage && (
-        <Dialog open={false} onOpenChange={() => {}}>
-          <DialogContent className="max-w-4xl max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle>Meine Verfügbarkeiten</DialogTitle>
-            </DialogHeader>
-            <AvailabilitySlots currentUserId={actor?.id || ""} canManage={true} />
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }

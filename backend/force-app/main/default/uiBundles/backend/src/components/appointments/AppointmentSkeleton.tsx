@@ -60,17 +60,6 @@ export function ProposeSlotsDialogSkeleton() {
   );
 }
 
-export function SelectSlotDialogSkeleton() {
-  return (
-    <div className="space-y-4 p-4">
-      <Skeleton className="h-8 w-1/2" />
-      <Skeleton className="h-24 w-full" />
-      <Skeleton className="h-24 w-full" />
-      <Skeleton className="h-24 w-full" />
-    </div>
-  );
-}
-
 export function AvailabilitySlotsSkeleton() {
   return (
     <div className="space-y-4">
