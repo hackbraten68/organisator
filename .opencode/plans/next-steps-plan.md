@@ -22,6 +22,12 @@ gewichtet, nicht nur umformuliert.
 
 ## Priorität 0 — Contact-Freigabe: Vertrieb gibt Contact frei, Coach macht daraus einen Teilnehmer
 
+**Stand 2026-10-07: 🟡 Code und Org fertig, Live-Test mit einem Coach steht aus.**
+Feld `Contact.Freigeschaltet__c` existiert im Runtime-Schema, `backend_Coach` ist
+deployed und vier Usern zugewiesen, `ListContacts.graphql` filtert serverseitig auf
+`eq: true`. Als Testdaten ist genau ein Kontakt freigeschaltet (`Coach, Marek`,
+`0039X00001zDpMrQAK`). Details unten in "Ergebnis 2026-10-07".
+
 **Zieltermin: 31.10.2026.** Diese Funktion hat Vorrang vor allen anderen Prioritäten.
 
 ### Was der Nutzer will
@@ -34,15 +40,15 @@ gewichtet, nicht nur umformuliert.
 
 Der Convert-Pfad ist nicht neu zu bauen, er ist schon da und getestet:
 
-| Baustein | Status | Fundstelle |
-|---|---|---|
-| Contact-Übersicht im Backend | ✅ | `src/pages/ContactPage.tsx`, `src/components/contacts/ContactTable.tsx` |
-| Spalte „Teilnehmer" (zeigst schon umgewandelt) | ✅ | `Contact.participantId`/`participantName` in `src/types/contact.ts` |
-| „Als Teilnehmer anlegen"-Aktion | ✅ | `ContactPage.tsx:64` `openDialog()` |
-| Dialog mit Programm/Coach/Daten | ✅ | `CreateParticipantDialog.tsx` |
-| Mutation `CreateParticipant` | ✅ | `src/api/participant/query/CreateParticipant.graphql` |
-| 1:1-Schutz Contact ↔ Participant | ✅ | `ParticipantContactUniqueness.trigger` |
-| Ableitung Name/E-Mail aus Contact | ✅ | ADR-001, `Participant__c.Email__c` ist Snapshot |
+| Baustein                                       | Status | Fundstelle                                                              |
+| ---------------------------------------------- | ------ | ----------------------------------------------------------------------- |
+| Contact-Übersicht im Backend                   | ✅     | `src/pages/ContactPage.tsx`, `src/components/contacts/ContactTable.tsx` |
+| Spalte „Teilnehmer" (zeigst schon umgewandelt) | ✅     | `Contact.participantId`/`participantName` in `src/types/contact.ts`     |
+| „Als Teilnehmer anlegen"-Aktion                | ✅     | `ContactPage.tsx:64` `openDialog()`                                     |
+| Dialog mit Programm/Coach/Daten                | ✅     | `CreateParticipantDialog.tsx`                                           |
+| Mutation `CreateParticipant`                   | ✅     | `src/api/participant/query/CreateParticipant.graphql`                   |
+| 1:1-Schutz Contact ↔ Participant               | ✅     | `ParticipantContactUniqueness.trigger`                                  |
+| Ableitung Name/E-Mail aus Contact              | ✅     | ADR-001, `Participant__c.Email__c` ist Snapshot                         |
 
 **Es fehlt genau eine Sache: das Freigabe-Flag.** Und das ist der Teil, der
 Salesforce-B Know-how braucht, nicht TypeScript.
@@ -68,13 +74,13 @@ Salesforce-B Know-how braucht, nicht TypeScript.
 
 ### Wochenplan bis 31.10.
 
-| KW | Datum | Inhalt | Abhängigkeit |
-|---|---|---|---|
-| 41 | 06.–10.10. | Feld in Setup anlegen, retrieve, Permsets, `schema:check` | Org-Zugriff |
-| 41 | 10.10. | Query + Types + Spalte + Guard | Feld existiert |
-| 42 | 12.–16.10. | Filterung, Tests (270er-Suite erweitern), Doku | |
-| 43 | 19.–23.10. | Buffer, Live-Test in der Org, Abnahme mit einem Coach | |
-| 44 | 26.–30.10. | Puffer für Schema-Nachzieher, Bugfixes | |
+| KW  | Datum      | Inhalt                                                    | Abhängigkeit   |
+| --- | ---------- | --------------------------------------------------------- | -------------- |
+| 41  | 06.–10.10. | Feld in Setup anlegen, retrieve, Permsets, `schema:check` | Org-Zugriff    |
+| 41  | 10.10.     | Query + Types + Spalte + Guard                            | Feld existiert |
+| 42  | 12.–16.10. | Filterung, Tests (270er-Suite erweitern), Doku            |                |
+| 43  | 19.–23.10. | Buffer, Live-Test in der Org, Abnahme mit einem Coach     |                |
+| 44  | 26.–30.10. | Puffer für Schema-Nachzieher, Bugfixes                    |                |
 
 **Kritischer Pfad:** Schritt 1 ist manuell. Wenn das Feld nicht bis **10.10.** steht,
 verschiebt sich alles. Das ist der einzige Punkt, der nicht am Code hängt.
@@ -82,7 +88,7 @@ verschiebt sich alles. Das ist der einzige Punkt, der nicht am Code hängt.
 ### Bewusst nicht in dieser Funktion
 
 - **Portalzugang** — folgt automatisch über die bestehende Membership-Logik
-  (Phase 2/3), ist aber ein eigener Schritt. Erst klären, ob *jeder* umgewandelte
+  (Phase 2/3), ist aber ein eigener Schritt. Erst klären, ob _jeder_ umgewandelte
   Contact Portalzugang bekommt oder nur ausgewählte.
 - **Rückzug** (Coach nimmt Freigabe zurück) — braucht einen Filter „nur noch nicht
   umgewandelte freigegebene Contacts", sonst sieht man bereits Erledigtes.
@@ -95,6 +101,39 @@ verschiebt sich alles. Das ist der einzige Punkt, der nicht am Code hängt.
 - **Wer darf das Flag setzen?** Nur Vertrieb (Classic) oder auch staff im Backend?
 - **Sichtbarkeit:** nur freigegebene Contacts hart filtern oder alle zeigen und
   die nicht freigegebenen ausgrauen?
+
+### Ergebnis 2026-10-07 — die drei offenen Entscheidungen sind gefallen
+
+| Frage                        | Entscheidung                              | Warum                                                                                                                           |
+| ---------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Checkbox oder Picklist?      | **Checkbox** `Freigeschaltet__c`          | Minimum, ein Zustand reicht. Ein Picklist-Führungsmodell ist eine eigene Produktentscheidung                                    |
+| Wer darf das Flag setzen?    | **Vertrieb, manuell in Salesforce Setup** | Das Backend schreibt es nicht. `backend_Coach` gibt das Feld nur lesbar frei, `editable=false`                                  |
+| Hart filtern oder ausgrauen? | **Hart serverseitig filtern**             | Ein nicht freigeschalteter Kontakt darf nie im Browser landen, auch nicht kurzzeitig. Leerzustand erklärt den Freischaltschritt |
+
+Zwei Punkte aus der Bauanliste wurden bewusst **nicht** umgesetzt:
+
+- **Guard „Als Teilnehmer anlegen" deaktiviert (Punkt 5).** Überflüssig: Die Liste
+  enthält nur freigeschaltete Kontakte, ein nicht freigeschalteter ist dort gar nicht
+  vorhanden. Ein Guard auf einen Zustand, den die Liste ausschließt, wäre Täuschung.
+- **Spalte „Freigegeben" (Punkt 6).** Ebenfalls überflüssig aus demselben Grund. Alle
+  sichtbaren Zeilen sind freigeschaltet; die Information wäre in jeder Zeile identisch.
+
+### Was noch offen ist
+
+1. **Live-Test mit einem Coach.** `backend_Coach` ist an `frank@`, `sandra@` und
+   `samuel.dillenburg@` zugewiesen, aber Frank und Sam sitzen auf
+   `System Administrator` — ihr Test beweist nichts. Sandra Krüger ist auf
+   `Standardbenutzer Sales` der einzige aussagekräftige Testkollege, und ihr Profil
+   wird die 31 Pflichtfelder vermutlich noch nicht freigeben. Das ist Handarbeit in
+   Setup und in `docs/coach-test-protocol.md` Schritt 1 beschrieben.
+2. **`Freigeschaltet` auf dem Contact-Seitenlayout.** Ohne das kann der Vertrieb den
+   Haken nicht setzen und der Test bleibt eine CLI-Operation. Verursacht vermutlich
+   Dynamic Forms auf Contact: dann gehört das Feld in den Lightning App Builder unter
+   den Tab _Fields_, nicht ins klassische Seitenlayout.
+3. **Aufräumen der Sandbox.** Von 23 Contacts sind 11 Seed-Daten und 12 Testresiduum
+   aus früheren Experimenten (E2E-Läufe, Trigger-Probes, Portal-Spike). Ebenfalls
+   4 Residuum-Teilnehmer. Für den Live-Test vorher bereinigen, sonst steht in der
+   Freischaltliste Dauerschrott.
 
 ---
 
@@ -134,28 +173,32 @@ erledigten Dingen:
 
 **Warum zuerst:** `backend/docs/ux-walkthrough.md` ist vom **2026-09-28** und
 beschreibt Lücken, die seitdem teilweise geschlossen wurden. Das Dokument behauptet
-z. B. "Kein *Neuer Teilnehmer*-Button im UI", "Kein Onboarding-Flow", "kein Toast-Feedback".
+z. B. "Kein _Neuer Teilnehmer_-Button im UI", "Kein Onboarding-Flow", "kein Toast-Feedback".
 Ob das noch gilt, ist unbelegt. **Jede nachfolgende Priorität hängt an dieser Frage.**
 
 ### Schritte
+
 1. ✅ Bestehenden Walkthrough gegen den aktuellen Code geprüft, Zeile für Zeile.
 2. ✅ Verbleibende Lücken nach **Produktnutzen** priorisiert (siehe v2.0, Abschnitt
    „Nächste Schritte").
 3. ✅ Dokument auf Version 2.0 gehoben, mit Spalte „Status seit 2026-09-28" und Belegen.
 
 ### Ergebnis
+
 - **Größte offene Lücke:** Konflikt-Check (`grep -ri conflict src/` → null Treffer).
 - **Billigster Hebel:** die 6 in v2.0 dokumentierten 🔴-Defekte, zwei davon
   (`slots[0]`, ISO-Datum ohne `validFrom`) erzeugen falsche Daten.
 - Neu im Plan fehlend und daher als **Priorität 1a** zu behandeln: Defektliste abarbeiten.
 
 ### Entscheidungsbedarf (aus v2.0)
+
 - **Anlegepfad:** Contact-Flow bleibt einziger Weg, oder kommt ein Button ins Backoffice?
 - **Terminfindung:** drei Vorschläge + Teilnehmer-Auswahl als Zielzustand — das
   entscheidet, ob `SelectSlotDialog` verdrahtet oder gelöscht wird (er ist toter Code).
 - **Konflikt-Check:** Warnung, Alternativen oder harte Blockade?
 
 ### Dateien
+
 - `backend/docs/ux-walkthrough.md`
 
 ---
@@ -164,22 +207,23 @@ Ob das noch gilt, ist unbelegt. **Jede nachfolgende Priorität hängt an dieser 
 
 Korrigierte Tabelle (Stand 2026-10-06):
 
-| Komponente | Loading | Error | Empty |
-|------------|---------|-------|-------|
-| ParticipantListCard | ✅ | ✅ | ✅ |
-| ParticipantSummaryCard | ✅ | ✅ `Alert` | ⬜ fehlt |
-| ActivityTimeline | ✅ `Skeleton` | ✅ `role="status"` | ⬜ prüfen |
-| ParticipantActivity | ✅ | ✅ `role="status"` | ⬜ prüfen |
-| AvailabilitySlots | ✅ | ⚠️ Toast | ✅ |
-| ParticipantAppointmentsTab | ✅ | ⚠️ Toast | ✅ |
-| ParticipantAbsencesTab | ✅ | ⚠️ Toast | ⚠️ Custom |
-| ParticipantLearningPath | ✅ | ✅ | ⚠️ Custom |
+| Komponente                 | Loading       | Error              | Empty     |
+| -------------------------- | ------------- | ------------------ | --------- |
+| ParticipantListCard        | ✅            | ✅                 | ✅        |
+| ParticipantSummaryCard     | ✅            | ✅ `Alert`         | ⬜ fehlt  |
+| ActivityTimeline           | ✅ `Skeleton` | ✅ `role="status"` | ⬜ prüfen |
+| ParticipantActivity        | ✅            | ✅ `role="status"` | ⬜ prüfen |
+| AvailabilitySlots          | ✅            | ⚠️ Toast           | ✅        |
+| ParticipantAppointmentsTab | ✅            | ⚠️ Toast           | ✅        |
+| ParticipantAbsencesTab     | ✅            | ⚠️ Toast           | ⚠️ Custom |
+| ParticipantLearningPath    | ✅            | ✅                 | ⚠️ Custom |
 
 `EmptyState` liegt in `src/components/ui/empty-state.tsx` und wird aktuell von
 `ParticipantListCard`, `AvailabilitySlots`, `ParticipantAppointmentsTab`,
 `ContactTable` und `ContactDetailCard` benutzt.
 
 ### Schritte
+
 1. `ParticipantSummaryCard` — `EmptyState` ergänzen
 2. `ActivityTimeline` / `ParticipantActivity` — leerer Fall klären
 3. AbsencesTab, LearningPath — Custom-Empty durch `EmptyState` ersetzen
@@ -193,6 +237,7 @@ Der Code ist fertig, der Nachweis fehlt. Priorität 3 ist damit kein Bau-, sonde
 **Test-Thema**, und damit billiger als sie aussieht.
 
 ### Schritte
+
 1. Breakpoint-Test 1024 / 1280 / 1366 / 1440 px dokumentieren
 2. Tab-Overflow prüfen (kein `overflow-x-auto` im Code gefunden)
 3. Container-Check: 1600 px Container + 256 px Sidebar (`w-64`)
@@ -212,12 +257,14 @@ ebenfalls lazy.
 Offen ist **eine** Messung: der 492K-Index-Chunk.
 
 ### Schritte
+
 1. `rollup-plugin-visualizer` einbauen
 2. Sichtbar machen, was den Index-Chunk aufbläht
 3. `ParticipantPage` (196K) prüfen — ist die Route zu breit?
 4. React-Query: `staleTime` / `cacheTime` auf Plausibilität prüfen
 
 ### Dateien
+
 - `vite.config.ts`, `src/routes.tsx`
 
 ---
@@ -227,12 +274,14 @@ Offen ist **eine** Messung: der 492K-Index-Chunk.
 Priorität 5 ist zu ~80 % erledigt. Es fehlt Dokumentation, nicht Code.
 
 ### Schritte
+
 1. Status → Badge-Varianten als Tabelle festhalten (draft/confirmed/cancelled → `default`/`success`/`warning`/`destructive`)
 2. Icon-Konvention: Calendar=Termine, Clock=Verfügbarkeit, User=Teilnehmer, MapPin=Ort
 3. Animation-Tokens (Duration, Easing) und Z-Index-Skala (Modal, Dropdown, Toast, Sticky)
 4. Dark-Mode-Werte der Statusfarben mit dokumentieren
 
 ### Dateien
+
 - `backend/docs/design-system.md`, `src/styles/global.css`
 
 ---
@@ -267,6 +316,7 @@ Aus der alten Phase-6-Liste, zwei Punkte sind noch offen:
 ## Priorität 8 — RC1
 
 RC-Checkliste:
+
 - [ ] Build erfolgreich
 - [ ] Lint 0 Fehler
 - [ ] Vitest grün (aktuell 270/270)
@@ -285,9 +335,11 @@ Danach: RC1 taggen, 2–3 reale Nutzer, Feedback priorisieren.
 ## Strategische Initiativen (unverändert, weiterhin offen)
 
 ### Shepherd.js Tutorials
+
 Evaluierung → Tutorial-Standards → Pilot-Tutorials → Feedback-Runde → Rollout.
 
 ### Vollständiges Activity-Tracking (sehr hoch)
+
 Aktueller Stand laut Plan: 8 Kategorien, 5 Audiences, 40+ Event-Typen.
 Zu prüfen: Termine, Abwesenheiten, Genehmigungen, Statusänderungen — werden die
 Benachrichtigungen korrekt ausgelöst, ist der Feed konsistent zur Datenquelle?
@@ -326,13 +378,15 @@ der Produktidee dann fehlt.
 ## Noch offene Fragen für den Product Owner
 
 **Beantwortet am 2026-10-06:**
+
 - Wer legt Teilnehmer an → **Vertrieb gibt den Contact im Salesforce-UI frei, der Coach
   wandelt ihn im Backend um.** Siehe Priorität 0.
 - Zieltermin → **Ende Oktober** für die Contact-Freigabe. RC1 bleibt undatiert.
 
 **Weiterhin offen:**
+
 1. **Checkbox oder Picklist** für das Freigabe-Flag (siehe Priorität 0)?
-2. **Nur freigegebene Contacts zeigen** oder alle mit ausgegrauten? (Betrifft UX-Walkthrough-Punkt 1 direkt — die alte Notiz "kein *Neuer Teilnehmer*-Button" löst sich mit Priorität 0 auf.)
+2. **Nur freigegebene Contacts zeigen** oder alle mit ausgegrauten? (Betrifft UX-Walkthrough-Punkt 1 direkt — die alte Notiz "kein _Neuer Teilnehmer_-Button" löst sich mit Priorität 0 auf.)
 3. **Termin-Konflikt-Check** — Feature oder für Phase 2 der Produktplanung?
 4. Bekommt **jeder** umgewandelte Contact automatisch Portalzugang, oder nur ausgewählte?
 5. Welche der strategischen Initiativen hat Vorrang: Shepherd.js-Tutorials oder Activity-Tracking?

@@ -2,11 +2,11 @@
 
 Zwei Zugriffsstufen, klar getrennt.
 
-| Rolle | App | Berechtigungen | Umgesetzt als |
-|---|---|---|---|
-| Admin | Backend | alles | Profil des Org (System Administrator) |
-| Coach | Backend | fachliche Objekte, keine Löschrechte auf Teilnehmer/Programme | Permission Set `backend_Coach` |
-| Teilnehmer | Experience Cloud Portal `/organisator` | ausschließlich eigene Daten | Profil `Customer Community Plus User` + `Participant_Portal_Access` |
+| Rolle      | App                                    | Berechtigungen                                                | Umgesetzt als                                                       |
+| ---------- | -------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Admin      | Backend                                | alles                                                         | Profil des Org (System Administrator)                               |
+| Coach      | Backend                                | fachliche Objekte, keine Löschrechte auf Teilnehmer/Programme | Permission Set `backend_Coach`                                      |
+| Teilnehmer | Experience Cloud Portal `/organisator` | ausschließlich eigene Daten                                   | Profil `Customer Community Plus User` + `Participant_Portal_Access` |
 
 Die Trennung wird von Salesforce erzwungen, nicht nur von der App:
 
@@ -57,14 +57,14 @@ Profil**. Ein Permission Set kann sie nicht liefern.
 
 Betroffen sind unter anderem:
 
-| Objekt | Pflichtfelder |
-|---|---|
-| `AuditEvent__c` | `EventType__c`, `OccurredAt__c`, `SubjectId__c`, `SubjectType__c`, `Domain__c`, `Action__c`, `ActorType__c`, `Visibility__c`, `Sensitivity__c`, `Source__c`, `SchemaVersion__c` |
-| `AuditOutbox__c` | `EventType__c`, `Status__c`, `RetryCount__c` |
-| `Absence__c` | `Participant__c`, `Status__c`, `Type__c`, `StartDate__c`, `EndDate__c` |
-| `Appointment__c` | `Participant__c`, `Status__c`, `Type__c`, `StartTime__c`, `EndTime__c` |
-| `AvailabilitySlot__c` | `User__c`-Zeitfelder, `DayOfWeek__c`, `Type__c` |
-| `Module__c` / `Learning_Path__c` / `Participant__c` | je 1 Feld |
+| Objekt                                              | Pflichtfelder                                                                                                                                                                   |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AuditEvent__c`                                     | `EventType__c`, `OccurredAt__c`, `SubjectId__c`, `SubjectType__c`, `Domain__c`, `Action__c`, `ActorType__c`, `Visibility__c`, `Sensitivity__c`, `Source__c`, `SchemaVersion__c` |
+| `AuditOutbox__c`                                    | `EventType__c`, `Status__c`, `RetryCount__c`                                                                                                                                    |
+| `Absence__c`                                        | `Participant__c`, `Status__c`, `Type__c`, `StartDate__c`, `EndDate__c`                                                                                                          |
+| `Appointment__c`                                    | `Participant__c`, `Status__c`, `Type__c`, `StartTime__c`, `EndTime__c`                                                                                                          |
+| `AvailabilitySlot__c`                               | `User__c`-Zeitfelder, `DayOfWeek__c`, `Type__c`                                                                                                                                 |
+| `Module__c` / `Learning_Path__c` / `Participant__c` | je 1 Feld                                                                                                                                                                       |
 
 **Konsequenz:** Wenn das Profil des Kollegen diese Felder nicht freigibt,
 schlägt der erste Insert fehl und — schlimmer — der Audit-Write daneben auch.
@@ -80,9 +80,38 @@ Das ist die wahrscheinlichste Stelle, an der der erste Coach-Test rot wird.
 3. Einen Coach-Test durchspielen: Teilnehmer anlegen, Termin anlegen,
    Abwesenheit genehmigen. Prüfen, ob die Audit-Events im Verlauf erscheinen.
 
+## Stand in `hubSandbox` (2026-10-07)
+
+`backend_Coach` ist vier Usern zugewiesen:
+
+| User                                       | Profil                   | Aussagekräftig als Coach-Test? |
+| ------------------------------------------ | ------------------------ | ------------------------------ |
+| `sandra@codingschule.de.devhub`            | `Standardbenutzer Sales` | **ja** — einziger Nicht-Admin  |
+| `frank@codingschule.de.devhub`             | `System Administrator`   | nein                           |
+| `samuel.dillenburg@codingschule.de.devhub` | `System Administrator`   | nein                           |
+| `coach.test@codingschule.de.devhub`        | `Standardbenutzer AM`    | Referenzprofil                 |
+
+**Offen:** Frank und Sam sitzen auf `System Administrator`. Die Zuweisung von
+`backend_Coach` ändert für sie nichts — Modify All Data gewährt bereits alles. Sie
+haben damit Zugang, aber ihr Test bestätigt nichts. Für einen belastbaren Test ist
+entweder eine Profilumstellung nötig oder Sandra der Testkollege.
+
+**Ebenfalls offen:** `Coach_Profile__c` hat **kein** `User__c`-Feld. Es gibt damit
+keine Verknüpfung zwischen einem Coach-Profil und einem Login; die Zuordnung erfolgt
+bisher nur über den Namen. Drei der vier Coach-Profile (Frank Blum, Sam Dillenburg,
+Sandra Krüger) lassen sich so einem echten User zuordnen, **Ghaith Saidani hat gar
+keinen User**. Für einen belastbaren Zugriff bräuchte es `Coach_Profile__c.User__c` —
+ein neues Feld, und das ist nach Regel E1 **manuell in Setup** anzulegen.
+
+Nicht deploybar und daher manuell: die 31 Pflichtfelder, jedes Profil, und jedes neue
+Custom-Feld. Deploybar und bereits erledigt: `backend_Coach` selbst.
+
 ## Verifikation
 
 Der eigentliche Test ist nicht der Login, sondern dass ein Coach mit einem
 **Standardprofil** (nicht Admin) die Fachobjekte sieht und bearbeiten kann,
 während er keine Berechtigung auf Objekte hat, die nicht im Set stehen. Ein
 Coach mit System-Administrator-Profil beweist nichts — der umgeht FLS und OWD.
+
+Der Ablauf steht in `docs/coach-test-protocol.md`, einschließlich des
+Freischalt-Tests unter `/contacts`.

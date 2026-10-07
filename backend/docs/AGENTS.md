@@ -25,15 +25,15 @@ Both projects deploy to the **same** org — currently `organiser-dev` (see the 
 alias above). Each metadata type has exactly one owning project, so the two deploys never
 fight over the same file.
 
-| Owned by `backend`                                    | Owned by `frontend`                            |
-| ----------------------------------------------------- | ---------------------------------------------- |
-| `CustomObject` (academy objects)                      | `Network`, `Site`, `DigitalExperienceConfig`   |
-| `ParticipantPortalAccess` (grant/revoke/reset)        | `ParticipantPortalData` (`/me`, read-only)     |
-| `ParticipantContactUniqueness` (trigger)              | Portal profiles, permission sets, member setup |
-| `AuditEvent__c` event types                           | Experience Cloud templates                     |
-| `CustomPermission` `Manage_Participant_Portal_Access` |                                                |
-| `StaffIdentity` (`/staff-identity/me`, signed-in user) |                                              |
-| The internal backoffice UI Bundle                     | The participant UI Bundle                      |
+| Owned by `backend`                                     | Owned by `frontend`                            |
+| ------------------------------------------------------ | ---------------------------------------------- |
+| `CustomObject` (academy objects)                       | `Network`, `Site`, `DigitalExperienceConfig`   |
+| `ParticipantPortalAccess` (grant/revoke/reset)         | `ParticipantPortalData` (`/me`, read-only)     |
+| `ParticipantContactUniqueness` (trigger)               | Portal profiles, permission sets, member setup |
+| `AuditEvent__c` event types                            | Experience Cloud templates                     |
+| `CustomPermission` `Manage_Participant_Portal_Access`  |                                                |
+| `StaffIdentity` (`/staff-identity/me`, signed-in user) |                                                |
+| The internal backoffice UI Bundle                      | The participant UI Bundle                      |
 
 `StaffIdentity` answers "who is signed in" for the **backoffice** bundle, so it lives
 here; `ParticipantPortalData` answers the same question for the **portal**, so it lives
@@ -47,9 +47,10 @@ are in `docs/portal/architecture-decisions.md`.
 
 ## Security conventions (binding)
 
-Three rules that no compiler, no test and no deploy enforces. All three were violated or
+Five rules that no compiler, no test and no deploy enforces. All five were violated or
 nearly violated in this codebase; they exist because of that. Measured basis:
-`security-audit-report.md` (Abschnitt 4, Gate G1 vom 2026-10-07).
+`security-audit-report.md` (Abschnitt 4, Gate G1 vom 2026-10-07) und Regel 5 aus
+dem Bundle-Deploy vom 2026-10-07.
 
 ### 1. The org-wide default is not deployable — never trust a green deploy on it
 
@@ -73,8 +74,8 @@ Consequences that must hold:
 
 ### 2. Every login path goes through `UIBundleAuthUtils.getSanitizedStartUrl`
 
-The org is configured with *"Allow redirections to untrusted external URLs: With user's
-permission"* — that is a permission level, not a block. Any Salesforce-side redirect
+The org is configured with _"Allow redirections to untrusted external URLs: With user's
+permission"_ — that is a permission level, not a block. Any Salesforce-side redirect
 (flow, Apex `redirect()`, Experience Cloud page) is therefore only as safe as the code that
 performs it.
 
@@ -107,10 +108,57 @@ produced a wrong conclusion:
 - **Formula fields** like `Participant__c.Portal_User_Id__c` do **not** evaluate `$User`.
   They store static values or stay empty (`portal-deploy-status.md`).
 - **Sharing rule criteria** on a lookup field, e.g. `Participant: Portal User equals
-  $User.Id`, **do** resolve at runtime.
+$User.Id`, **do** resolve at runtime.
 
 So a broken formula is not evidence that sharing rules are broken, and a working sharing
 rule is not evidence that formulas work. Check the specific mechanism.
+
+### 5. `dist/` is the deploy artifact, and a stale schema hides type errors
+
+Two facts measured on 2026-10-07, both of which produced a green result that meant
+nothing.
+
+**The UI Bundle deploys `dist/`, not `src/`.** A source change is not live until
+`npm run build` ran. The dry-run stays green either way — it reports the components,
+not whether they contain the change you meant. Before deploying a bundle:
+
+```bash
+cd force-app/main/default/uiBundles/backend
+grep -c "<the new marker>" dist/assets/*.js   # must be > 0
+```
+
+This happened with the `Freigeschaltet__c` filter: `dist/` was built 11:56, `src/`
+changed at 20:50, and the marker was in no asset. A deploy would have succeeded and
+silently left the gate inactive.
+
+**`backend/schema.graphql` is a gitignored snapshot, not the org.** The GraphQL
+codegen validates every `.graphql` document against it. It was dated 2026-09-30 while
+the org moved on, and the consequences compound in both directions:
+
+- A field added in the org is **unknown**, so codegen rejects a correct query.
+- A stale snapshot can hide a genuine type error until the snapshot is refreshed.
+
+Refreshing it is a separate step and it needs org access:
+
+```bash
+SF_TARGET_ORG=<alias> npm run graphql:schema
+```
+
+The refresh is what exposed the real bug in
+`GetAvailabilityAuditTrail.graphql`: it declared `$userId: ID!` while filtering
+`AuditEvent__c.ParentId__c`, which is `Text(80)` and therefore filters through
+`StringOperators`, not `IdOperators`. A Salesforce id held in a text field is a string,
+not an `ID`. The build had never been run against a current schema, so it was not
+known to be broken at all.
+
+**Rule: the variable type follows the field's Salesforce type, not what the value
+looks like.** Lookup and Master-Detail take `ID!`; text, email, number and date take
+`String!`. `src/api/audit/queryVariableTypes.test.ts` enforces this for the audit
+queries by reading the field metadata rather than hardcoding the expectation — if the
+field ever becomes a lookup, the test fails and says which way to change.
+
+So: refresh the schema, then build, then check the marker in `dist/`, then deploy, then
+`npm run schema:check`. A green dry-run is not evidence at any of those four steps.
 
 ---
 
@@ -119,7 +167,7 @@ rule is not evidence that formulas work. Check the specific mechanism.
 The runtime carries no user identity. `SFDC_ENV` has `orgUrl`, `apiPath`, `basePath`,
 `namespace` and `appName` — **no user id, no username** (verified on the live site, see
 `frontend/AGENTS.md` → "Login and logout paths"). The platform-sdk's `AppIdentity` is the
-*UIBundle* identity (`namespace`/`appName`/`qualifiedName`/`bundleId`), not a person, and
+_UIBundle_ identity (`namespace`/`appName`/`qualifiedName`/`bundleId`), not a person, and
 UI API has no `uiapi.user` root.
 
 The "Logged in as <username>" bar above the backoffice is rendered **by Salesforce on the

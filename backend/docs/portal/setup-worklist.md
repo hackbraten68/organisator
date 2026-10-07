@@ -1,6 +1,6 @@
 # Setup Worklist — Academy data model in `hubSandbox`
 
-**Stand:** 2026-09-30
+**Stand:** 2026-10-07
 **Zweck:** anleitung zum Anlegen aller Objekte und Felder von Hand in Salesforce Setup.
 
 ## Warum von Hand

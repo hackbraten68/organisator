@@ -15,6 +15,7 @@ gemischt) dadurch sichtbar wird. Das ist der Stand im Repository.
 """
 import glob
 import os
+import time
 import xml.etree.ElementTree as ET
 
 NS = {'m': 'http://soap.sforce.com/2006/04/metadata'}
@@ -277,7 +278,7 @@ def dependency_order(objects):
 
 HEADER = """# Setup Worklist — Academy data model in `hubSandbox`
 
-**Stand:** 2026-09-30
+**Stand:** __STAND__
 **Zweck:** anleitung zum Anlegen aller Objekte und Felder von Hand in Salesforce Setup.
 
 ## Warum von Hand
@@ -340,6 +341,30 @@ Leerer Diff heisst: Setup und Repository beschreiben dieselbe Sache.
 """
 
 
+def newest_field_change():
+    """
+    Das Datum des zuletzt geaenderten Feldes — als "Stand".
+
+    Das Kopfdatum war bis zum 07.10.2026 hart auf 2026-09-30 verdrahtet, waehrend
+    dieselbe Datei ihre Zeilen aus den Metadaten zieht. Zwei Quellen, eine davon
+    eingefroren: nach dem Contact-Feld behauptete die Worklist weiterhin, es
+    stehe vom 30.09., und der Leser konnte nicht entscheiden, ob die Liste
+    aktuell ist.
+
+    Aus dem Dateisystem, nicht aus git: git-Zeitstempel haengen an Checkout und
+    Rebase, nicht an der Aenderung selbst. Zwei Kandidaten, der neueste gewinnt.
+    """
+    candidates = []
+    for path in glob.glob(os.path.join(ROOT, '*', 'fields', '*.xml')):
+        try:
+            candidates.append(os.path.getmtime(path))
+        except OSError:
+            pass
+    if not candidates:
+        return 'unbekannt'
+    return time.strftime('%Y-%m-%d', time.localtime(max(candidates)))
+
+
 def main():
     objects = collect()
     order = dependency_order(objects)
@@ -351,7 +376,10 @@ def main():
         if not {txt(fr, 'referenceTo') for _, fr in f} & set(by_name)
     )
 
-    parts = [HEADER.replace('__WURZEL__', str(n_roots))]
+    header = HEADER.replace('__WURZEL__', str(n_roots)).replace(
+        '__STAND__', newest_field_change()
+    )
+    parts = [header]
     for i, obj in enumerate(order, 1):
         o, r, f = by_name[obj]
         refs = sorted({txt(fr, 'referenceTo') for _, fr in f if txt(fr, 'referenceTo')})

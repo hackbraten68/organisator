@@ -8,8 +8,13 @@
 # Der Domain__c-Filter ist im Query enthalten, nicht nur im Code: ein fehlender
 # Filter hiesse, dass die Seite fremde Domains mitlaedt, nur weil der Explorer sie
 # spaeter wegfiltert.
+#
+# $userId ist String!, nicht ID!: AuditEvent__c.ParentId__c ist ein Textfeld
+# (Text(80), "ohne Objektraegersymbol"), also filtert der GraphQL-Typ StringOperators
+# und nicht IDOperators. Eine Salesforce-Id steht als Zeichenkette darin, ist aber
+# kein Id-Typ — der Codegen bricht sonst mit "used in position expecting String" ab.
 query GetAvailabilityAuditTrail(
-  $userId: ID!
+  $userId: String!
   $limit: Int
 ) {
   uiapi {

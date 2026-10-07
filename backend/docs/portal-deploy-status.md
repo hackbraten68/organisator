@@ -15,7 +15,8 @@ Stand 2026-10-05, Ziel-Org `hubSandbox`.
 | `Participant_Portal_Access` (Permission Set) | deployed, zugewiesen an 2 Portal-User |
 | `frontend_Guest_User_Api_Access` (Permission Set) | deployed |
 | `UIBundle:frontend` (das React-Portal inkl. `/me` und `/learning-path`) | deployed, Active, **an Site `Organisator` gebunden** |
-| `UIBundle:backend` (das React-Backoffice) | deployed, 2026-10-05, 231/231 Komponenten |
+| `UIBundle:backend` (das React-Backoffice) | deployed, 2026-10-07, inkl. Freischalt-Filter `Contact.Freigeschaltet__c` und der Audit-Restore-Features |
+| `backend_Coach` (Permission Set) | deployed, 2026-10-07; zugewiesen an 4 User, davon 1 Nicht-Admin — siehe `docs/coach-access.md` |
 | Network `Organisator` | **Live**, Pfad `/organisatorv1vforcesite`, Site-as-Container |
 | CustomSite `Organisator` (ChatterNetwork) | **Active**, Pfad `/organisatorv1vforcesite` |
 | CustomSite `Organisator1` (Picasso) | **Active**, Pfad `/organisatorv1` |
