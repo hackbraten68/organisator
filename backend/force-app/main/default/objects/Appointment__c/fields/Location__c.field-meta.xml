@@ -10,6 +10,21 @@
         <valueSetDefinition>
             <sorted>false</sorted>
             <value>
+                <fullName>OnSite</fullName>
+                <default>true</default>
+                <label>Vor Ort</label>
+            </value>
+            <value>
+                <fullName>Phone</fullName>
+                <default>false</default>
+                <label>Telefon</label>
+            </value>
+            <value>
+                <fullName>Hybrid</fullName>
+                <default>false</default>
+                <label>Hybrid</label>
+            </value>
+            <value>
                 <fullName>Discord</fullName>
                 <default>false</default>
                 <label>Discord</label>

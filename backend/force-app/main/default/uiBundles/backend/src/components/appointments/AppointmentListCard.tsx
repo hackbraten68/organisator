@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { Calendar, MapPin, Video, Phone, Hash, MessageSquare, CheckCheck, Building, Landmark, Briefcase, FileText, GitMerge, MoreHorizontal } from "lucide-react";
+import { Calendar, MapPin, Video, Phone, Hash, MessageSquare, CheckCheck, Star, Landmark, Briefcase, FileText, GitMerge, MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -19,7 +19,7 @@ const STATUS_STYLES: Record<Appointment["status"], { variant: "default" | "secon
 const TYPE_ICONS: Record<Appointment["type"], React.ReactNode> = {
   Coaching: <MessageSquare className="size-4 text-blue-500" aria-label="Coaching" />,
   CheckIn: <CheckCheck className="size-4 text-green-500" aria-label="Check-In" />,
-  Berufsschule: <Building className="size-4 text-purple-500" aria-label="Berufsschule" />,
+  Feedback: <Star className="size-4 text-purple-500" aria-label="Feedback" />,
   Behörde: <Landmark className="size-4 text-orange-500" aria-label="Behörde" />,
   Praktikum: <Briefcase className="size-4 text-teal-500" aria-label="Praktikum" />,
   Sonstiges: <FileText className="size-4 text-gray-500" aria-label="Sonstiges" />,

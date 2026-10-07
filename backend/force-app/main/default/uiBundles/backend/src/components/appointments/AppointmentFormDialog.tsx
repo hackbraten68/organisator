@@ -15,6 +15,7 @@ import { Check, Copy } from "lucide-react";
 import { parseISO } from "date-fns";
 import { toApiDateTime, toDateTimeLocalValue } from "@/lib/datetime";
 import type { AppointmentInput, AppointmentType, AppointmentStatus, AppointmentLocation } from "@/types/appointment";
+import { APPOINTMENT_TYPES, APPOINTMENT_LOCATIONS } from "@/types/appointment";
 
 interface AppointmentFormDialogProps {
   isOpen: boolean;
@@ -131,9 +132,9 @@ export function AppointmentFormDialog({
     if (initialData?.endTime) setEndTime(toDateTimeLocalValue(initialData.endTime));
   }, [initialData]);
 
-  const appointmentTypes: AppointmentType[] = ["Coaching", "CheckIn", "Berufsschule", "Behörde", "Praktikum", "Sonstiges"];
+  const appointmentTypes: AppointmentType[] = [...APPOINTMENT_TYPES];
   const appointmentStatuses: AppointmentStatus[] = ["Draft", "Finding", "Confirmed", "Completed", "Documented", "Cancelled", "NoShow"];
-  const appointmentLocations: AppointmentLocation[] = ["OnSite", "Teams", "Phone", "Hybrid", "External"];
+  const appointmentLocations: AppointmentLocation[] = [...APPOINTMENT_LOCATIONS];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

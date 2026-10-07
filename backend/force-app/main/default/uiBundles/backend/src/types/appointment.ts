@@ -4,7 +4,7 @@
  */
 
 export type AppointmentStatus = 'Draft' | 'Finding' | 'Confirmed' | 'Completed' | 'Documented' | 'Cancelled' | 'NoShow';
-export type AppointmentType = 'Coaching' | 'CheckIn' | 'Berufsschule' | 'Behörde' | 'Praktikum' | 'Sonstiges';
+export type AppointmentType = 'Coaching' | 'CheckIn' | 'Feedback' | 'Behörde' | 'Praktikum' | 'Sonstiges';
 export type AppointmentLocation = 'OnSite' | 'Teams' | 'Phone' | 'Hybrid' | 'External';
 
 export const APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
@@ -12,7 +12,7 @@ export const APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
 ] as const;
 
 export const APPOINTMENT_TYPES: readonly AppointmentType[] = [
-  'Coaching', 'CheckIn', 'Berufsschule', 'Behörde', 'Praktikum', 'Sonstiges'
+  'Coaching', 'CheckIn', 'Feedback', 'Behörde', 'Praktikum', 'Sonstiges'
 ] as const;
 
 export const APPOINTMENT_LOCATIONS: readonly AppointmentLocation[] = [

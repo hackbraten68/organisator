@@ -11,6 +11,7 @@ import { listAppointments, createAppointment, confirmAppointment, completeAppoin
 import { listAssignableUsers } from "@/api/user/userService";
 import type { AssignableUser } from "@/types/user";
 import type { Appointment, AppointmentInput, AppointmentFilters } from "@/types/appointment";
+import { APPOINTMENT_TYPES } from "@/types/appointment";
 import { AppointmentListCard } from "./AppointmentListCard";
 import { AppointmentFormDialog } from "./AppointmentFormDialog";
 import { ProposeSlotsDialog } from "./ProposeSlotsDialog";
@@ -148,7 +149,7 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
     fetchAppointments();
   };
 
-  const appointmentTypes = ["Coaching", "CheckIn", "Berufsschule", "Behörde", "Praktikum", "Sonstiges"] as const;
+  const appointmentTypes = APPOINTMENT_TYPES;
 
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const adjustedStart = addWeeks(weekStart, weekOffset);
