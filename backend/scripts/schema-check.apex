@@ -38,6 +38,7 @@
 
 List<String> OBJECT_NAMES = new List<String>{
   'Account',
+  'Contact',
   'Participant__c',
   'Coach_Profile__c',
   'Program__c',

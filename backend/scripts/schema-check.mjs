@@ -349,6 +349,16 @@ function report() {
 
     const missing = [...repo].filter((f) => !runtime.has(f)).sort();
     const extra = [...runtime].filter((f) => !repo.has(f)).sort();
+    // Standard objects are shared ground. `Contact` carries fields from other
+    // projects in the same sandbox (Typeform-Mapping, Bewerberfelder) — those
+    // are not our drift, and reporting them as such would leave the check
+    // permanently red, which is how a check stops being read.
+    //
+    // Ein FEHLENDES Repo-Feld bleibt auf Standardobjekten trotzdem echte
+    // Abweichung: das haben wir angelegt wollen.
+    const isCustomObject = objectName.endsWith("__c");
+    const foreign = isCustomObject ? [] : extra;
+    const driftExtra = isCustomObject ? extra : [];
     // Only compare against the org's true spelling. Without the Tooling API
     // there is none to compare against, and guessing would flag all 90 fields.
     const caseMismatches = tooling?.exact
@@ -356,7 +366,7 @@ function report() {
       : [];
     if (
       missing.length ||
-      extra.length ||
+      driftExtra.length ||
       problems.length ||
       caseMismatches.length
     )
@@ -367,7 +377,8 @@ function report() {
       repo: repo.size,
       runtime: runtime.size,
       missing,
-      extra,
+      extra: driftExtra,
+      foreign,
       caseMismatches,
       problems,
       toolingLower
@@ -406,6 +417,10 @@ function report() {
     }
     for (const field of row.extra)
       console.log(`${" ".repeat(nameWidth)}    + ${field} (nur im Org)`);
+    for (const field of row.foreign ?? [])
+      console.log(
+        `${" ".repeat(nameWidth)}    . ${field} (Standardobjekt, Feld aus fremdem Projekt — kein Drift)`
+      );
     for (const { repo, org } of row.caseMismatches)
       console.log(
         `${" ".repeat(nameWidth)}    ! ${repo}  [Org schreibt: ${org}]`
