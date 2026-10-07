@@ -173,19 +173,45 @@ bauen, bevor die Produktfrage aus `ux-walkthrough.md` beantwortet ist, wäre Rat
 **Test:** Vitest-Snapshot des gerenderten Tabs — `screen.queryByText("Termin bearbeiten")`
 muss null sein.
 
-## B3. „3 Slots vorschlagen" verwirft zwei von drei · 🔴 Datenverlust
+## B3. „3 Slots vorschlagen" verwirft zwei von drei · 🔴 Datenverlust — ✅ behoben 2026-10-07
 
-`handleProposeSlots` (`ParticipantAppointmentsTab.tsx:143`) ruft auf:
+**Der stille Datenverlust ist weg.** `ProposeSlotsDialog` verspricht jetzt genau das, was
+er liefert: **ein** Vorschlag, ein Termin. Auswahl ist Radio-Semantik (`selectedSlotId`),
+ein zweiter Klick ersetzt die Auswahl, der Senden-Button bleibt ohne Auswahl deaktiviert,
+und `onPropose` nimmt einen Slot statt einer Liste. `ParticipantAppointmentsTab.handleProposeSlot`
+schickt genau diesen einen Termin. 9 Regressionstests in `ProposeSlotsDialog.test.tsx`
+halten fest, dass der Dialog keinen Zustand mehr erreichen kann, in dem eine Auswahl
+verworfen wird.
+
+**Der mehrfache Vorschlag ist damit bewusst zurückgestellt, nicht gelöst.** Die
+Entscheidung vom 2026-10-07 lautet: ein Vorschlag enthält mehrere Alternativtermine, und
+Teilnehmer wie Coaches können gegenseitig vorschlagen. Dafür braucht es ein Objekt, das
+mehrere Vorschläge hält und dem Gegenüber die Auswahl überlässt — siehe unten.
+
+**Warum nicht `if (slots.length !== 1) return;`** (der ursprüngliche Planvorschlag): das
+hätte den Defekt nur in eine stumme Ablehnung verwandelt. Der Nutzer hätte drei Termine
+gewählt, auf „Vorschläge senden" geklickt und nichts passiert.
+
+<details><summary>Ausgangslage und Datenmodell</summary>
+
+`handleProposeSlots` (`ParticipantAppointmentsTab.tsx:143`) rief auf:
 ```ts
 rescheduleAppointment(proposeSlotsFor.id, slots[0].startTime, slots[0].endTime, proposeSlotsFor.correlationId)
 ```
-Der Dialog sammelt drei, es landet einer. Zusammen mit **A5-Befund 3** ist das der
-einzige Punkt im Repo, der still falsche Daten schreibt.
+Der Dialog sammelte drei, es landete einer. Zusammen mit **A5-Befund 3** war das der
+einzige Punkt im Repo, der still falsche Daten schrieb.
 
-**Fix:** kurzfristig `if (slots.length !== 1) return;` plus Fehlermeldung — der Button
-verspricht dann das, was er liefert. Langfristig: Terminvindung (`Finding`-Status) sauber
-modellieren, dann alle drei Sätze persistieren. Beides braucht eine Produktentscheidung
-(siehe E2).
+Für das Feature fehlt heute jedes Modell: `Appointment__c` hat genau ein
+`StartTime__c`/`EndTime__c`-Paar — drei Alternativtermine haben dort keinen Platz. Das
+`CorrelationId__c` auf `Appointment__c` ist zwar `externalId` und `unique`, wird aber für
+Termine nirgends gesetzt und ist in Apex unbekannt.
+
+Und der Portal-Teil ist Greenfield: `Dashboard.tsx:8-13` ist ein Wireframe, `Appointment__c`
+hat in `Participant_Portal_Access` weder Objekt- noch Schreibrechte. „Teilnehmer schlagen
+Coaches Termine vor" heißt: neues Objekt, GraphQL, Portal-UI, gezielte Rechte mit Sharing
+Rule — die laut Gate G1b in keinem Projekt liegt.
+
+</details>
 
 ## B4. ISO-Datum-Bau ohne `validFrom` · 🔴 Datenqualität — ✅ behoben 2026-10-06
 
@@ -324,9 +350,15 @@ eigenen? Das ist die größte offene Sicherheitsfrage und sie entscheidet, ob Pr
 `next-steps-plan.md` im UI oder in der Datenebene gelöst wird. **ORG-Zugriff nötig.**
 Vorschlag: als Entscheidung dokumentieren, C umsetzen sobald das Feld aus P0 steht.
 
-**E2 — Terminfindung (B3).** Reichen dem Coach drei Vorschläge plus Teilnehmer-Auswahl, oder
-verschiebt er direkt? Die Antwort entscheidet, ob B3b gebaut oder der Datenpfad für
-Terminfinding geschlossen wird.
+**E2 — Terminfindung (B3).** ✅ entschieden am 2026-10-07: **Teilnehmer und Coaches können
+sich gegenseitig mehrere Termine vorschlagen**, das Gegenüber wählt einen aus. Damit ist
+klar, dass B3b gebaut wird — als eigenes Feature, nicht als Reparatur. Ein Vorschlag ist
+mehrere konkrete Zeitfenster, kein Entwurf für einen Termin. Konsequenz: `Appointment__c`
+kann das nicht tragen (ein `StartTime__c`/`EndTime__c`-Paar), es braucht ein Objekt mit
+Kind-Datensätzen; und der Portalteil ist Greenfield (`Dashboard.tsx` ist ein Wireframe,
+`Participant_Portal_Access` hat keine Terminrechte). Rechte für Teilnehmer werden gezielt
+mit einer Sharing Rule vergeben, nicht global. Offen bleibt die Ablagestruktur für die
+Sharing Rule (Gate G1b).
 
 **E3 — geteiltes Paket (B7).** Bewusst dupliziert lassen und dokumentieren, oder
 Monorepo-Struktur ändern? Empfehlung: dupliziert lassen.

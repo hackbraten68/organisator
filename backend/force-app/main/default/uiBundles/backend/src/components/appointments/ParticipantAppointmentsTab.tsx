@@ -134,10 +134,10 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
     }
   };
 
-  const handleProposeSlots = async (slots: { startTime: string; endTime: string }[]) => {
+  const handleProposeSlot = async (slot: { startTime: string; endTime: string }) => {
     if (!proposeSlotsFor) return;
-    await rescheduleAppointment(proposeSlotsFor.id, slots[0].startTime, slots[0].endTime, proposeSlotsFor.correlationId);
-    toast.success("Slots vorgeschlagen");
+    await rescheduleAppointment(proposeSlotsFor.id, slot.startTime, slot.endTime, proposeSlotsFor.correlationId);
+    toast.success("Termin vorgeschlagen");
     fetchAppointments();
     setProposeSlotsFor(null);
   };
@@ -374,7 +374,7 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
       <ProposeSlotsDialog
         isOpen={!!proposeSlotsFor}
         onClose={() => setProposeSlotsFor(null)}
-        onPropose={handleProposeSlots}
+        onPropose={handleProposeSlot}
         type={proposeSlotsFor?.type || "Coaching"}
         availableSlots={availableSlots}
       />

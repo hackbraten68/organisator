@@ -19,7 +19,15 @@ import { slotDateTimes } from "@/utils/slotDateTime";
 interface ProposeSlotsDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onPropose: (slots: { startTime: string; endTime: string }[]) => Promise<void>;
+  /**
+   * Genau ein Termin pro Vorschlag.
+   *
+   * Frueher sammelte der Dialog drei Slots und schickte nur den ersten an die
+   * Mutation — zwei Termine verschwanden ersatzlos. Solange es kein Objekt
+   * gibt, das mehrere Alternativtermine haelt und dem Gegenueber die Auswahl
+   * ueberlaesst, gibt der Dialog eine Zusage, die er halten kann.
+   */
+  onPropose: (slot: { startTime: string; endTime: string }) => Promise<void>;
   type: AppointmentType;
   availableSlots: AvailabilitySlot[];
 }
@@ -31,7 +39,7 @@ export function ProposeSlotsDialog({
   type,
   availableSlots,
 }: ProposeSlotsDialogProps) {
-  const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<string>("");
   const [proposing, setProposing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,36 +77,38 @@ export function ProposeSlotsDialog({
   // nackte Uhrzeit ("09:00") statt eines Datums.
   const isProposable = (slot: AvailabilitySlot) => slotDateTimes(slot) !== null;
 
+  // Auswaehlen und Abwaehlen mit demselben Klick; ein zweiter Slot ersetzt
+  // die Auswahl, statt sich daneben zu legen.
   const handleToggleSlot = (slotId: string) => {
     setError(null);
-    setSelectedSlotIds((prev) =>
-      prev.includes(slotId) ? prev.filter((id) => id !== slotId) : [...prev, slotId]
-    );
+    setSelectedSlotId((prev) => (prev === slotId ? null : slotId));
   };
 
   const handlePropose = async () => {
-    if (selectedSlotIds.length !== 3) {
-      setError("Bitte genau 3 Slots auswählen");
+    if (!selectedSlotId) {
+      setError("Bitte einen Slot auswählen");
       return;
     }
 
-    const selectedSlots = selectedSlotIds
-      .map((id) => availableSlots.find((s) => s.id === id))
-      .filter((s): s is NonNullable<typeof s> => s !== undefined);
-
+    const selectedSlot = availableSlots.find((s) => s.id === selectedSlotId);
     // Slot koennte zwischen Auswahl und Klick deaktiviert worden sein.
-    const undated = selectedSlots.filter((slot) => !isProposable(slot));
-    if (undated.length > 0) {
-      setError("Ausgewählte Slots haben kein gültiges Datum und können nicht vorgeschlagen werden.");
+    if (!selectedSlot) {
+      setError("Ausgewählter Slot existiert nicht mehr.");
       return;
     }
 
-    const slots = selectedSlots.map((slot) => slotDateTimes(slot) as { startTime: string; endTime: string });
+    // slotDateTimes liefert null, wenn der Slot kein eindeutiges Datum hat —
+    // dieselbe Bedingung, an der isProposable im Raster scheitert.
+    const slot = slotDateTimes(selectedSlot);
+    if (!slot) {
+      setError("Ausgewählter Slot hat kein gültiges Datum und kann nicht vorgeschlagen werden.");
+      return;
+    }
 
     setProposing(true);
     setError(null);
     try {
-      await onPropose(slots);
+      await onPropose(slot);
       onClose();
     } catch (err) {
       console.error("Propose failed", err);
@@ -131,7 +141,7 @@ export function ProposeSlotsDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>3 Terminvorschläge für {type}</DialogTitle>
+          <DialogTitle>Terminvorschlag für {type}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="flex items-center gap-2">
@@ -143,7 +153,7 @@ export function ProposeSlotsDialog({
               className="w-[200px]"
             />
             <span className="text-sm text-muted-foreground">
-              {selectedSlotIds.length}/3 ausgewählt
+              {selectedSlotId ? "1/1 ausgewählt" : "keine Auswahl"}
             </span>
           </div>
 
@@ -167,7 +177,7 @@ export function ProposeSlotsDialog({
                   <CardContent className="pt-0">
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {slots.map((slot) => {
-                        const isSelected = selectedSlotIds.includes(slot.id);
+                        const isSelected = selectedSlotId === slot.id;
                         const proposable = isProposable(slot);
                         return (
                           <button
@@ -221,15 +231,15 @@ export function ProposeSlotsDialog({
             </Button>
             <Button
               onClick={handlePropose}
-              disabled={proposing || selectedSlotIds.length !== 3}
+              disabled={proposing || !selectedSlotId}
             >
               {proposing ? (
                 <>
                   <Loader2 className="size-4 animate-spin mr-2" />
-                  Vorschläge senden...
+                  Wird gesendet...
                 </>
               ) : (
-                "3 Slots vorschlagen"
+                "Termin vorschlagen"
               )}
             </Button>
           </div>
