@@ -364,24 +364,20 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
         )}
       </Tabs>
 
-      {/* Create/Edit Dialog */}
-      <Dialog open={showForm} onOpenChange={() => { setShowForm(false); setEditingAppointment(null); }}>
-        <DialogContent className="max-w-lg max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>{editingAppointment ? "Termin bearbeiten" : "Termin anlegen"}</DialogTitle>
-          </DialogHeader>
-          <AppointmentFormDialog
-            isOpen={showForm}
-            onClose={() => { setShowForm(false); setEditingAppointment(null); }}
-            onSubmit={handleCreate}
-            participantId={participantId}
-            participantName={participantName}
-            initialData={editingAppointment ?? undefined}
-            availableCoaches={availableCoaches}
-            title={editingAppointment ? "Termin bearbeiten" : "Termin anlegen"}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Create/Edit Dialog — AppointmentFormDialog rendert selbst ein volles
+          Dialog. Ein umschliessendes Dialog wuerde ein zweites Portal, einen
+          zweiten Header und eine zweite Fokusfalle erzeugen; der aeussere
+          Dialog bliebe sichtbar, aber nicht bedienbar. */}
+      <AppointmentFormDialog
+        isOpen={showForm}
+        onClose={() => { setShowForm(false); setEditingAppointment(null); }}
+        onSubmit={handleCreate}
+        participantId={participantId}
+        participantName={participantName}
+        initialData={editingAppointment ?? undefined}
+        availableCoaches={availableCoaches}
+        title={editingAppointment ? "Termin bearbeiten" : "Termin anlegen"}
+      />
 
       {/* Propose Slots Dialog (Coach) */}
       <ProposeSlotsDialog
