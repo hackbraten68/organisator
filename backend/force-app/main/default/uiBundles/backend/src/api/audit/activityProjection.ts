@@ -103,6 +103,9 @@ export const ACTIVITY_PROJECTION_RULES = {
   // Teilnehmer-Timeline nie sichtbar, weil `participantId` leer ist — korrekt,
   // denn das Loeschen eines Moduls fasst keinen Lernpfad eines Teilnehmers an.
   "learning_path.module_deleted": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
+  // Wiederherstellung: sichtbar, weil die Aenderung sonst von selbst kommt.
+  "learning_path.item_restored": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
+  "learning_path.module_restored": { category: "learning", audiences: COACH_STAFF, includeInActivity: true, technical: false },
 
   // Absence (eigene Kategorie: anderer Prozess, andere Sensitivität als attendance)
   "absence.reported": { category: "absence", audiences: COACH_STAFF_PARTICIPANT, includeInActivity: true, technical: false },

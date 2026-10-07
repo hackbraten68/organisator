@@ -522,6 +522,13 @@ export const EVENT_TYPES = {
    * `participantId` bleibt leer — siehe `recordLearningPathModuleDeleted`.
    */
   LEARNING_PATH_MODULE_DELETED: 'learning_path.module_deleted' as const,
+  /**
+   * Wiederherstellung aus dem Audit-Protokoll. Der `correlationId` ist die ID
+   * des urspruenglichen Loeschungsereignisses, damit "wiederhergestellt" und
+   * "geloescht" auffindbar zusammengehoeren.
+   */
+  LEARNING_PATH_ITEM_RESTORED: 'learning_path.item_restored' as const,
+  LEARNING_PATH_MODULE_RESTORED: 'learning_path.module_restored' as const,
 
   // Verfügbarkeits-Slots (Coach/Staff-Ressource, nicht teilnehmergebunden)
   AVAILABILITY_SLOT_ADDED: 'availability.slot_added' as const,

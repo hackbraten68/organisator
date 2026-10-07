@@ -217,6 +217,47 @@ export async function recordLearningPathModuleDeleted(
   });
 }
 
+/**
+ * Eine Wiederherstellung aus dem Protokoll festhalten.
+ *
+ * Das ist die Haelfte der Wiederherstell-Funktion: `addLearningPathItem` bzw.
+ * `createModule` protokollieren ihrerseits nur das Anlegen, nicht aber dass der
+ * Datensatz eine Loeschung rueckgaengig macht. Ohne dieses Ereignis staende ein
+ * neu aufgetauchter Lernpfad-Eintrag in der Timeline, ohne erklaerbare Ursache.
+ *
+ * `correlationId` traegt die ID des Loeschungsereignisses — das ist der einzige
+ * Weg, beide Seiten zuverlaessig zusammenzufinden.
+ */
+export async function recordLearningPathRestored(
+  sourceEvent: { id: string; eventType: string },
+  restored: { id: string; title: string; programId: string; participantId?: string },
+  options: AuditOptions,
+): Promise<AuditEvent> {
+  return auditService.record({
+    eventType:
+      sourceEvent.eventType === 'learning_path.module_deleted'
+        ? EVENT_TYPES.LEARNING_PATH_MODULE_RESTORED
+        : EVENT_TYPES.LEARNING_PATH_ITEM_RESTORED,
+    domain: 'learning_path',
+    action: 'created',
+    actorType: options.actor.type,
+    actorId: options.actor.id,
+    actorDisplayNameSnapshot: options.actor.displayName,
+    subjectType: sourceEvent.eventType === 'learning_path.module_deleted' ? 'Module__c' : SUBJECT_TYPE,
+    subjectId: restored.id,
+    participantId: restored.participantId,
+    source: 'web',
+    reason: `Aus Audit-Ereignis ${sourceEvent.id} wiederhergestellt`,
+    changes: [],
+    metadata: {
+      title: restored.title,
+      programId: restored.programId,
+      source: 'audit_restore',
+    },
+    correlationId: sourceEvent.id,
+  });
+}
+
 export interface LearningPathReorder {
   itemId: string;
   participantId: string;

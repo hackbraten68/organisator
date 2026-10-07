@@ -10,6 +10,7 @@ export { ActorBadge } from './ActorBadge';
 export { DomainBadge } from './DomainBadge';
 export { ChangeSetViewer } from './ChangeSetViewer';
 export { ActivityEventDetailsDrawer } from './ActivityEventDetailsDrawer';
+export { RestoreDeletedButton } from './RestoreDeletedButton';
 
 export type { ActivityTimelineProps } from './ActivityTimeline';
 export type { ActivityTimelineItemProps } from './ActivityTimelineItem';

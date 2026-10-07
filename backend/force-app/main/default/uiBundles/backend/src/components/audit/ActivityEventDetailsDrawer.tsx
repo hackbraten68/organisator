@@ -20,6 +20,7 @@ import type { AuditEvent } from '@/types/audit';
 import { ActorBadge } from './ActorBadge';
 import { DomainBadge } from './DomainBadge';
 import { ChangeSetViewer } from './ChangeSetViewer';
+import { RestoreDeletedButton } from './RestoreDeletedButton';
 
 export interface ActivityEventDetailsDrawerProps {
   event: AuditEvent;
@@ -71,6 +72,10 @@ export function ActivityEventDetailsDrawer({
 
         {/* Content */}
         <div className="overflow-y-auto p-4 space-y-6">
+          {/* Wiederherstellen — vor allem anderen, weil es die einzige Aktion
+              ist, die den Ereigniszustand tatsaechlich aendert. */}
+          <RestoreDeletedButton event={event} />
+
           {/* Event type and domain */}
           <div className="space-y-2">
             <label className="text-xs font-semibold text-muted-foreground">
