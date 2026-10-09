@@ -96,15 +96,35 @@ Das ist die wahrscheinlichste Stelle, an der der erste Coach-Test rot wird.
 haben damit Zugang, aber ihr Test bestätigt nichts. Für einen belastbaren Test ist
 entweder eine Profilumstellung nötig oder Sandra der Testkollege.
 
-**Ebenfalls offen:** `Coach_Profile__c` hat **kein** `User__c`-Feld. Es gibt damit
-keine Verknüpfung zwischen einem Coach-Profil und einem Login; die Zuordnung erfolgt
-bisher nur über den Namen. Drei der vier Coach-Profile (Frank Blum, Sam Dillenburg,
-Sandra Krüger) lassen sich so einem echten User zuordnen, **Ghaith Saidani hat gar
-keinen User**. Für einen belastbaren Zugriff bräuchte es `Coach_Profile__c.User__c` —
-ein neues Feld, und das ist nach Regel E1 **manuell in Setup** anzulegen.
+**`Coach_Profile__c.User__c` gibt es seit dem 2026-10-09.** Lookup auf `User`,
+optional, in `backend_Coach` nur lesbar. Damit ist die Zuordnung von Coach-Profil
+zu Login eine Datenbankbeziehung statt einer Namensvermutung.
+
+| Coach_Profile      | Rolle            | `User__c`            | Login                           |
+| ------------------ | ---------------- | -------------------- | ------------------------------- |
+| Frank Blum         | Staff            | `0056700000DbWBqAAN` | `frank@codingschule.de.devhub`  |
+| Sam Dillenburg     | Staff            | `005Oj000016CN1hIAG` | `samuel.dillenburg@…`           |
+| Sandra Krüger      | Kubernetes Coach | `0056700000DbU5CAAV` | `sandra@codingschule.de.devhub` |
+| **Ghaith Saidani** | AWS Coach        | **leer**             | **kein Account**                |
+
+Das leere Feld ist der eigentliche Fund. Vorher war nicht unterscheidbar, ob Ghaith
+ein Coach ohne Zugang ist oder ein Datensatz, der nie zugeordnet wurde — alle vier
+Profile hatten `Email__c`, `Discord__c` und `GitHub__c` leer und keinen eigenen
+Contact-Satz. Jetzt steht es als Fehlwert da. **Ein leeres `User__c` ist der
+Normalfall, kein Fehlerfall**; `listCoaches()` liefert dann `userId: undefined`, und
+der Coach bleibt unter seinem Namen nutzbar. `coachService.test.ts` sichert genau
+diesen Fall ab.
+
+**Was das Feld nicht löst:** der Termin-Picker. `Appointment__c.Coach__c` und
+`AvailabilitySlot__c.User__c` zeigen beide auf `User`, und Salesforce lehnt
+`Coach_Profile__c`-Ids für diese beiden Felder ab (`src/api/user/userService.ts`).
+Wer einen Termin bucht, wählt weiterhin einen Login. Eine Umstellung wäre ein
+Feldtypwechsel an zwei Feldern mit Daten und ist eine eigene Entscheidung.
 
 Nicht deploybar und daher manuell: die 31 Pflichtfelder, jedes Profil, und jedes neue
-Custom-Feld. Deploybar und bereits erledigt: `backend_Coach` selbst.
+Custom-Feld — `User__c` wurde nach Regel E1 von Hand in Setup angelegt und danach
+per Retrieve ins Repository geholt. Deploybar und bereits erledigt: `backend_Coach`
+selbst und die Beschreibung von `User__c` (Änderung am bestehenden Feld, Regel E2).
 
 ## Verifikation
 

@@ -56,6 +56,16 @@ export interface ProgramParticipantSummary {
 export interface ProgramCoachSummary {
   id: string;
   name: string;
+  /**
+   * `Coach_Profile__c.User__c` — der Salesforce-Login derselben Person.
+   *
+   * `undefined`, wenn das Profil keinen Login hinterlegt hat. Das ist der
+   * Normalfall und kein Fehler: Ghaith Saidani hat ein Profil ohne Account.
+   * Vorhanden, weil `programService` die Coach-Zuordnung bisher ueber den Namen
+   * aufloest — diese Aufloesung faellt weg, sobald hier durchgaengig `userId`
+   * genutzt wird.
+   */
+  userId?: string;
 }
 
 export interface ProgramInput {

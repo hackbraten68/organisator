@@ -219,6 +219,17 @@
         <readable>true</readable>
     </fieldPermissions>
 
+    <!-- Coach_Profile__c: 1 read-only. User__c verknuepft das Profil mit dem
+         Login der Person und wird wie Freigeschaltet__c von Hand in Setup gepflegt.
+         listCoaches() selektiert es, um die Zuordnung nicht mehr ueber den Namen
+         erraten zu muessen — Ghaith Saidani hat kein Profil und damit zwingend ein
+         leeres Feld, das der Code als "kein Login" lesen muss und nicht als Fehler. -->
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Coach_Profile__c.User__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
     <!-- Participant__c: 9 editable, 0 read-only -->
     <fieldPermissions>
         <editable>true</editable>

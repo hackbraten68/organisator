@@ -1,6 +1,6 @@
 # Setup Worklist — Academy data model in `hubSandbox`
 
-**Stand:** 2026-10-07
+**Stand:** 2026-10-09
 **Zweck:** anleitung zum Anlegen aller Objekte und Felder von Hand in Salesforce Setup.
 
 ## Warum von Hand
@@ -27,7 +27,7 @@ sein Zielfeld existiert. Die 5 Wurzelobjekte sind unabhaengig.
 | - | ------ | -----: | ------------------- |
 | 1 | `AuditOutbox__c` | 9 | — (Wurzelobjekt) |
 | 2 | `AvailabilitySlot__c` | 8 | — (Wurzelobjekt) |
-| 3 | `Coach_Profile__c` | 6 | — (Wurzelobjekt) |
+| 3 | `Coach_Profile__c` | 7 | — (Wurzelobjekt) |
 | 4 | `Contact` | 1 | — (Wurzelobjekt) |
 | 5 | `Program__c` | 3 | — (Wurzelobjekt) |
 | 6 | `Module__c` | 3 | `Program__c` |
@@ -394,7 +394,7 @@ Values — enter **Value** and **Display Value** separately:
 
 ## Coach_Profile__c
 
-**Fields:** 6 &nbsp;&nbsp; **Record Name:** Text
+**Fields:** 7 &nbsp;&nbsp; **Record Name:** Text
 
 ### Step 1 — Create the object
 
@@ -431,7 +431,7 @@ Values — enter **Value** and **Display Value** separately:
 >
 > The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for all ten objects so the tabs end up together.
 
-### Step 3 — Fields (6)
+### Step 3 — Fields (7)
 
 #### 1. `Capacity__c`
 
@@ -523,6 +523,22 @@ Values — enter **Value** and **Display Value** separately:
 | Unique | unchecked |
 | External ID | unchecked |
 | Description | Coach active status |
+
+#### 7. `User__c`
+
+`Object Manager → Coach Profile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Salesforce Benutzer |
+| Related To | User |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | CoachingProfiles |
+| What happens when the related record is deleted | Set null |
+| Description |  |
 
 ---
 
@@ -2050,7 +2066,7 @@ cd backend
 npm run schema:check
 ```
 
-Exit 0 heisst: alle 93 Felder sind im Runtime-Schema und per SOQL abfragbar. **Achtung:**
+Exit 0 heisst: alle 94 Felder sind im Runtime-Schema und per SOQL abfragbar. **Achtung:**
 `schema-check` prueft nur die *Existenz* der Felder, nicht ihre Attribute. `required`,
 `unique`, Picklist-Werte, Laengen und Descriptions sind damit nicht abgedeckt.
 

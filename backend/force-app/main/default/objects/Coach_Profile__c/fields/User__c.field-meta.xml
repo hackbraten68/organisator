@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>User__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Verknuepft das Coach-Profil mit dem Salesforce-Login derselben Person. Ohne dieses Feld existiert die Zuordnung nur ueber den Namen, weil es keinen zweiten Anker gab: bei allen vier Profilen waren Email__c, Discord__c und GitHub__c leer, und Coach_Profile__c hat keinen eigenen Contact-Satz. Genau daran wurde sichtbar, dass Ghaith Saidani gar keinen User-Account hat. Das Feld aendert nichts daran, dass der Termin-Picker aus User-Ids speist: Appointment__c.Coach__c und AvailabilitySlot__c.User__c zeigen beide auf User, nicht auf Coach_Profile__c, und Salesforce lehnt Coach_Profile__c-Ids fuer diese Felder ab. Wer einen Termin bucht, waehlt weiterhin einen Login. Nach dem Anlegen einmal je Profil setzen; fuer einen Coach ohne Login bleibt das Feld leer, das ist der Befund und kein Fehler.</description>
+    <label>Salesforce Benutzer</label>
+    <referenceTo>User</referenceTo>
+    <relationshipName>CoachingProfiles</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>
