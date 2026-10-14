@@ -422,6 +422,181 @@ public without sharing class ParticipantPortalSharingService {
         return plan;
     }
 
+    // --- Appointment__c sharing ---
+
+    /**
+     * RowCause used for every Appointment__c share this service manages.
+     *
+     * The same dedicated Apex Sharing Reason as on Participant__c and
+     * Learning_Path__c, so portal-managed shares stay attributable across all
+     * three objects.
+     */
+    public static final String APPOINTMENT_ROW_CAUSE = 'Portal_Access__c';
+
+    /**
+     * What an Appointment__c synchronise call intends to do, before any of it is
+     * written. Mirrors SharePlan for the parent object.
+     */
+    public class AppointmentSharePlan {
+        /** Shares to remove: they carry our reason but no longer match the target. */
+        public List<Appointment__Share> remove = new List<Appointment__Share>();
+        /** Shares to create, at PORTAL_ACCESS_LEVEL. */
+        public List<Appointment__Share> grant = new List<Appointment__Share>();
+    }
+
+    /**
+     * Brings the portal's Read shares for the given appointments into line with
+     * their Participant__c.Portal_User__c.
+     *
+     * Same indirect grant target as the learning paths: Appointment__c →
+     * Participant__c → Portal_User__c.
+     *
+     * WHY THIS EXISTS
+     *   Appointment__c carries externalSharingModel = Private. A portal user is
+     *   an external user, so without a share row they see nothing at all — a
+     *   "Meine Termine" page would not be empty, it would be unable to run.
+     *   Criteria-based sharing rules are not an option: in this org they do not
+     *   evaluate $User (see sharing-spike-ergebnis.md), which is why the same
+     *   pattern as Participant__c and Learning_Path__c is used.
+     *
+     * @param appointments rows to reconcile. Ids that do not exist are ignored.
+     */
+    public static void synchroniseAppointments(List<Appointment__c> appointments) {
+        if (appointments == null || appointments.isEmpty()) {
+            return;
+        }
+
+        AppointmentSharePlan plan = planForAppointments(appointments);
+
+        report('removed', Database.delete(plan.remove, false));
+        report('granted', Database.insert(plan.grant, false));
+    }
+
+    /**
+     * Works out which shares should exist for the given appointments. No DML.
+     *
+     * @param appointments rows to reconcile. Rows without an Id are ignored.
+     */
+    public static AppointmentSharePlan planForAppointments(List<Appointment__c> appointments) {
+        Set<Id> rowIds = new Set<Id>();
+        Set<Id> participantIds = new Set<Id>();
+        for (Appointment__c appointment : appointments) {
+            if (appointment.Id != null) {
+                rowIds.add(appointment.Id);
+            }
+            if (appointment.Participant__c != null) {
+                participantIds.add(appointment.Participant__c);
+            }
+        }
+        if (rowIds.isEmpty()) {
+            return new AppointmentSharePlan();
+        }
+
+        Map<Id, Map<Id, Appointment__Share>> byRow = new Map<Id, Map<Id, Appointment__Share>>();
+        for (Appointment__Share share : [
+            SELECT Id, ParentId, UserOrGroupId
+            FROM Appointment__Share
+            WHERE ParentId IN :rowIds
+                AND RowCause = :APPOINTMENT_ROW_CAUSE
+        ]) {
+            if (!byRow.containsKey(share.ParentId)) {
+                byRow.put(share.ParentId, new Map<Id, Appointment__Share>());
+            }
+            byRow.get(share.ParentId).put(share.UserOrGroupId, share);
+        }
+
+        Map<Id, Participant__c> participantsById = new Map<Id, Participant__c>();
+        for (Participant__c p : [
+            SELECT Id, Portal_User__c
+            FROM Participant__c
+            WHERE Id IN :participantIds
+        ]) {
+            participantsById.put(p.Id, p);
+        }
+
+        return planForAppointments(appointments, byRow, participantsById);
+    }
+
+    /**
+     * The same decision, against a caller-supplied view of the existing shares
+     * and parent participants.
+     *
+     * Exists for the same reason as the learning-path overload: an Appointment__c
+     * share row cannot be inserted in an Apex test, because the test context
+     * applies the object's internal default access level (Edit, from
+     * sharingModel = ReadWrite) and refuses anything at or below it as trivial.
+     *
+     * @param existingShares the portal shares currently held for these rows, keyed
+     *        by row id and then by user or group id. Rows absent from it are
+     *        treated as having no share.
+     * @param participantsById the parent participants by id, used to resolve the
+     *        grant target. Participants absent from it are treated as having no
+     *        portal user.
+     */
+    public static AppointmentSharePlan planForAppointments(
+        List<Appointment__c> appointments,
+        Map<Id, Map<Id, Appointment__Share>> existingShares,
+        Map<Id, Participant__c> participantsById
+    ) {
+        AppointmentSharePlan plan = new AppointmentSharePlan();
+        if (appointments == null || appointments.isEmpty()) {
+            return plan;
+        }
+
+        Map<Id, Appointment__c> appointmentsById = new Map<Id, Appointment__c>();
+        for (Appointment__c appointment : appointments) {
+            if (appointment.Id != null) {
+                appointmentsById.put(appointment.Id, appointment);
+            }
+        }
+
+        Map<String, Appointment__Share> existing = new Map<String, Appointment__Share>();
+        for (Map<Id, Appointment__Share> perRow : existingShares.values()) {
+            for (Appointment__Share share : perRow.values()) {
+                existing.put(key(share.ParentId, share.UserOrGroupId), share);
+            }
+        }
+
+        // Everything in `existing` already carries APPOINTMENT_ROW_CAUSE, so a
+        // share that no longer points at the row's release target is ours to
+        // remove. Shares under any other reason were never in this collection and
+        // cannot be touched.
+        for (Appointment__Share share : existing.values()) {
+            Appointment__c appointment = appointmentsById.get(share.ParentId);
+            if (appointment == null) {
+                continue;
+            }
+            Participant__c participant = participantsById.get(appointment.Participant__c);
+            Id portalUserId = participant != null ? participant.Portal_User__c : null;
+            if (portalUserId != share.UserOrGroupId) {
+                plan.remove.add(share);
+            }
+        }
+
+        for (Appointment__c appointment : appointments) {
+            if (appointment.Id == null || appointment.Participant__c == null) {
+                continue;
+            }
+            Participant__c participant = participantsById.get(appointment.Participant__c);
+            if (participant == null || participant.Portal_User__c == null) {
+                continue;
+            }
+            Id portalUserId = participant.Portal_User__c;
+            if (!existing.containsKey(key(appointment.Id, portalUserId))) {
+                plan.grant.add(
+                    new Appointment__Share(
+                        ParentId = appointment.Id,
+                        UserOrGroupId = portalUserId,
+                        AccessLevel = PORTAL_ACCESS_LEVEL,
+                        RowCause = Schema.Appointment__Share.RowCause.Portal_Access__c
+                    )
+                );
+            }
+        }
+
+        return plan;
+    }
+
     private static String key(Id parentId, Id userOrGroupId) {
         return String.valueOf(parentId) + ':' + String.valueOf(userOrGroupId);
     }

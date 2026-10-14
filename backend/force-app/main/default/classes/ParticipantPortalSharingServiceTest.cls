@@ -673,4 +673,207 @@ private class ParticipantPortalSharingServiceTest {
         System.assertEquals(0, plan.grant.size(), 'a learning path without a participant must not be shared');
         System.assertEquals(0, plan.remove.size(), 'and nothing to remove');
     }
+
+    // --- Appointment__c sharing ---
+
+    private static final String AP_PORTAL_REASON = 'Portal_Access__c';
+
+    /**
+     * An appointment for a participant, with no share created.
+     *
+     * Like the learning-path helper, Portal_User__c is not written on the
+     * participant here — that would fire the trigger, whose share insert cannot
+     * succeed in a test context. The plan is computed against a record that
+     * carries it, which is exactly what the trigger hands the service.
+     */
+    private static Appointment__c apRow(Participant__c participant, String status) {
+        Appointment__c appointment = new Appointment__c(
+            Participant__c = participant.Id,
+            Type__c = 'Coaching',
+            Status__c = status,
+            StartTime__c = Datetime.newInstanceGmt(2026, 10, 20, 10, 0, 0),
+            EndTime__c = Datetime.newInstanceGmt(2026, 10, 20, 11, 0, 0)
+        );
+        insert appointment;
+        return appointment;
+    }
+
+    private static Appointment__Share apHeldShare(Id rowId, Id userId) {
+        return new Appointment__Share(
+            ParentId = rowId,
+            UserOrGroupId = userId,
+            AccessLevel = ParticipantPortalSharingService.PORTAL_ACCESS_LEVEL,
+            RowCause = Schema.Appointment__Share.RowCause.Portal_Access__c
+        );
+    }
+
+    private static Appointment__Share apForeignShare(Id rowId, Id userId) {
+        return new Appointment__Share(
+            ParentId = rowId,
+            UserOrGroupId = userId,
+            AccessLevel = ParticipantPortalSharingService.PORTAL_ACCESS_LEVEL,
+            RowCause = Schema.Appointment__Share.RowCause.Manual
+        );
+    }
+
+    private static Map<Id, Map<Id, Appointment__Share>> apHeldFor(Appointment__Share share) {
+        Map<Id, Map<Id, Appointment__Share>> byRow = new Map<Id, Map<Id, Appointment__Share>>();
+        if (share == null) {
+            return byRow;
+        }
+        Map<Id, Appointment__Share> perUser = new Map<Id, Appointment__Share>();
+        perUser.put(share.UserOrGroupId, share);
+        byRow.put(share.ParentId, perUser);
+        return byRow;
+    }
+
+    private static Map<Id, Participant__c> apParticipantsById(List<Participant__c> participants) {
+        Map<Id, Participant__c> byId = new Map<Id, Participant__c>();
+        for (Participant__c p : participants) {
+            byId.put(p.Id, p);
+        }
+        return byId;
+    }
+
+    @IsTest
+    static void assigningAParticipantPlansExactlyOneAppointmentShare() {
+        Participant__c participant = row('ApAssignOne', userOne());
+        Appointment__c appointment = apRow(participant, 'Confirmed');
+
+        Test.startTest();
+        ParticipantPortalSharingService.AppointmentSharePlan plan = ParticipantPortalSharingService.planForAppointments(
+            new List<Appointment__c>{ appointment },
+            new Map<Id, Map<Id, Appointment__Share>>(),
+            apParticipantsById(new List<Participant__c>{ participant })
+        );
+        Test.stopTest();
+
+        System.assertEquals(1, plan.grant.size(), 'one appointment must plan exactly one share');
+        System.assertEquals(
+            userOne(),
+            plan.grant[0].UserOrGroupId,
+            'the share must go to the portal user of the parent participant'
+        );
+        System.assertEquals(
+            'Read',
+            plan.grant[0].AccessLevel,
+            'the portal never grants write access'
+        );
+        System.assertEquals(0, plan.remove.size(), 'nothing to remove on a fresh row');
+    }
+
+    @IsTest
+    static void anAppointmentAlreadySharedIsNotGrantedTwice() {
+        Participant__c participant = row('ApNoDouble', userOne());
+        Appointment__c appointment = apRow(participant, 'Confirmed');
+
+        Test.startTest();
+        ParticipantPortalSharingService.AppointmentSharePlan plan = ParticipantPortalSharingService.planForAppointments(
+            new List<Appointment__c>{ appointment },
+            apHeldFor(apHeldShare(appointment.Id, userOne())),
+            apParticipantsById(new List<Participant__c>{ participant })
+        );
+        Test.stopTest();
+
+        System.assertEquals(0, plan.grant.size(), 'a held share must not be re-granted');
+        System.assertEquals(0, plan.remove.size(), 'and must not be removed either');
+    }
+
+    @IsTest
+    static void changingTheParticipantMovesTheShareToTheNewPortalUser() {
+        Participant__c first = row('ApMoveFirst', userOne());
+        Participant__c second = row('ApMoveSecond', userTwo());
+        Appointment__c appointment = apRow(first, 'Confirmed');
+
+        Test.startTest();
+        ParticipantPortalSharingService.AppointmentSharePlan plan = ParticipantPortalSharingService.planForAppointments(
+            new List<Appointment__c>{ appointment },
+            apHeldFor(apHeldShare(appointment.Id, userOne())),
+            apParticipantsById(new List<Participant__c>{ first, second })
+        );
+        Test.stopTest();
+
+        System.assertEquals(1, plan.remove.size(), 'the old portal user must lose the share');
+        System.assertEquals(userOne(), plan.remove[0].UserOrGroupId, 'and it is that user who loses it');
+        System.assertEquals(1, plan.grant.size(), 'the new portal user must gain one');
+        System.assertEquals(userTwo(), plan.grant[0].UserOrGroupId, 'namely the new one');
+    }
+
+    @IsTest
+    static void aRevokedPortalUserPlansTheShareForRemoval() {
+        Participant__c participant = row('ApRevoke', userOne());
+        Appointment__c appointment = apRow(participant, 'Confirmed');
+
+        // Portal_User__c is null on the participant as passed in: the portal user
+        // was revoked, so the share must go rather than stay.
+        Participant__c revoked = new Participant__c(Id = participant.Id, Portal_User__c = null);
+
+        Test.startTest();
+        ParticipantPortalSharingService.AppointmentSharePlan plan = ParticipantPortalSharingService.planForAppointments(
+            new List<Appointment__c>{ appointment },
+            apHeldFor(apHeldShare(appointment.Id, userOne())),
+            apParticipantsById(new List<Participant__c>{ revoked })
+        );
+        Test.stopTest();
+
+        System.assertEquals(1, plan.remove.size(), 'a revoked portal user must lose the share');
+        System.assertEquals(0, plan.grant.size(), 'and nothing is granted in its place');
+    }
+
+    @IsTest
+    static void anAppointmentWithoutAParticipantIsNotShared() {
+        Participant__c participant = row('ApNoParent', userOne());
+
+        Appointment__c orphan = new Appointment__c(
+            Type__c = 'Coaching',
+            Status__c = 'Draft',
+            StartTime__c = Datetime.newInstanceGmt(2026, 10, 21, 10, 0, 0),
+            EndTime__c = Datetime.newInstanceGmt(2026, 10, 21, 11, 0, 0)
+        );
+
+        Test.startTest();
+        ParticipantPortalSharingService.AppointmentSharePlan plan = ParticipantPortalSharingService.planForAppointments(
+            new List<Appointment__c>{ orphan },
+            new Map<Id, Map<Id, Appointment__Share>>(),
+            apParticipantsById(new List<Participant__c>{ participant })
+        );
+        Test.stopTest();
+
+        System.assertEquals(0, plan.grant.size(), 'an appointment without a participant must not be shared');
+        System.assertEquals(0, plan.remove.size(), 'and nothing to remove');
+    }
+
+    @IsTest
+    static void aManualShareIsNeverTouched() {
+        Participant__c participant = row('ApForeign', userOne());
+        Appointment__c appointment = apRow(participant, 'Confirmed');
+
+        // A Manual share under a different reason is not ours. It is not in the
+        // collected set, so the plan must leave it alone in both directions.
+        Test.startTest();
+        ParticipantPortalSharingService.AppointmentSharePlan plan = ParticipantPortalSharingService.planForAppointments(
+            new List<Appointment__c>{ appointment },
+            apHeldFor(apForeignShare(appointment.Id, userTwo())),
+            apParticipantsById(new List<Participant__c>{ participant })
+        );
+        Test.stopTest();
+
+        System.assertEquals(0, plan.remove.size(), 'a Manual share must not be removed');
+        System.assertEquals(1, plan.grant.size(), 'and it must not suppress the portal share either');
+        System.assertEquals(userOne(), plan.grant[0].UserOrGroupId, 'the portal share still goes to the portal user');
+    }
+
+    @IsTest
+    static void theAppointmentRowCauseIsTheSameReasonAsTheOtherPortalObjects() {
+        System.assertEquals(
+            ParticipantPortalSharingService.APPOINTMENT_ROW_CAUSE,
+            ParticipantPortalSharingService.PORTAL_ROW_CAUSE,
+            'Appointment shares must be attributable under the same reason as Participant shares'
+        );
+        System.assertEquals(
+            ParticipantPortalSharingService.APPOINTMENT_ROW_CAUSE,
+            ParticipantPortalSharingService.LEARNING_PATH_ROW_CAUSE,
+            'and under the same reason as Learning_Path shares'
+        );
+    }
 }
