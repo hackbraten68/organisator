@@ -163,17 +163,19 @@ bevor Phase 3 implementiert wird.
 
 ## ADR-006 — Status zuerst `Invited`, `Active` erst nach abgeschlossenem Portalzugang
 
-**Status:** bestätigt, Auslöser am 2026-09-30 präzisiert (ADR-012)
+**Status:** bestätigt, Auslöser am 2026-09-30 präzisiert (ADR-012) · **Umsetzung: teilweise
+(Stand 2026-10-09)** — `Portal_Status__c` ist angelegt, die Zeitpunkte noch nicht. Siehe
+„Umsetzungsstand" unten.
 
 ```text
 None → Invited → Active → Revoked
-              ↘ Error
+              ↘ ERROR
 ```
 
 `Portal_Status__c = Active` direkt nach der User-Erstellung wäre fachlich zu früh: Die
 Einladung ist versendet, der Zugang ist nicht abgeschlossen.
 
-Felder, die die Zeitpunkte trennen:
+Felder, die die Zeitpunkte tragen:
 
 ```text
 Portal_InvitedAt__c     Einladung versendet
@@ -185,13 +187,32 @@ Portal_LastError__c     letzter Fehler
 **Verworfen:** `Portal_GrantedAt__c` — die Bezeichnung ist mehrdeutig. „Einladung
 versendet", „User erstellt" und „erstmals angemeldet" sind drei verschiedene Zeitpunkte.
 
+### Umsetzungsstand (2026-10-09)
+
+`Participant__c.Portal_Status__c` existiert: Picklist, restricted, nicht erforderlich,
+Werte `None` (Standard), `Invited`, `Active`, `Revoked`, `ERROR`. Wert und Anzeigewert sind
+bewusst identisch — dieselbe Vorsicht wie bei `Appointment__c.Location__c`, wo ein
+abweichender Anzeigewert den gespeicherten API-Namen verändert und Apex sowie GraphQL zur
+Laufzeit bricht.
+
+Der API-Wert heisst `ERROR` und nicht `Error`: API-Namen stehen beim Anlegen in Setup fest
+und sind danach unveränderlich.
+
+**Die vier Zeitpunkte fehlen bewusst.** Ohne einen Prozess, der Einladung, Aktivierung und
+Sperrung eindeutig auslöst und sie zuverlässig setzt, wären sie leere oder potenziell
+irreführende Metadaten. Sie werden mit dem Provisionierungsprozess nachgezogen, nicht vorher.
+
+Der Standardwert hat sich beim Anlegen auf alle 15 bestehenden `Participant__c` ausgewirkt —
+bei Picklists wendet Salesforce den Standard rückwirkend an. Damit steht jeder Teilnehmer
+korrekt auf `None`; der Zustand „nie bewertet" ist derzeit nicht unterscheidbar von
+„bewusst kein Zugang". Das ist bei einem späteren Provisionierungsprozess zu entscheiden.
+
 **Auslöser offen, nicht festgelegt.** `Active` setzt einen abgeschlossenen
 Portal-Aktivierungsschritt voraus, nicht einen API-Aufruf. Dieser Schritt wird erst
-festgelegt, wenn `Portal_Status__c` und `Portal_ActivatedAt__c` angelegt sind — beide fehlen
-bisher in Repo und Org. Feste Ausschlussregel: **`GET /me` aktiviert nicht**, siehe ADR-011.
-Wird der Übergang später an einen serverseitigen Aufruf gebunden, muss dieser eine eigene
-POST-Route sein und idempotent laufen, damit ein wiederholter Aufruf keinen Schaden
-anrichtet.
+festgelegt, wenn `Portal_ActivatedAt__c` angelegt ist — das fehlt weiterhin. Feste
+Ausschlussregel: **`GET /me` aktiviert nicht**, siehe ADR-011. Wird der Übergang später an
+einen serverseitigen Aufruf gebunden, muss dieser eine eigene POST-Route sein und
+idempotent laufen, damit ein wiederholter Aufruf keinen Schaden anrichtet.
 
 Die frühere Fassung dieser Entscheidung sah den Auslöser beim ersten erfolgreichen `/me`-Aufruf.
 Das ist mit dem Read-only-Endpoint aus ADR-011 nicht mehr vereinbar, siehe ADR-012.

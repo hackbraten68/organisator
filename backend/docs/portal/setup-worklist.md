@@ -1,6 +1,6 @@
 # Setup Worklist — Academy data model in `hubSandbox`
 
-**Stand:** 2026-10-09
+**Stand:** 2026-10-14
 **Zweck:** anleitung zum Anlegen aller Objekte und Felder von Hand in Salesforce Setup.
 
 ## Warum von Hand
@@ -31,7 +31,7 @@ sein Zielfeld existiert. Die 5 Wurzelobjekte sind unabhaengig.
 | 4 | `Contact` | 1 | — (Wurzelobjekt) |
 | 5 | `Program__c` | 3 | — (Wurzelobjekt) |
 | 6 | `Module__c` | 3 | `Program__c` |
-| 7 | `Participant__c` | 11 | `Coach_Profile__c`, `Contact`, `Program__c` |
+| 7 | `Participant__c` | 12 | `Coach_Profile__c`, `Contact`, `Program__c` |
 | 8 | `Absence__c` | 11 | `Participant__c` |
 | 9 | `Appointment__c` | 13 | `Participant__c` |
 | 10 | `AuditEvent__c` | 22 | `Participant__c` |
@@ -538,7 +538,7 @@ Values — enter **Value** and **Display Value** separately:
 | External ID | unchecked |
 | Relationship Name | CoachingProfiles |
 | What happens when the related record is deleted | Set null |
-| Description |  |
+| Description | Verknuepft das Coach-Profil mit dem Salesforce-Login derselben Person. Ohne dieses Feld existiert die Zuordnung nur ueber den Namen, weil es keinen zweiten Anker gab: bei allen vier Profilen waren Email__c, Discord__c und GitHub__c leer, und Coach_Profile__c hat keinen eigenen Contact-Satz. Genau daran wurde sichtbar, dass Ghaith Saidani gar keinen User-Account hat. Das Feld aendert nichts daran, dass der Termin-Picker aus User-Ids speist: Appointment__c.Coach__c und AvailabilitySlot__c.User__c zeigen beide auf User, nicht auf Coach_Profile__c, und Salesforce lehnt Coach_Profile__c-Ids fuer diese Felder ab. Wer einen Termin bucht, waehlt weiterhin einen Login. Nach dem Anlegen einmal je Profil setzen; fuer einen Coach ohne Login bleibt das Feld leer, das ist der Befund und kein Fehler. |
 
 ---
 
@@ -753,7 +753,7 @@ Values — enter **Value** and **Display Value** separately:
 
 ## Participant__c
 
-**Fields:** 11 &nbsp;&nbsp; **Record Name:** Text
+**Fields:** 12 &nbsp;&nbsp; **Record Name:** Text
 
 ### Step 1 — Create the object
 
@@ -790,7 +790,7 @@ Values — enter **Value** and **Display Value** separately:
 >
 > The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for all ten objects so the tabs end up together.
 
-### Step 3 — Fields (11)
+### Step 3 — Fields (12)
 
 #### 1. `Discord__c`
 
@@ -846,7 +846,31 @@ Values — enter **Value** and **Display Value** separately:
 | External ID | unchecked |
 | Description | Github Username |
 
-#### 5. `Portal_User_Id__c`
+#### 5. `Portal_Status__c`
+
+`Object Manager → Participant → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Picklist |
+| Field Label | Portal Status |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Restrict picklist to the values defined in the value set | checked |
+| Description | Zustand des Portalzugangs, getrennt von Status__c, das den fachlichen Status des Teilnehmers fuehrt. None: Zugang nicht eingerichtet. Invited: Einladung versendet, Zugang noch nicht abgeschlossen. Active: Portalzugang abgeschlossen. Revoked: gesperrt. ERROR: Provisionierung fehlgeschlagen. Active direkt nach der User-Erstellung waere fachlich zu frueh (ADR-006). Der API-Wert heisst ERROR statt Error, weil API-Namen nach dem Anlegen unveraenderlich sind. Fuer das Portal rein lesend: /me aktiviert nichts (ADR-011). Die Zeitpunkte aus ADR-006 sind bewusst noch nicht angelegt; sie gehoeren zum Provisionierungsprozess. |
+
+Values — enter **Value** and **Display Value** separately:
+
+| Value (API name) | Display Value | Default |
+| --- | --- | --- |
+| `None` | None | yes |
+| `Invited` | Invited |  |
+| `Active` | Active |  |
+| `Revoked` | Revoked |  |
+| `ERROR` | ERROR |  |
+
+#### 6. `Portal_User_Id__c`
 
 `Object Manager → Participant → Fields & Relationships → New`
 
@@ -860,7 +884,7 @@ Values — enter **Value** and **Display Value** separately:
 | External ID | unchecked |
 | Description | Portal-User-ID als Text. Existiert nur fuer die Sharing Rule PortalParticipantSeesOwnRecord: Salesforce wertet $User.UserRecord.Id in einem Kriterium auf dem Lookup-Feld Portal_User__c nicht dynamisch aus, sondern vergleicht literal. Ueber ein Textfeld ist der Vergleich auswertbar. Nicht pflegen - Formel auf Portal_User__c. |
 
-#### 6. `StartDate__c`
+#### 7. `StartDate__c`
 
 `Object Manager → Participant → Fields & Relationships → New`
 
@@ -873,7 +897,7 @@ Values — enter **Value** and **Display Value** separately:
 | External ID | unchecked |
 | Description | Student's Start Date |
 
-#### 7. `Status__c`
+#### 8. `Status__c`
 
 `Object Manager → Participant → Fields & Relationships → New`
 
@@ -898,7 +922,7 @@ Values — enter **Value** and **Display Value** separately:
 | `Placed` | Placed |  |
 | `Dropped` | Dropped |  |
 
-#### 8. `Coach_Profile__c`
+#### 9. `Coach_Profile__c`
 
 `Object Manager → Participant → Fields & Relationships → New`
 
@@ -914,7 +938,7 @@ Values — enter **Value** and **Display Value** separately:
 | What happens when the related record is deleted | Set null |
 | Description | Betreuender Coach. Null ist zulaessig und bedeutet noch keine Betreuung zugewiesen, nicht unbekannt. |
 
-#### 9. `Contact__c`
+#### 10. `Contact__c`
 
 `Object Manager → Participant → Fields & Relationships → New`
 
@@ -932,7 +956,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > **Set "Restrict delete" now.** It cannot be changed to a weaker setting later — only tightened.
 
-#### 10. `Portal_User__c`
+#### 11. `Portal_User__c`
 
 `Object Manager → Participant → Fields & Relationships → New`
 
@@ -948,7 +972,7 @@ Values — enter **Value** and **Display Value** separately:
 | What happens when the related record is deleted | Set null |
 | Description | Portal-Login dieses Teilnehmers. Fuellt die Sharing Rule PortalParticipantSeesOwnRecord und verlegt die Zugriffsgrenze des Portals damit vom Apex-Code auf ein Feld: der Portal-User liest genau seine eigene Row. Nicht selbst pflegen - wird aus User.ContactId abgeleitet. |
 
-#### 11. `Program__c`
+#### 12. `Program__c`
 
 `Object Manager → Participant → Fields & Relationships → New`
 
@@ -2066,7 +2090,7 @@ cd backend
 npm run schema:check
 ```
 
-Exit 0 heisst: alle 94 Felder sind im Runtime-Schema und per SOQL abfragbar. **Achtung:**
+Exit 0 heisst: alle 95 Felder sind im Runtime-Schema und per SOQL abfragbar. **Achtung:**
 `schema-check` prueft nur die *Existenz* der Felder, nicht ihre Attribute. `required`,
 `unique`, Picklist-Werte, Laengen und Descriptions sind damit nicht abgedeckt.
 

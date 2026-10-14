@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Portal_Status__c</fullName>
+    <description>Zustand des Portalzugangs, getrennt von Status__c, das den fachlichen Status des Teilnehmers fuehrt. None: Zugang nicht eingerichtet. Invited: Einladung versendet, Zugang noch nicht abgeschlossen. Active: Portalzugang abgeschlossen. Revoked: gesperrt. ERROR: Provisionierung fehlgeschlagen. Active direkt nach der User-Erstellung waere fachlich zu frueh (ADR-006). Der API-Wert heisst ERROR statt Error, weil API-Namen nach dem Anlegen unveraenderlich sind. Fuer das Portal rein lesend: /me aktiviert nichts (ADR-011). Die Zeitpunkte aus ADR-006 sind bewusst noch nicht angelegt; sie gehoeren zum Provisionierungsprozess.</description>
+    <label>Portal Status</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>None</fullName>
+                <default>true</default>
+                <label>None</label>
+            </value>
+            <value>
+                <fullName>Invited</fullName>
+                <default>false</default>
+                <label>Invited</label>
+            </value>
+            <value>
+                <fullName>Active</fullName>
+                <default>false</default>
+                <label>Active</label>
+            </value>
+            <value>
+                <fullName>Revoked</fullName>
+                <default>false</default>
+                <label>Revoked</label>
+            </value>
+            <value>
+                <fullName>ERROR</fullName>
+                <default>false</default>
+                <label>ERROR</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
