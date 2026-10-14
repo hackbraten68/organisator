@@ -597,6 +597,435 @@ public without sharing class ParticipantPortalSharingService {
         return plan;
     }
 
+    // --- Coach_Profile__c and Program__c sharing ---
+
+    /**
+     * RowCause for the Coach_Profile__c shares this service manages.
+     *
+     * The same dedicated Apex Sharing Reason as on the other three objects, so a
+     * portal-managed share is attributable across all of them and an
+     * administrator's manual grant is never mistaken for ours. It has to be
+     * created in Salesforce Classic — `ApexSharingReason` is not in the
+     * @salesforce/cli registry — and without it this class does not compile,
+     * because `Schema.Coach_Profile__Share.RowCause.Portal_Access__c` does not
+     * exist yet.
+     */
+    public static final String COACH_PROFILE_ROW_CAUSE = 'Portal_Access__c';
+
+    /** RowCause for the Program__c shares this service manages. Same manual step. */
+    public static final String PROGRAM_ROW_CAUSE = 'Portal_Access__c';
+
+    /**
+     * What a Coach_Profile__c synchronise intends to do, before any of it is written.
+     *
+     * Separate from the Program plan on purpose: the two are released for different
+     * reasons and a share row should be traceable to the relationship that earned
+     * it.
+     */
+    public class CoachProfileSharePlan {
+        /** Shares to remove: ours, for a portal user in scope, no longer wanted. */
+        public List<Coach_Profile__Share> remove = new List<Coach_Profile__Share>();
+        /** Shares to create, at PORTAL_ACCESS_LEVEL. */
+        public List<Coach_Profile__Share> grant = new List<Coach_Profile__Share>();
+    }
+
+    /** The same, for Program__c. */
+    public class ProgramSharePlan {
+        public List<Program__Share> remove = new List<Program__Share>();
+        public List<Program__Share> grant = new List<Program__Share>();
+    }
+
+    /**
+     * Which Coach_Profile__c rows a participant's portal user may read, per participant.
+     *
+     * Two relationships justify a release, and they are merged:
+     *
+     *   1. Participant__c.Coach_Profile__c — the participant's own coach, which is
+     *      what `/me` prints as coachName.
+     *   2. Coach_Profile__c of every coach on an Appointment__c that belongs to the
+     *      participant — which is what the appointments page prints.
+     *
+     * Nothing else. A coach the participant has no appointment with, and a coach
+     * belonging to a different participant, are both out of scope.
+     *
+     * A coach with no Coach_Profile__c contributes nothing and is not an error:
+     * `coachName` stays null and the page says so. That fallback is meant to mean
+     * "no master data for this coach", which is only true once the sharing gap
+     * below is closed.
+     */
+    public static Map<Id, Set<Id>> desiredCoachProfileIds(List<Participant__c> participants) {
+        Map<Id, Set<Id>> desired = new Map<Id, Set<Id>>();
+        if (participants == null || participants.isEmpty()) {
+            return desired;
+        }
+
+        Set<Id> participantIds = new Set<Id>();
+        for (Participant__c participant : participants) {
+            if (participant.Id != null) {
+                participantIds.add(participant.Id);
+                desired.put(participant.Id, new Set<Id>());
+            }
+        }
+        if (participantIds.isEmpty()) {
+            return desired;
+        }
+
+        Map<Id, Id> ownCoachProfileByParticipant = new Map<Id, Id>();
+        for (Participant__c participant : [
+            SELECT Id, Coach_Profile__c
+            FROM Participant__c
+            WHERE Id IN :participantIds
+        ]) {
+            if (participant.Coach_Profile__c != null) {
+                ownCoachProfileByParticipant.put(participant.Id, participant.Coach_Profile__c);
+                desired.get(participant.Id).add(participant.Coach_Profile__c);
+            }
+        }
+
+        // Coaches of the participant's own appointments. Taken from Appointment__c
+        // rather than from the trigger's context, so the result is the same whether
+        // the call came from a participant change, an appointment change, or the
+        // entry point that reconciles everything.
+        Set<Id> coachUserIds = new Set<Id>();
+        Map<Id, Set<Id>> coachUserIdsByParticipant = new Map<Id, Set<Id>>();
+        for (Appointment__c appointment : [
+            SELECT Participant__c, Coach__c
+            FROM Appointment__c
+            WHERE Participant__c IN :participantIds
+        ]) {
+            if (appointment.Coach__c == null) {
+                continue;
+            }
+            if (!coachUserIdsByParticipant.containsKey(appointment.Participant__c)) {
+                coachUserIdsByParticipant.put(appointment.Participant__c, new Set<Id>());
+            }
+            coachUserIdsByParticipant.get(appointment.Participant__c).add(appointment.Coach__c);
+            coachUserIds.add(appointment.Coach__c);
+        }
+
+        if (coachUserIds.isEmpty()) {
+            return desired;
+        }
+
+        Map<Id, Id> profileIdByUserId = new Map<Id, Id>();
+        for (Coach_Profile__c profile : [
+            SELECT Id, User__c
+            FROM Coach_Profile__c
+            WHERE User__c IN :coachUserIds
+        ]) {
+            profileIdByUserId.put(profile.User__c, profile.Id);
+        }
+
+        for (Id participantId : coachUserIdsByParticipant.keySet()) {
+            for (Id coachUserId : coachUserIdsByParticipant.get(participantId)) {
+                Id profileId = profileIdByUserId.get(coachUserId);
+                if (profileId != null) {
+                    desired.get(participantId).add(profileId);
+                }
+            }
+        }
+
+        return desired;
+    }
+
+    /**
+     * Which Program__c rows a participant's portal user may read, per participant.
+     *
+     * One relationship only: Participant__c.Program__c, the same field `/me`
+     * already reads its programName from. No second lookup chain exists for
+     * sharing alone.
+     */
+    public static Map<Id, Set<Id>> desiredProgramIds(List<Participant__c> participants) {
+        Map<Id, Set<Id>> desired = new Map<Id, Set<Id>>();
+        if (participants == null || participants.isEmpty()) {
+            return desired;
+        }
+
+        Set<Id> participantIds = new Set<Id>();
+        for (Participant__c participant : participants) {
+            if (participant.Id != null) {
+                participantIds.add(participant.Id);
+            }
+        }
+        if (participantIds.isEmpty()) {
+            return desired;
+        }
+
+        for (Participant__c participant : [
+            SELECT Id, Program__c
+            FROM Participant__c
+            WHERE Id IN :participantIds
+        ]) {
+            Set<Id> programs = new Set<Id>();
+            if (participant.Program__c != null) {
+                programs.add(participant.Program__c);
+            }
+            desired.put(participant.Id, programs);
+        }
+        return desired;
+    }
+
+    /**
+     * Reconciles both reference objects for the given participants.
+     *
+     * The whole desired state is recomputed for every participant in scope rather
+     * than patched per event. That is what keeps a share alive while one of
+     * several qualifying relationships is dropped: losing one appointment does not
+     * remove a coach profile that another appointment still justifies, and it does
+     * remove one that nothing justifies any more.
+     *
+     * The two plans stay separate objects — see CoachProfileSharePlan and
+     * ProgramSharePlan — so a share row remains traceable to the relationship
+     * that earned it.
+     */
+    public static void synchroniseReferences(List<Participant__c> participants) {
+        if (participants == null || participants.isEmpty()) {
+            return;
+        }
+
+        CoachProfileSharePlan coachPlan = planForCoachProfiles(participants);
+        report('removed', Database.delete(coachPlan.remove, false));
+        report('granted', Database.insert(coachPlan.grant, false));
+
+        ProgramSharePlan programPlan = planForPrograms(participants);
+        report('removed', Database.delete(programPlan.remove, false));
+        report('granted', Database.insert(programPlan.grant, false));
+    }
+
+    /**
+     * Works out the Coach_Profile__c shares for the given participants. No DML.
+     *
+     * @param participants rows to reconcile. Ids that do not exist are ignored.
+     */
+    public static CoachProfileSharePlan planForCoachProfiles(List<Participant__c> participants) {
+        if (participants == null || participants.isEmpty()) {
+            return new CoachProfileSharePlan();
+        }
+
+        Set<Id> portalUserIds = new Set<Id>();
+        for (Participant__c participant : participants) {
+            if (participant.Portal_User__c != null) {
+                portalUserIds.add(participant.Portal_User__c);
+            }
+        }
+
+        Map<String, Coach_Profile__Share> held = new Map<String, Coach_Profile__Share>();
+        if (!portalUserIds.isEmpty()) {
+            for (Coach_Profile__Share share : [
+                SELECT Id, ParentId, UserOrGroupId
+                FROM Coach_Profile__Share
+                WHERE UserOrGroupId IN :portalUserIds
+                    AND RowCause = :COACH_PROFILE_ROW_CAUSE
+            ]) {
+                held.put(key(share.ParentId, share.UserOrGroupId), share);
+            }
+        }
+
+        return planForCoachProfiles(participants, desiredCoachProfileIds(participants), held);
+    }
+
+    /**
+     * The same decision, against caller-supplied state.
+     *
+     * Split for the reason every other plan in this class is: a share row cannot
+     * be inserted in an Apex test at all — the test context applies the object's
+     * internal default access level and refuses anything at or below it, 'Edit'
+     * included. The decision is the part with the logic, so it is returned
+     * separately and asserted on without touching the database.
+     *
+     * @param desiredProfileIdsByParticipant the Coach_Profile__c ids each
+     *        participant's portal user should hold, keyed by participant id.
+     * @param held the portal-managed shares these users currently hold, keyed by
+     *        parent id and user id. Only rows under COACH_PROFILE_ROW_CAUSE belong
+     *        here; an administrator's Manual grant is invisible to this method and
+     *        therefore cannot be removed by it.
+     */
+    public static CoachProfileSharePlan planForCoachProfiles(
+        List<Participant__c> participants,
+        Map<Id, Set<Id>> desiredProfileIdsByParticipant,
+        Map<String, Coach_Profile__Share> held
+    ) {
+        CoachProfileSharePlan plan = new CoachProfileSharePlan();
+        if (participants == null || participants.isEmpty()) {
+            return plan;
+        }
+
+        // Every (profile, portal user) pair that should exist, built as share
+        // objects while the ids are still typed. Two participants can share a
+        // portal user only in test data, but the merge keeps a profile wanted by
+        // either of them — and a profile wanted by BOTH is one share, not two.
+        Set<String> wanted = new Set<String>();
+        List<Coach_Profile__Share> wantedShares = new List<Coach_Profile__Share>();
+        for (Participant__c participant : participants) {
+            if (participant.Id == null || participant.Portal_User__c == null) {
+                continue;
+            }
+            Set<Id> profileIds = desiredProfileIdsByParticipant.get(participant.Id);
+            if (profileIds == null) {
+                continue;
+            }
+            for (Id profileId : profileIds) {
+                if (profileId == null) {
+                    continue;
+                }
+                if (!wanted.add(key(profileId, participant.Portal_User__c))) {
+                    continue;
+                }
+                wantedShares.add(
+                    new Coach_Profile__Share(
+                        ParentId = profileId,
+                        UserOrGroupId = participant.Portal_User__c,
+                        AccessLevel = PORTAL_ACCESS_LEVEL,
+                        RowCause = Schema.Coach_Profile__Share.RowCause.Portal_Access__c
+                    )
+                );
+            }
+        }
+
+        for (Coach_Profile__Share share : held.values()) {
+            if (!wanted.contains(key(share.ParentId, share.UserOrGroupId))) {
+                plan.remove.add(share);
+            }
+        }
+
+        for (Coach_Profile__Share wantedShare : wantedShares) {
+            if (!held.containsKey(key(wantedShare.ParentId, wantedShare.UserOrGroupId))) {
+                plan.grant.add(wantedShare);
+            }
+        }
+
+        return plan;
+    }
+
+    /** Works out the Program__c shares for the given participants. No DML. */
+    public static ProgramSharePlan planForPrograms(List<Participant__c> participants) {
+        if (participants == null || participants.isEmpty()) {
+            return new ProgramSharePlan();
+        }
+
+        Set<Id> portalUserIds = new Set<Id>();
+        for (Participant__c participant : participants) {
+            if (participant.Portal_User__c != null) {
+                portalUserIds.add(participant.Portal_User__c);
+            }
+        }
+
+        Map<String, Program__Share> held = new Map<String, Program__Share>();
+        if (!portalUserIds.isEmpty()) {
+            for (Program__Share share : [
+                SELECT Id, ParentId, UserOrGroupId
+                FROM Program__Share
+                WHERE UserOrGroupId IN :portalUserIds
+                    AND RowCause = :PROGRAM_ROW_CAUSE
+            ]) {
+                held.put(key(share.ParentId, share.UserOrGroupId), share);
+            }
+        }
+
+        return planForPrograms(participants, desiredProgramIds(participants), held);
+    }
+
+    /**
+     * The same decision, against caller-supplied state. See planForCoachProfiles.
+     */
+    public static ProgramSharePlan planForPrograms(
+        List<Participant__c> participants,
+        Map<Id, Set<Id>> desiredProgramIdsByParticipant,
+        Map<String, Program__Share> held
+    ) {
+        ProgramSharePlan plan = new ProgramSharePlan();
+        if (participants == null || participants.isEmpty()) {
+            return plan;
+        }
+
+        Set<String> wanted = new Set<String>();
+        List<Program__Share> wantedShares = new List<Program__Share>();
+        for (Participant__c participant : participants) {
+            if (participant.Id == null || participant.Portal_User__c == null) {
+                continue;
+            }
+            Set<Id> programIds = desiredProgramIdsByParticipant.get(participant.Id);
+            if (programIds == null) {
+                continue;
+            }
+            for (Id programId : programIds) {
+                if (programId == null) {
+                    continue;
+                }
+                if (!wanted.add(key(programId, participant.Portal_User__c))) {
+                    continue;
+                }
+                wantedShares.add(
+                    new Program__Share(
+                        ParentId = programId,
+                        UserOrGroupId = participant.Portal_User__c,
+                        AccessLevel = PORTAL_ACCESS_LEVEL,
+                        RowCause = Schema.Program__Share.RowCause.Portal_Access__c
+                    )
+                );
+            }
+        }
+
+        for (Program__Share share : held.values()) {
+            if (!wanted.contains(key(share.ParentId, share.UserOrGroupId))) {
+                plan.remove.add(share);
+            }
+        }
+
+        for (Program__Share wantedShare : wantedShares) {
+            if (!held.containsKey(key(wantedShare.ParentId, wantedShare.UserOrGroupId))) {
+                plan.grant.add(wantedShare);
+            }
+        }
+
+        return plan;
+    }
+
+    /**
+     * Reconciles Coach_Profile__c and Program__c for every participant in the org.
+     *
+     * Complete, in both directions. Participants whose portal user was cleared are
+     * included even though they no longer appear in `Portal_User__c != null`, so
+     * a revoked participant loses the reference shares too. See synchroniseAll()
+     * for the same reasoning applied to the participant row itself.
+     */
+    public static void synchroniseReferencesAll() {
+        Set<Id> withPortalUser = new Set<Id>();
+        for (Participant__c participant : [
+            SELECT Id
+            FROM Participant__c
+            WHERE Portal_User__c != null
+        ]) {
+            withPortalUser.add(participant.Id);
+        }
+
+        Set<Id> sharingUsers = new Set<Id>();
+        for (Coach_Profile__Share share : [
+            SELECT UserOrGroupId
+            FROM Coach_Profile__Share
+            WHERE RowCause = :COACH_PROFILE_ROW_CAUSE
+        ]) {
+            sharingUsers.add(share.UserOrGroupId);
+        }
+        for (Program__Share share : [
+            SELECT UserOrGroupId
+            FROM Program__Share
+            WHERE RowCause = :PROGRAM_ROW_CAUSE
+        ]) {
+            sharingUsers.add(share.UserOrGroupId);
+        }
+        if (sharingUsers.isEmpty()) {
+            return;
+        }
+
+        List<Participant__c> participants = [
+            SELECT Id, Portal_User__c
+            FROM Participant__c
+            WHERE Id IN :withPortalUser OR Portal_User__c IN :sharingUsers
+        ];
+        synchroniseReferences(participants);
+    }
+
     private static String key(Id parentId, Id userOrGroupId) {
         return String.valueOf(parentId) + ':' + String.valueOf(userOrGroupId);
     }

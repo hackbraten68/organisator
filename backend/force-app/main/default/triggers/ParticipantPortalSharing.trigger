@@ -14,7 +14,13 @@
  *
  * SCOPE
  *   Runs on insert and update only, and only when the release target actually
- *   changed. A rename or a status change must not touch sharing.
+ *   changed — which now means Portal_User__c, Coach_Profile__c or Program__c.
+ *   A rename or a status change must not touch sharing.
+ *
+ *   Coach_Profile__c and Program__c are watched here because this is where they
+ *   are assigned. A change on the coach's own row is handled by
+ *   CoachProfilePortalSharing; a change on an appointment's coach by
+ *   AppointmentPortalSharing.
  *
  * AFTER, NOT BEFORE
  *   The share needs a persisted parent row id, so this cannot run before-save.
@@ -40,7 +46,12 @@ trigger ParticipantPortalSharing on Participant__c(after insert, after update) {
     }
 
     Participant__c previous = Trigger.oldMap.get(participant.Id);
-    if (previous == null || participant.Portal_User__c != previous.Portal_User__c) {
+    if (
+      previous == null ||
+      participant.Portal_User__c != previous.Portal_User__c ||
+      participant.Coach_Profile__c != previous.Coach_Profile__c ||
+      participant.Program__c != previous.Program__c
+    ) {
       changed.add(participant);
     }
   }
@@ -67,4 +78,12 @@ trigger ParticipantPortalSharing on Participant__c(after insert, after update) {
   // The service reads the current share state itself, so it only needs the rows
   // whose release target moved — not what they were before.
   ParticipantPortalSharingService.synchronise(changed);
+
+  // Coach_Profile__c and Program__c follow from the same relationships, and both
+  // are released only for the portal user on this row. A coach change moves which
+  // coach profile may be read, a program change moves which program, and clearing
+  // Portal_User__c has to take all of them away again — so the same set of rows
+  // drives both calls. Without the second one a participant keeps reading a coach
+  // profile and a program they are no longer assigned to.
+  ParticipantPortalSharingService.synchroniseReferences(changed);
 }

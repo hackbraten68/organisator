@@ -39,12 +39,57 @@
 
     <fieldPermissions>
         <editable>false</editable>
-        <field>Participant__c.Status__c</field>
+        <field>Appointment__c.CancellationReason__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
-        <field>Participant__c.StartDate__c</field>
+        <field>Appointment__c.Coach__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Appointment__c.Location__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Appointment__c.MeetingLink__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Coach_Profile__c.Name</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Coach_Profile__c.User__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Learning_Path__c.Estimated_Weeks__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Learning_Path__c.Order__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Learning_Path__c.Participant__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Learning_Path__c.Status__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Participant__c.Coach_Profile__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -54,26 +99,35 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
+        <field>Participant__c.Portal_User__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>Participant__c.Program__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
-        <field>Participant__c.Coach_Profile__c</field>
+        <field>Participant__c.StartDate__c</field>
         <readable>true</readable>
     </fieldPermissions>
-    <!-- Referenziert die Sharing Rule PortalParticipantSeesOwnRecord
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Participant__c.Status__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Program__c.Name</field>
+        <readable>true</readable>
+    </fieldPermissions>
+<!-- Referenziert die Sharing Rule PortalParticipantSeesOwnRecord
          (Participant__c.Portal_User__c = UserInfo.getUserId()). Ohne Read auf
          das Feld selbst wertet die Org die Rule nicht aus, weil FLS erzwungen
          wird. Schreibrecht wird bewusst nicht vergeben: der Wert wird aus
          User.ContactId abgeleitet, nicht vom Portaluser gepflegt. -->
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Participant__c.Portal_User__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-
-    <!-- Learning_Path__c is read for GET /me/learning-path. Read is the whole
+<!-- Learning_Path__c is read for GET /me/learning-path. Read is the whole
          grant: the page is read-only, and viewAllRecords stays false so the
          Learning_Path__Share rows created by
          ParticipantPortalSharingService.synchroniseLearningPaths() remain the
@@ -114,28 +168,7 @@
          fails the whole permission set — not just that one field — which is
          why the other three objects were rolled back with it. Check
          <required> in the field metadata before adding an entry here. -->
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Learning_Path__c.Status__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Learning_Path__c.Order__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Learning_Path__c.Estimated_Weeks__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Learning_Path__c.Participant__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-
-    <!-- Appointment__c is read for GET /me/appointments. Same shape as the
+<!-- Appointment__c is read for GET /me/appointments. Same shape as the
          Learning_Path__c block above: the object grant is the outer layer only, and
          the Appointment__Share rows created by
          ParticipantPortalSharingService.synchroniseAppointments() are what decide
@@ -152,22 +185,7 @@
          NOT granted: Appointment__c.Coach__c is a lookup to User, and the name is
          resolved backwards via Coach_Profile__c.User__c so the portal never needs
          rights on the User object. -->
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Appointment__c.Location__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Appointment__c.MeetingLink__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Appointment__c.CancellationReason__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <!-- StartTime__c, EndTime__c, Status__c, Type__c and Participant__c have NO
+<!-- StartTime__c, EndTime__c, Status__c, Type__c and Participant__c have NO
          entry here, and that is not an oversight. All five are <required>true</required>,
          and the Metadata API refuses a fieldPermissions entry for a required field:
 
@@ -178,18 +196,7 @@
          readable by everyone who can read the object, so there is nothing to grant.
          Check <required> in the field metadata before adding an entry here. Coach__c
          is not required and does get one. -->
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Appointment__c.Coach__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Coach_Profile__c.User__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-
-    <objectPermissions>
+<objectPermissions>
         <allowCreate>false</allowCreate>
         <allowDelete>false</allowDelete>
         <allowEdit>false</allowEdit>
@@ -219,7 +226,7 @@
         <viewAllFields>false</viewAllFields>
         <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
-    <objectPermissions>
+<objectPermissions>
         <allowCreate>false</allowCreate>
         <allowDelete>false</allowDelete>
         <allowEdit>false</allowEdit>
