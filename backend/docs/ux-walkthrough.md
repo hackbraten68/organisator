@@ -19,19 +19,19 @@
 
 ### Status: ✅ erledigt
 
-Die v1.0-Aussage „Kein *Neuer Teilnehmer*-Button im UI" ist falsch. Der Weg ist der
+Die v1.0-Aussage „Kein _Neuer Teilnehmer_-Button im UI" ist falsch. Der Weg ist der
 **Contact-zuerst-Flow**, er ist bewusst so gebaut (ADR-001: Name und E-Mail werden auf dem
 Contact gepflegt, der Teilnehmer ist eine Rolle darüber).
 
-| Baustein | Beleg |
-|---|---|
-| Contact-Übersicht | `src/pages/ContactPage.tsx` |
-| „Als Teilnehmer anlegen" in der Tabelle | `src/components/contacts/ContactTable.tsx:164` |
-| „Als Teilnehmer anlegen" in der Detailkarte | `src/components/contacts/ContactDetailCard.tsx:120` |
-| Dialog mit Programm/Coach/Daten | `src/components/contacts/CreateParticipantDialog.tsx` |
-| Mutation | `src/api/participant/query/CreateParticipant.graphql` |
+| Baustein                                    | Beleg                                                 |
+| ------------------------------------------- | ----------------------------------------------------- |
+| Contact-Übersicht                           | `src/pages/ContactPage.tsx`                           |
+| „Als Teilnehmer anlegen" in der Tabelle     | `src/components/contacts/ContactTable.tsx:164`        |
+| „Als Teilnehmer anlegen" in der Detailkarte | `src/components/contacts/ContactDetailCard.tsx:120`   |
+| Dialog mit Programm/Coach/Daten             | `src/components/contacts/CreateParticipantDialog.tsx` |
+| Mutation                                    | `src/api/participant/query/CreateParticipant.graphql` |
 
-**Verbleibende Frage (Produkt, nicht Code):** Im *Teilnehmerbereich* gibt es weiterhin
+**Verbleibende Frage (Produkt, nicht Code):** Im _Teilnehmerbereich_ gibt es weiterhin
 keinen Anlege-Knopf — der Einstieg liegt nur auf der Contact-Seite. Das ist konsistent,
 sollte aber bewusst entschieden werden (siehe „Offene Produktfragen").
 
@@ -44,17 +44,18 @@ Vertrieb freigegebenen. Siehe Priorität 0 im `next-steps-plan.md`.
 
 ### Status: 🟡 teilweise — Struktur steht, Feedback und Sprache nicht
 
-| v1.0-Behauptung | Status | Beleg |
-|---|---|---|
-| Kein Edit-Modus | ✅ | `ParticipantSummaryCard.tsx` — Button „Bearbeiten"/„Fertig" (`onToggleEdit`) |
-| Kein Speichern | ✅ | `ParticipantPage.tsx:216` `handleSave()` → `updateParticipant`, Sticky-Header `onSave` (Zeile 325) |
-| Kein Fortschritts-Badge | ✅ | `OnboardingBadge.tsx`, eingebunden in `ParticipantChecklist`/`OnboardingChecklist.tsx:73` **und** `ParticipantListCard.tsx:205` |
-| Kein Live-Fortschritt | ✅ | `OnboardingChecklist` rechnet aus dem editierbaren Teilnehmer-Objekt, Checkmarks reagieren während des Editierens |
-| Kein Auto-Save | ⬜ | weiterhin manuelles Speichern — bewusste Entscheidung, kein Defekt |
-| Kein Tooltip/Erklärung der Felder | ⬜ | nur bei E-Mail steht ein Hilfetext; Programm/Coach/GitHub/Discord stehen ohne Erklärung |
-| Kein „Onboarding abgeschlossen"-Feedback | ⬜ | `ParticipantPage.tsx:232` toastet „Participant saved" — aber unabhängig vom Fertig-Werden. Es gibt kein Signal „Ready erreicht". |
+| v1.0-Behauptung                          | Status | Beleg                                                                                                                            |
+| ---------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| Kein Edit-Modus                          | ✅     | `ParticipantSummaryCard.tsx` — Button „Bearbeiten"/„Fertig" (`onToggleEdit`)                                                     |
+| Kein Speichern                           | ✅     | `ParticipantPage.tsx:216` `handleSave()` → `updateParticipant`, Sticky-Header `onSave` (Zeile 325)                               |
+| Kein Fortschritts-Badge                  | ✅     | `OnboardingBadge.tsx`, eingebunden in `ParticipantChecklist`/`OnboardingChecklist.tsx:73` **und** `ParticipantListCard.tsx:205`  |
+| Kein Live-Fortschritt                    | ✅     | `OnboardingChecklist` rechnet aus dem editierbaren Teilnehmer-Objekt, Checkmarks reagieren während des Editierens                |
+| Kein Auto-Save                           | ⬜     | weiterhin manuelles Speichern — bewusste Entscheidung, kein Defekt                                                               |
+| Kein Tooltip/Erklärung der Felder        | ⬜     | nur bei E-Mail steht ein Hilfetext; Programm/Coach/GitHub/Discord stehen ohne Erklärung                                          |
+| Kein „Onboarding abgeschlossen"-Feedback | ⬜     | `ParticipantPage.tsx:232` toastet „Participant saved" — aber unabhängig vom Fertig-Werden. Es gibt kein Signal „Ready erreicht". |
 
 **Neu (v2.0) — 🔴 Sprachbruch:** Die UI ist deutsch, zwei Stellen sind englisch:
+
 - `ParticipantPage.tsx:232` / `:239` — `toast.success("Participant saved")`, `toast.error("Saving failed")`
 - `OnboardingChecklist.tsx:104` — `Missing: Program, Coach` (Labels selbst sind deutsch)
 
@@ -64,14 +65,14 @@ Vertrieb freigegebenen. Siehe Priorität 0 im `next-steps-plan.md`.
 
 ### Status: 🟡 teilweise — Knopf und Formular da, Konfliktprüfung fehlt komplett
 
-| v1.0-Behauptung | Status | Beleg |
-|---|---|---|
-| Kein „Neuer Termin"-Button | ✅ | `ParticipantAppointmentsTab.tsx` — „Termin anlegen", plus EmptyState-Aktion |
-| Kein Feedback | ✅ | `toast.success("Termin erstellt")`, Fehlerzweig inkl. `console.error` (`handleCreate`) |
-| Kein Slot-Vorschlag | ✅ | `ProposeSlotsDialog.tsx`, „3 Terminvorschläge für {Typ}" |
-| Keine Typ-Erklärung | 🟡 | Typen sind fest im Code, keine Description im UI (`appointmentTypes` in `ParticipantAppointmentsTab.tsx`) |
-| Kein Konflikt-Check | ⬜ | `grep -ri conflict src/` liefert **null Treffer**. Doppelbuchung ist ungeprüft |
-| Kein Auto-Fill Coach | ⬜ | Formular startet mit `coachId = ""` (`AppointmentFormDialog.tsx:53`) |
+| v1.0-Behauptung            | Status | Beleg                                                                                                     |
+| -------------------------- | ------ | --------------------------------------------------------------------------------------------------------- |
+| Kein „Neuer Termin"-Button | ✅     | `ParticipantAppointmentsTab.tsx` — „Termin anlegen", plus EmptyState-Aktion                               |
+| Kein Feedback              | ✅     | `toast.success("Termin erstellt")`, Fehlerzweig inkl. `console.error` (`handleCreate`)                    |
+| Kein Slot-Vorschlag        | ✅     | `ProposeSlotsDialog.tsx`, „3 Terminvorschläge für {Typ}"                                                  |
+| Keine Typ-Erklärung        | 🟡     | Typen sind fest im Code, keine Description im UI (`appointmentTypes` in `ParticipantAppointmentsTab.tsx`) |
+| Kein Konflikt-Check        | ⬜     | `grep -ri conflict src/` liefert **null Treffer**. Doppelbuchung ist ungeprüft                            |
+| Kein Auto-Fill Coach       | ⬜     | Formular startet mit `coachId = ""` (`AppointmentFormDialog.tsx:53`)                                      |
 
 **Neu (v2.0) — 🔴 zwei Defekte in derselben Datei:**
 
@@ -110,13 +111,13 @@ implementierte. Implementiert ist: `handleReschedule` (`ParticipantAppointmentsT
 als das Dokument annahm — aber die drei vorgeschlagenen Termine sind oben beschrieben
 verloren.
 
-| v1.0-Behauptung | Status | Beleg |
-|---|---|---|
-| Kein Slot-Vorschlag | ✅ | siehe 3. |
-| Keine Historie der Verschiebungen | ✅ | `api/audit/appointmentAuditIntegration.ts:81` `recordAppointmentRescheduled`, sichtbar im `ActivityTimeline` |
-| Kein Konflikt-Hinweis | ⬜ | siehe 3., kein Konfliktcode im Repo |
-| Kein Grund für die Verschiebung | ⬜ | `reason` existiert im Audit-Interface (`RescheduleReason`), wird aber vom UI nicht erfragt |
-| Kein Drag & Drop | ⬜ | echtes Feature, keine Abkürzung |
+| v1.0-Behauptung                   | Status | Beleg                                                                                                        |
+| --------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------ |
+| Kein Slot-Vorschlag               | ✅     | siehe 3.                                                                                                     |
+| Keine Historie der Verschiebungen | ✅     | `api/audit/appointmentAuditIntegration.ts:81` `recordAppointmentRescheduled`, sichtbar im `ActivityTimeline` |
+| Kein Konflikt-Hinweis             | ⬜     | siehe 3., kein Konfliktcode im Repo                                                                          |
+| Kein Grund für die Verschiebung   | ⬜     | `reason` existiert im Audit-Interface (`RescheduleReason`), wird aber vom UI nicht erfragt                   |
+| Kein Drag & Drop                  | ⬜     | echtes Feature, keine Abkürzung                                                                              |
 
 ---
 
@@ -124,13 +125,13 @@ verloren.
 
 ### Status: 🟡 teilweise — Aktionen und Anwesenheit da, Bestätigung fehlt
 
-| v1.0-Behauptung | Status | Beleg |
-|---|---|---|
-| Kein Feedback nach Abschluss | ✅ | `handleComplete` / `handleConfirm` / `handleNoShow` → jeweils `toast.success(...)` |
-| Keine Anwesenheit | ✅ | `updateAppointmentAttendance(id, "NoShow")`, Status `NoShow` in der Filterliste |
-| Keine Notizen | ✅ | `AppointmentFormDialog.tsx` hat ein Notizen-Feld |
-| Keine Bestätigung vor dem Abschluss | ⬜ | `handleComplete` ruft direkt auf. `AlertDialog` existiert (`components/ui/alert-dialog.tsx`) und wird nur in `AbsenceApprovalActions.tsx` benutzt — die Lücke ist also billig zu schließen |
-| Was passiert danach? | ⬜ | Statusübergang zu `Documented` ist nicht im UI erklärt |
+| v1.0-Behauptung                     | Status | Beleg                                                                                                                                                                                      |
+| ----------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Kein Feedback nach Abschluss        | ✅     | `handleComplete` / `handleConfirm` / `handleNoShow` → jeweils `toast.success(...)`                                                                                                         |
+| Keine Anwesenheit                   | ✅     | `updateAppointmentAttendance(id, "NoShow")`, Status `NoShow` in der Filterliste                                                                                                            |
+| Keine Notizen                       | ✅     | `AppointmentFormDialog.tsx` hat ein Notizen-Feld                                                                                                                                           |
+| Keine Bestätigung vor dem Abschluss | ⬜     | `handleComplete` ruft direkt auf. `AlertDialog` existiert (`components/ui/alert-dialog.tsx`) und wird nur in `AbsenceApprovalActions.tsx` benutzt — die Lücke ist also billig zu schließen |
+| Was passiert danach?                | ⬜     | Statusübergang zu `Documented` ist nicht im UI erklärt                                                                                                                                     |
 
 ---
 
@@ -138,17 +139,16 @@ verloren.
 
 ### Status: 🟡 teilweise — Felder da, „Kalender" ist eine Liste
 
-| v1.0-Behauptung | Status | Beleg |
-|---|---|---|
-| Kein „Gültig bis" | ✅ | `validFrom`/`validTo` im Formular (`AvailabilitySlots.tsx:368-379`), Anzeige in Zeile 256-258 |
-| Keine Wochenübersicht | 🟡 | Gruppierung nach Wochentag existiert, aber als Kartenliste, nicht als Wochenraster. `ProposeSlotsDialog` gruppiert nach `dayOfWeek` |
-| Kein Bulk-Edit | ⬜ | bestätigt, kein Kopier-Pfad |
-| Kein Standard-Slot je Wochentag | ⬜ | nicht vorhanden |
+| v1.0-Behauptung                 | Status | Beleg                                                                                                                               |
+| ------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Kein „Gültig bis"               | ✅     | `validFrom`/`validTo` im Formular (`AvailabilitySlots.tsx:368-379`), Anzeige in Zeile 256-258                                       |
+| Keine Wochenübersicht           | 🟡     | Gruppierung nach Wochentag existiert, aber als Kartenliste, nicht als Wochenraster. `ProposeSlotsDialog` gruppiert nach `dayOfWeek` |
+| Kein Bulk-Edit                  | ⬜     | bestätigt, kein Kopier-Pfad                                                                                                         |
+| Kein Standard-Slot je Wochentag | ⬜     | nicht vorhanden                                                                                                                     |
 
 **Neu (v2.0) — 🔴:** `ProposeSlotsDialog` baut den Zeitstempel aus
 `slot.validFrom ? \`${slot.validFrom}T${slot.startTime}\` : slot.startTime`
-(`ProposeSlotsDialog.tsx:80-87`). Ohne `validFrom` entsteht der Wert
-`"09:00T10:00"` statt eines ISO-Datums — der Mutation-Aufruf bekommt dann Müll.
+(`ProposeSlotsDialog.tsx:80-87`). Ohne `validFrom`entsteht der Wert`"09:00T10:00"` statt eines ISO-Datums — der Mutation-Aufruf bekommt dann Müll.
 
 ---
 
@@ -156,13 +156,13 @@ verloren.
 
 ### Status: 🟡 teilweise — technisch vorhanden, unsichtbar
 
-| v1.0-Behauptung | Status | Beleg |
-|---|---|---|
-| Kein Ready-Badge in der Liste | ✅ | `ParticipantListCard.tsx:205` |
-| Checkliste verschwindet | ✅ | `OnboardingChecklist.tsx` — `if (completion.state === "ready") return null` |
-| Kein Abschluss-Feedback | ⬜ | siehe 2. |
-| Kein Zeitstempel des Abschlusses | ⬜ | nicht erfasst |
-| Ready zurücksetzen | ⬜ | nur durch Leeren der vier Felder |
+| v1.0-Behauptung                  | Status | Beleg                                                                       |
+| -------------------------------- | ------ | --------------------------------------------------------------------------- |
+| Kein Ready-Badge in der Liste    | ✅     | `ParticipantListCard.tsx:205`                                               |
+| Checkliste verschwindet          | ✅     | `OnboardingChecklist.tsx` — `if (completion.state === "ready") return null` |
+| Kein Abschluss-Feedback          | ⬜     | siehe 2.                                                                    |
+| Kein Zeitstempel des Abschlusses | ⬜     | nicht erfasst                                                               |
+| Ready zurücksetzen               | ⬜     | nur durch Leeren der vier Felder                                            |
 
 ---
 
@@ -170,21 +170,21 @@ verloren.
 
 ### Was sich seit v1.0 geändert hat
 
-| # | v1.0-Befund | Status 2026-10-06 |
-|---|---|---|
-| 1 | Kein „Teilnehmer anlegen" im UI | ✅ erledigt (Contact-Flow) |
-| 2 | Kein Slot-Vorschlag | ✅ erledigt, aber Datenverlust (siehe 3.) |
-| 3 | Kein Konflikt-Check bei Terminbuchung | ⬜ offen, **größter offener Produktfehler** |
-| 4 | Kein Auto-Save bei Onboarding | ⬜ offen, bewusste Entscheidung |
-| 5 | Kein Toast-Feedback bei Statusänderungen | ✅ erledigt |
-| 6 | Kein Bulk-Edit bei Verfügbarkeiten | ⬜ offen |
-| 7 | Kein Wochen-Kalender für Verfügbarkeiten | 🟡 als Wochentagsliste vorhanden |
-| 8 | Kein „Onboarding abgeschlossen"-Feedback | ⬜ offen |
-| 9 | Tooltips für Onboarding-Felder fehlen | ⬜ offen |
-| 10 | Keine Erklärung der Termin-Typen | 🟡 Typen vorhanden, ohne Description |
-| 11 | Keine Erklärung der Orte | ⬜ offen |
-| 12 | Keine Historie bei Verschiebungen | ✅ erledigt (Audit-Timeline) |
-| 13 | Keine Anwesenheitserfassung | ✅ erledigt |
+| #   | v1.0-Befund                              | Status 2026-10-06                           |
+| --- | ---------------------------------------- | ------------------------------------------- |
+| 1   | Kein „Teilnehmer anlegen" im UI          | ✅ erledigt (Contact-Flow)                  |
+| 2   | Kein Slot-Vorschlag                      | ✅ erledigt, aber Datenverlust (siehe 3.)   |
+| 3   | Kein Konflikt-Check bei Terminbuchung    | ⬜ offen, **größter offener Produktfehler** |
+| 4   | Kein Auto-Save bei Onboarding            | ⬜ offen, bewusste Entscheidung             |
+| 5   | Kein Toast-Feedback bei Statusänderungen | ✅ erledigt                                 |
+| 6   | Kein Bulk-Edit bei Verfügbarkeiten       | ⬜ offen                                    |
+| 7   | Kein Wochen-Kalender für Verfügbarkeiten | 🟡 als Wochentagsliste vorhanden            |
+| 8   | Kein „Onboarding abgeschlossen"-Feedback | ⬜ offen                                    |
+| 9   | Tooltips für Onboarding-Felder fehlen    | ⬜ offen                                    |
+| 10  | Keine Erklärung der Termin-Typen         | 🟡 Typen vorhanden, ohne Description        |
+| 11  | Keine Erklärung der Orte                 | ⬜ offen                                    |
+| 12  | Keine Historie bei Verschiebungen        | ✅ erledigt (Audit-Timeline)                |
+| 13  | Keine Anwesenheitserfassung              | ✅ erledigt                                 |
 
 ### 🔴 Neue Defekte aus der Verifikation (alle vor v2.0)
 
@@ -200,21 +200,21 @@ sondern Fehler:
 
 ### Klick-Statistik (unverändert gültig, keine Klickbilder verfügbar)
 
-| Flow | Klicks | Kontextwechsel | geändert seit v1.0 |
-|---|---|---|---|
-| Teilnehmer anlegen | 3-4 | 1 | ja — Contact-Seite + Dialog |
-| Onboarding | 7-9 | 0 | nein |
-| Termin planen | 10-13 | 1 | nein |
-| Termin verschieben | 4-6 | 1 | ja — direkt in den Slot-Dialog |
-| Termin abschließen | 3-5 | 0 | ja — Toast, keine Rückfrage |
-| Verfügbarkeiten | 8-9 | 1 | nein |
-| Ready setzen | 7-9 | 0 | nein |
+| Flow               | Klicks | Kontextwechsel | geändert seit v1.0             |
+| ------------------ | ------ | -------------- | ------------------------------ |
+| Teilnehmer anlegen | 3-4    | 1              | ja — Contact-Seite + Dialog    |
+| Onboarding         | 7-9    | 0              | nein                           |
+| Termin planen      | 10-13  | 1              | nein                           |
+| Termin verschieben | 4-6    | 1              | ja — direkt in den Slot-Dialog |
+| Termin abschließen | 3-5    | 0              | ja — Toast, keine Rückfrage    |
+| Verfügbarkeiten    | 8-9    | 1              | nein                           |
+| Ready setzen       | 7-9    | 0              | nein                           |
 
 ### Informationslücken (unverändert, neu nummeriert)
 
 1. Tooltips/Description für Onboarding-Felder (Programm, Coach, GitHub, Discord)
 2. Bedeutung des Termin-Typs — welche der sechs Typen ist der Normalfall?
-3. Bedeutung des Ortes (OnSite / Remote / Hybrid)
+3. Bedeutung des Ortes (Discord / Zoom / Teams / Extern)
 4. Was passiert nach „Durchgeführt"? Wann folgt `Documented`?
 5. Gibt es eine Standarddauer für Termine und Slots?
 6. Warum kann der Vertrieb einen Contact freigeben und nicht das Backend?

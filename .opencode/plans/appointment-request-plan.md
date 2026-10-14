@@ -22,15 +22,15 @@ Teilnehmer                    Coach                        System
 
 ## 1. Was das Datenmodell heute schon kann
 
-| Frage | Befund |
-|---|---|
-| Kann eine Anfrage ohne Uhrzeit ein `Appointment__c` sein? | **Nein.** `StartTime__c` und `EndTime__c` sind `required=true` (`objects/Appointment__c/fields/`). Eine Anfrage hat per Definition keinen Termin. |
-| Wer ist der Coach am Termin? | `Appointment__c.Coach__c` zeigt auf **`User`** (`<referenceTo>User</referenceTo>`, Relationship `CoachedAppointments`). Ein Coach ist also ein Login — das ist für die Warteschlange die entscheidende Eigenschaft. |
-| Gibt es eine Coach-Zuordnung am Teilnehmer? | `Participant__c.Coach_Profile__c`, Lookup, Relationship `Coach_Profiles`, gepflegt über `UpdateParticipant.graphql:26`. **Für die Warteschlange wird sie nicht gebraucht** — alle Coaches sehen alle offenen Anfragen. |
-| Ist `Coach_Profile__c` einem Login zugeordnet? | Nein — die Felder sind Capacity, Discord, Email, GitHub, Role, Status. Bei einer Warteschlange ist das egal; bei einer 1:1-Zuordnung wäre es ein Loch. |
-| Gibt es schon einen passenden Status? | `Appointment__c.Status__c` ist eine **restricted** Picklist: Draft (Default), Finding, Confirmed, Completed, Documented, Cancelled, NoShow. `Finding` wird heute vom Vorschlagpfad gesetzt. |
-| Wie kommt der Coach an den Termin, den er vorschlägt? | `AvailabilitySlot__c` (User, DayOfWeek, ValidFrom/ValidTo, IsActive) plus `src/utils/slotDateTime.ts` aus B4. Slot ohne Datum wird nicht vorgeschlagen. |
-| Wie liest das Portal heute Daten? | Über Apex REST: `/services/apexrest/participant-portal/me` (`frontend/.../participantApi.ts:63`). Es gibt also einen Präzedenzfall, an dem wir uns orientieren. |
+| Frage                                                     | Befund                                                                                                                                                                                                                 |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kann eine Anfrage ohne Uhrzeit ein `Appointment__c` sein? | **Nein.** `StartTime__c` und `EndTime__c` sind `required=true` (`objects/Appointment__c/fields/`). Eine Anfrage hat per Definition keinen Termin.                                                                      |
+| Wer ist der Coach am Termin?                              | `Appointment__c.Coach__c` zeigt auf **`User`** (`<referenceTo>User</referenceTo>`, Relationship `CoachedAppointments`). Ein Coach ist also ein Login — das ist für die Warteschlange die entscheidende Eigenschaft.    |
+| Gibt es eine Coach-Zuordnung am Teilnehmer?               | `Participant__c.Coach_Profile__c`, Lookup, Relationship `Coach_Profiles`, gepflegt über `UpdateParticipant.graphql:26`. **Für die Warteschlange wird sie nicht gebraucht** — alle Coaches sehen alle offenen Anfragen. |
+| Ist `Coach_Profile__c` einem Login zugeordnet?            | Nein — die Felder sind Capacity, Discord, Email, GitHub, Role, Status. Bei einer Warteschlange ist das egal; bei einer 1:1-Zuordnung wäre es ein Loch.                                                                 |
+| Gibt es schon einen passenden Status?                     | `Appointment__c.Status__c` ist eine **restricted** Picklist: Draft (Default), Finding, Confirmed, Completed, Documented, Cancelled, NoShow. `Finding` wird heute vom Vorschlagpfad gesetzt.                            |
+| Wie kommt der Coach an den Termin, den er vorschlägt?     | `AvailabilitySlot__c` (User, DayOfWeek, ValidFrom/ValidTo, IsActive) plus `src/utils/slotDateTime.ts` aus B4. Slot ohne Datum wird nicht vorgeschlagen.                                                                |
+| Wie liest das Portal heute Daten?                         | Über Apex REST: `/services/apexrest/participant-portal/me` (`frontend/.../participantApi.ts:63`). Es gibt also einen Präzedenzfall, an dem wir uns orientieren.                                                        |
 
 **Damit ist die Richtung klar: neues Objekt.** `AppointmentRequest__c` trägt die Anfrage,
 `Appointment__c` entsteht erst bei Annahme.
@@ -39,33 +39,33 @@ Teilnehmer                    Coach                        System
 
 ## 2. Datenmodell `AppointmentRequest__c`
 
-| Feld | Typ | Pflicht | Zweck |
-|---|---|---|---|
-| `Participant__c` | Lookup | ja | wer angefragt hat. Relationship `AppointmentRequests` |
-| `Type__c` | Picklist, restricted | ja | Terminart. **Werte identisch zu `Appointment__c.Type__c`** — siehe Befund 6.1 |
-| `Message__c` | Long Text Area (1000) | nein | was der Teilnehmer braucht. Optional, damit der Button „Ich brauche einen Termin" allein genügt |
-| `Status__c` | Picklist, restricted | ja, Default `Open` | `Open`, `Proposed`, `Accepted`, `Declined`, `Cancelled` |
-| `ProposedStartTime__c` | DateTime | nein | gesetzt, wenn ein Coach antwortet |
-| `ProposedEndTime__c` | DateTime | nein | dito |
-| `ProposedBy__c` | Lookup auf `User` | nein | wer vorgeschlagen hat |
-| `ProposedByName__c` | Text (80) | nein | Snapshot. Der Teilnehmer darf keine `User`-Rechte bekommen und sieht trotzdem, wer vorgeschlagen hat |
-| `RespondedAt__c` | DateTime | nein | wann der Coach geantwortet hat |
-| `DeclineReason__c` | Text (255) | nein | Teilnehmer kann einen Grund angeben |
-| `Appointment__c` | Lookup | nein | der bei Annahme erzeugte Termin, Relationship `OriginatingRequest` |
+| Feld                   | Typ                   | Pflicht            | Zweck                                                                                                |
+| ---------------------- | --------------------- | ------------------ | ---------------------------------------------------------------------------------------------------- |
+| `Participant__c`       | Lookup                | ja                 | wer angefragt hat. Relationship `AppointmentRequests`                                                |
+| `Type__c`              | Picklist, restricted  | ja                 | Terminart. **Werte identisch zu `Appointment__c.Type__c`** — siehe Befund 6.1                        |
+| `Message__c`           | Long Text Area (1000) | nein               | was der Teilnehmer braucht. Optional, damit der Button „Ich brauche einen Termin" allein genügt      |
+| `Status__c`            | Picklist, restricted  | ja, Default `Open` | `Open`, `Proposed`, `Accepted`, `Declined`, `Cancelled`                                              |
+| `ProposedStartTime__c` | DateTime              | nein               | gesetzt, wenn ein Coach antwortet                                                                    |
+| `ProposedEndTime__c`   | DateTime              | nein               | dito                                                                                                 |
+| `ProposedBy__c`        | Lookup auf `User`     | nein               | wer vorgeschlagen hat                                                                                |
+| `ProposedByName__c`    | Text (80)             | nein               | Snapshot. Der Teilnehmer darf keine `User`-Rechte bekommen und sieht trotzdem, wer vorgeschlagen hat |
+| `RespondedAt__c`       | DateTime              | nein               | wann der Coach geantwortet hat                                                                       |
+| `DeclineReason__c`     | Text (255)            | nein               | Teilnehmer kann einen Grund angeben                                                                  |
+| `Appointment__c`       | Lookup                | nein               | der bei Annahme erzeugte Termin, Relationship `OriginatingRequest`                                   |
 
 **Kein Feld für das Warten:** das Alter kommt aus `CreatedDate`, es gibt keinen Scheduled
 Job in beiden Projekten (verifiziert) und es soll laut Entscheidung auch keinen geben.
 
 ### Zustandsmaschine
 
-| Von | Nach | Wer | Was passiert |
-|---|---|---|---|
-| — | `Open` | Teilnehmer | Anfrage mit Typ und optionaler Nachricht |
-| `Open` | `Proposed` | Coach | genau ein Termin, `ProposedBy` = sein `UserId`, `RespondedAt` |
-| `Proposed` | `Accepted` | Teilnehmer | `Appointment__c` wird angelegt (Status `Confirmed`), `Appointment__c`-Feld der Anfrage gesetzt |
-| `Proposed` | `Declined` | Teilnehmer | `DeclineReason` optional. Die Anfrage ist zu; eine neue ist möglich |
-| `Open` | `Cancelled` | Teilnehmer | Zurückziehen, ohne dass ein Coach zugesehen hat |
-| `Proposed` | `Cancelled` | Teilnehmer | Zurückziehen, nachdem ein Coach schon vorgeschlagen hat |
+| Von        | Nach        | Wer        | Was passiert                                                                                   |
+| ---------- | ----------- | ---------- | ---------------------------------------------------------------------------------------------- |
+| —          | `Open`      | Teilnehmer | Anfrage mit Typ und optionaler Nachricht                                                       |
+| `Open`     | `Proposed`  | Coach      | genau ein Termin, `ProposedBy` = sein `UserId`, `RespondedAt`                                  |
+| `Proposed` | `Accepted`  | Teilnehmer | `Appointment__c` wird angelegt (Status `Confirmed`), `Appointment__c`-Feld der Anfrage gesetzt |
+| `Proposed` | `Declined`  | Teilnehmer | `DeclineReason` optional. Die Anfrage ist zu; eine neue ist möglich                            |
+| `Open`     | `Cancelled` | Teilnehmer | Zurückziehen, ohne dass ein Coach zugesehen hat                                                |
+| `Proposed` | `Cancelled` | Teilnehmer | Zurückziehen, nachdem ein Coach schon vorgeschlagen hat                                        |
 
 **Kein Weg zurück.** Aus `Accepted`, `Declined` und `Cancelled` geht nichts mehr. Ein
 erneuter Bedarf ist eine neue Anfrage. `Expired` gibt es bewusst nicht — die Entscheidung
@@ -94,15 +94,15 @@ Daher: **eine Apex-REST-Ressource für den gesamten Anfrage-Schreibpfad**, mit
 verhindert das gleichzeitige Lesen, die Status-Bedingung schützt davor, dass ein zweiter
 Aufruf einen bereits beantworteten Datensatz überschreibt.
 
-| Route | Rolle | Wirkung |
-|---|---|---|
-| `GET /services/apexrest/appointment-requests/open` | Coach | Warteschlange, alle `Open`, mit Alter |
-| `POST …/open` | Teilnehmer | Anfrage anlegen, prüft „nur eine offene" |
-| `POST …/{id}/propose` | Coach | genau ein Termin, setzt `Proposed` |
-| `POST …/{id}/accept` | Teilnehmer | legt `Appointment__c` an, setzt `Accepted` |
-| `POST …/{id}/decline` | Teilnehmer | `Declined` mit Grund |
-| `POST …/{id}/cancel` | Teilnehmer | `Cancelled` |
-| `GET …/mine` | Teilnehmer | die eigene Anfrage mit Status und Vorschlag |
+| Route                                              | Rolle      | Wirkung                                     |
+| -------------------------------------------------- | ---------- | ------------------------------------------- |
+| `GET /services/apexrest/appointment-requests/open` | Coach      | Warteschlange, alle `Open`, mit Alter       |
+| `POST …/open`                                      | Teilnehmer | Anfrage anlegen, prüft „nur eine offene"    |
+| `POST …/{id}/propose`                              | Coach      | genau ein Termin, setzt `Proposed`          |
+| `POST …/{id}/accept`                               | Teilnehmer | legt `Appointment__c` an, setzt `Accepted`  |
+| `POST …/{id}/decline`                              | Teilnehmer | `Declined` mit Grund                        |
+| `POST …/{id}/cancel`                               | Teilnehmer | `Cancelled`                                 |
+| `GET …/mine`                                       | Teilnehmer | die eigene Anfrage mit Status und Vorschlag |
 
 Die Identität kommt aus `UserInfo.getUserId()` — `StaffIdentity.resolve()`
 (`classes/StaffIdentity.cls:146`) ist der etablierte Weg, die eigene Identität zu
@@ -122,11 +122,11 @@ Das ist der Teil, der ohne E1 **nicht** sauber wird. Stand der Recherche:
 
 Was das Feature selbst braucht:
 
-| Beteiligter | Rechte |
-|---|---|
-| Portalnutzer | `AppointmentRequest__c`: create, read, update. **Kein** `viewAllRecords`, **kein** delete. Plus Kriterien-basierte Sharing Rule wie bei `Participant__c` |
-| Coach (`backend_Coach`) | `AppointmentRequest__c`: read, update (nicht create, nicht delete) |
-| beide | Feldrechte auf `Type__c`, `Status__c`, `ProposedStartTime__c`, `ProposedEndTime__c`, `Message__c`, `DeclineReason__c` |
+| Beteiligter             | Rechte                                                                                                                                                   |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Portalnutzer            | `AppointmentRequest__c`: create, read, update. **Kein** `viewAllRecords`, **kein** delete. Plus Kriterien-basierte Sharing Rule wie bei `Participant__c` |
+| Coach (`backend_Coach`) | `AppointmentRequest__c`: read, update (nicht create, nicht delete)                                                                                       |
+| beide                   | Feldrechte auf `Type__c`, `Status__c`, `ProposedStartTime__c`, `ProposedEndTime__c`, `Message__c`, `DeclineReason__c`                                    |
 
 **Zu verifizieren, bevor das gebaut wird:** Apex-DML erzwingt FLS auch in `with sharing`.
 Ein Portalnutzer ohne Objektberechtigung kann daher auch über Apex keinen Datensatz
@@ -173,22 +173,31 @@ sonst hängt die neue Sharing Rule an einem OWD, den niemand dokumentiert hat.
 vom Org abgelehnt — der Dialog baut den Termin, das Speichern scheitert.
 
 - `Appointment__c.Type__c` kennt `Coaching, CheckIn, Feedback, Behörde, Praktikum,
-  Sonstiges`. Das Bundle bot `Berufsschule` — ein **Absence**-Typ, der in die
+Sonstiges`. Das Bundle bot `Berufsschule` — ein **Absence**-Typ, der in die
   Terminliste gewandert war. `Feedback` war über die Oberfläche gar nicht erreichbar.
   → Bundle auf `Feedback` umgestellt.
 - `Appointment__c.Location__c` kennt `Discord, Zoom, Teams, External`. Das Bundle bot
   `OnSite, Teams, Phone, Hybrid, External`, und `AppointmentFormDialog.tsx:50` fiel für
   neue Termine auf **`OnSite`** zurück — **jeder neu angelegte Termin** wäre an der
-  restricted Picklist gescheitert. Entscheidung vom 2026-10-07: Org-Picklist um
-  `OnSite` (Default, Label „Vor Ort"), `Phone` und `Hybrid` erweitert, UI unverändert.
-  `Discord` und `Zoom` bleiben für Bestandstermine gültig, werden aber nicht mehr
-  angeboten.
+  restricted Picklist gescheitert.
+
+  **Die geplante Erweiterung wurde nie ausgeführt, und sie wird auch nicht
+  nachgeholt.** Entscheidung vom 2026-10-09: `OnSite`, `Phone` und `Hybrid` kommen
+  nicht zurück, das Bundle bleibt bei den vier Werten der Org. Coaching läuft über
+  Discord, Zoom, Teams und extern; Vor-Ort- und Telefontermine werden nicht gebraucht.
+  Umgesetzt in `f0c65ba`, inklusive Rücknahme des Fallbacks auf einen Default, den
+  die Org gar nicht kennt — ein Insert ohne `Location` ergibt dort ein leeres Feld.
 
 Damit das nicht stillebens zurückkommt: `src/types/appointmentPicklist.test.ts` hält
 `APPOINTMENT_TYPES`, `APPOINTMENT_STATUSES` und `APPOINTMENT_LOCATIONS` gegen die
 Deploy-Metadaten. Die Listen stehen nicht mehr an drei Stellen im Code, sondern nur noch
-in `src/types/appointment.ts`. `Discord` und `Zoom` sind als `LEGACY_ORG_VALUES` mit
-Begründung eingetragen — benannt, nicht global erlaubt.
+in `src/types/appointment.ts`.
+
+⚠️ **Warum dieser Test das nicht gefunden hat.** Er prüft die Bundle-Liste gegen das
+_Deploy-Metadatum_, und das Repo führte für `Location__c` drei Werte samt Default, die
+in der Org nie existierten. Der Test war grün gegen eine falsche Wahrheit. Seit dem
+Retrieve sind Repo und Org deckungsgleich — wer die Werte wieder braucht, muss sie
+**zuerst in der Org** anlegen und danach hier nachziehen, nicht umgekehrt.
 
 Die neue `AppointmentRequest__c.Type__c` übernimmt dieselbe Quelle, sonst
 wiederholt sich der Fehler am neuen Objekt.
@@ -203,24 +212,24 @@ erkennt, was ein Status bedeutet.
 
 ## 7. Tests
 
-| Ebene | Umfang |
-|---|---|
+| Ebene                                    | Umfang                                                                                                                                                                                                                                                                                              |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Apex (`sf apex run test`, **ORG nötig**) | Zustandsmaschine vollständig: jeder Übergang, jeder verbotene Übergang. Die Regel „nur eine offene Anfrage" unter zwei gleichzeitigen Anlagen. Zwei Coaches auf derselben Anfrage: der zweite bekommt einen Fehler und überschreibt nichts. Rollen: ein Portalnutzer sieht nur seine eigene Anfrage |
-| Portal-Bundle | Statusanzeige für jeden Status, Button-Sperre bei offener Anfrage, Ablehnen mit und ohne Grund, Fehlerpfade |
-| Backoffice-Bundle | Warteschlange mit Wartezeit, Vorschlag mit genau einem Slot, Anfrage verschwindet nach dem Vorschlag |
-| Kanonisch | Die Liste der `Type__c`-Werte für die Anfrage wird gegen die `Appointment__c`-Metadaten geprüft — das Muster liefert `appointmentPicklist.test.ts` mit |
+| Portal-Bundle                            | Statusanzeige für jeden Status, Button-Sperre bei offener Anfrage, Ablehnen mit und ohne Grund, Fehlerpfade                                                                                                                                                                                         |
+| Backoffice-Bundle                        | Warteschlange mit Wartezeit, Vorschlag mit genau einem Slot, Anfrage verschwindet nach dem Vorschlag                                                                                                                                                                                                |
+| Kanonisch                                | Die Liste der `Type__c`-Werte für die Anfrage wird gegen die `Appointment__c`-Metadaten geprüft — das Muster liefert `appointmentPicklist.test.ts` mit                                                                                                                                              |
 
 ---
 
 ## 8. Reihenfolge und Aufwand
 
-| # | Schritt | Aufwand | Braucht |
-|---|---|---|---|
-| 1 | `AppointmentRequest__c` als Metadaten, `defaultSharing>Private`, Berechtigungen | S | Gate G1b beantwortet |
-| 2 | Apex-Ressource mit `FOR UPDATE` und bedingtem Update, inkl. Tests | M | Sandbox für `sf apex run test` |
-| 3 | Portal: Block, Dialog, Statusanzeige, Annehmen/Ablehnen | M | Schritt 2 |
-| 4 | Backoffice: Warteschlange mit Wartealter, Anbindung an `ProposeSlotsDialog` | M | Schritt 2 |
-| 5 | 6.1 beheben (`Type__c` und `Location__c` konsistent, mit Wächtertest) | XS | ✅ erledigt 2026-10-07 |
+| #   | Schritt                                                                         | Aufwand | Braucht                        |
+| --- | ------------------------------------------------------------------------------- | ------- | ------------------------------ |
+| 1   | `AppointmentRequest__c` als Metadaten, `defaultSharing>Private`, Berechtigungen | S       | Gate G1b beantwortet           |
+| 2   | Apex-Ressource mit `FOR UPDATE` und bedingtem Update, inkl. Tests               | M       | Sandbox für `sf apex run test` |
+| 3   | Portal: Block, Dialog, Statusanzeige, Annehmen/Ablehnen                         | M       | Schritt 2                      |
+| 4   | Backoffice: Warteschlange mit Wartealter, Anbindung an `ProposeSlotsDialog`     | M       | Schritt 2                      |
+| 5   | 6.1 beheben (`Type__c` und `Location__c` konsistent, mit Wächtertest)           | XS      | ✅ erledigt 2026-10-07         |
 
 Schritt 5 war unabhängig und ist vorgezogen worden. Er hat sich als schwerer erwiesen
 als im Plan absehbar: nicht die Terminart, sondern der Ort — dort scheiterte **jeder**

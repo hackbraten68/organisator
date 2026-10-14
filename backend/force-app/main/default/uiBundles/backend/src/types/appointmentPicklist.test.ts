@@ -77,10 +77,14 @@ function picklistValues(field: string): string[] {
  * nie gab.
  *
  * Die Liste ist deshalb jetzt auf die Org-Wahrheit gesetzt, per Retrieve
- * bestaetigt. Ob `OnSite`, `Phone` und `Hybrid` spaeter in die Org kommen, ist
- * eine Produktentscheidung und keine Frage dieses Tests. Sollen sie es, sind
- * die Werte in der Org zuerst anzulegen und hier ueber Retrieve nachzuziehen —
- * nicht umgekehrt.
+ * bestaetigt.
+ *
+ * **Entschieden am 2026-10-09: `OnSite`, `Phone` und `Hybrid` kommen nicht
+ * zurueck.** Coaching laeuft in dieser Academy ueber Discord, Zoom, Teams und
+ * extern; Vor-Ort-Termine und Telefontermine werden nicht gebraucht. Die drei
+ * Werte bleiben also weg, und zwar endgueltig — wer sie wieder braucht, legt
+ * sie zuerst in der Org an und zieht sie danach ueber Retrieve hier nach. Nicht
+ * umgekehrt, denn genau die umgekehrte Reihenfolge hat den Bug erzeugt.
  *
  * Bewusst als benannte Liste gefuehrt und nicht global erlaubt: eine Ausnahme,
  * die still mitwaechst, waere genau der Mechanismus, den dieser Test verhindert.
