@@ -25,3 +25,13 @@ package.xml
 
 node_modules/
 .DS_Store
+
+# Playwright output. The bundle directory's own .gitignore already covers these,
+# but `.gitignore` is not read by `sf project deploy start` — only .forceignore is.
+# Measured: a run of `npx playwright test` left playwright-report/ and
+# test-results/ on disk, and the next `sf project deploy start --metadata
+# UIBundle:frontend` uploaded their .md and .zip payloads to the live portal.
+# Nothing reads them there; they just sit in the bundle as dead weight that
+# differs on every run.
+**/playwright-report/**
+**/test-results/**

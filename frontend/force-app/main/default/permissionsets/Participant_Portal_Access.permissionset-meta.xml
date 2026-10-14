@@ -135,6 +135,60 @@
         <readable>true</readable>
     </fieldPermissions>
 
+    <!-- Appointment__c is read for GET /me/appointments. Same shape as the
+         Learning_Path__c block above: the object grant is the outer layer only, and
+         the Appointment__Share rows created by
+         ParticipantPortalSharingService.synchroniseAppointments() are what decide
+         which rows a member sees. viewAllRecords stays false for the same reason.
+
+         Both entries below are required, and they fail differently — a missing
+         classAccesses entry refuses the URL outright, a missing objectPermissions
+         entry lets the URL through and then fails in the query with
+         System.QueryException, which the endpoint's catch-all turns into a 500 that
+         only a real member session can see. A guest gets a clean 401 either way.
+
+         Participant__c and Coach_Profile__c are read because the query filters on the
+         former and resolves the coach name through the latter. User is deliberately
+         NOT granted: Appointment__c.Coach__c is a lookup to User, and the name is
+         resolved backwards via Coach_Profile__c.User__c so the portal never needs
+         rights on the User object. -->
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Appointment__c.Location__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Appointment__c.MeetingLink__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Appointment__c.CancellationReason__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <!-- StartTime__c, EndTime__c, Status__c, Type__c and Participant__c have NO
+         entry here, and that is not an oversight. All five are <required>true</required>,
+         and the Metadata API refuses a fieldPermissions entry for a required field:
+
+             You cannot deploy to a required field: Appointment__c.Participant__c
+
+         That fails the WHOLE permission set, not just the one field, so three object
+         permissions and the class accesses go down with it. A required field is
+         readable by everyone who can read the object, so there is nothing to grant.
+         Check <required> in the field metadata before adding an entry here. Coach__c
+         is not required and does get one. -->
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Appointment__c.Coach__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Coach_Profile__c.User__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
     <objectPermissions>
         <allowCreate>false</allowCreate>
         <allowDelete>false</allowDelete>
@@ -175,6 +229,16 @@
         <viewAllFields>false</viewAllFields>
         <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Appointment__c</object>
+        <viewAllFields>false</viewAllFields>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
 
     <userPermissions>
         <enabled>true</enabled>
@@ -193,6 +257,15 @@
          different reasons. Both are required. -->
     <classAccesses>
         <apexClass>ParticipantPortalLearningPath</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+
+    <!-- The appointments endpoint is a separate @RestResource, so it needs its own
+         class access, for the same reason as the learning path below: without this
+         entry the URL is refused outright no matter how correct the object grants
+         are. -->
+    <classAccesses>
+        <apexClass>ParticipantPortalAppointments</apexClass>
         <enabled>true</enabled>
     </classAccesses>
 

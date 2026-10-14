@@ -184,6 +184,79 @@ test.describe('guest login (live)', () => {
   });
 
 /**
+ * Meine Termine, live.
+ *
+ * Steht hier und nicht in `signed-in-shell.spec.ts`, weil diese Suite statisch
+ * aus `dist/` bedient wird und keine authentifizierte Shell zustande bekommt:
+ * `services/data/.../ui-api/session/csrf` antwortet dort mit `index.html`, der SDK
+ * wirft sofort, `loading` wird false und `PrivateRoute` schickt jeden Besucher nach
+ * `/login`. Ein Test, der die Seite nach `/termine` sehen will, laeuft dort also
+ * immer gegen das Login — unabhaengig davon, ob die Seite stimmt.
+ *
+ * Die Fixtures sind echte Org-Daten: drei Termine fuer `a0s9X00000boVT9QAM`
+ * (Mehmet Kaya), davon einer mit `Coach__c = coach.test@`, fuer den es bewusst
+ * kein `Coach_Profile__c` gibt. Genau dieser Fall ist die Begruendung dafuer, dass
+ * die API `coachName: null` liefert und die Seite "Coach nicht verfuegbar"
+ * schreibt, statt einen Platzhalter zu erfinden, der wie ein Name aussieht.
+ */
+test.describe("appointments page (live)", () => {
+  test("lists the participant's own appointments", async ({ page }) => {
+    test.skip(!PORTAL_USER || !PORTAL_PASSWORD, 'PORTAL_USER / PORTAL_PASSWORD not set');
+
+    await signIn(page, PORTAL_USER!, PORTAL_PASSWORD!);
+    await page.goto('/organisatorv1/termine');
+
+    await expect(page.getByRole('heading', { name: 'Meine Termine', level: 1 })).toBeVisible({
+      timeout: 30_000,
+    });
+    // Drei Testtermine: bestaetigt mit Link, durchgefuehrt, abgesagt mit Grund.
+    for (const label of ['Bestätigt', 'Durchgeführt', 'Abgesagt']) {
+      await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
+    }
+    await expect(page.getByText('Coach krank, wird neu geplant')).toBeVisible();
+  });
+
+  test("a coach without a profile is named as unavailable, not guessed", async ({ page }) => {
+    test.skip(!PORTAL_USER || !PORTAL_PASSWORD, 'PORTAL_USER / PORTAL_PASSWORD not set');
+
+    await signIn(page, PORTAL_USER!, PORTAL_PASSWORD!);
+    await page.goto('/organisatorv1/termine');
+
+    await expect(page.getByRole('heading', { name: 'Meine Termine', level: 1 })).toBeVisible({
+      timeout: 30_000,
+    });
+    // Genau eine Zeile betrifft den Coach ohne Profil. Ein blinder Match wuerde
+    // auch dann gruen sein, wenn die Zeile in jedem Termin stuende.
+    await expect(page.getByText('Coach nicht verfügbar')).toHaveCount(1);
+  });
+
+  test("the dashboard shows the next appointment rather than a placeholder", async ({ page }) => {
+    test.skip(!PORTAL_USER || !PORTAL_PASSWORD, 'PORTAL_USER / PORTAL_PASSWORD not set');
+
+    await signIn(page, PORTAL_USER!, PORTAL_PASSWORD!);
+    await page.goto('/organisatorv1/');
+
+    await expect(page.getByRole('link', { name: 'Alle Termine' })).toBeVisible({ timeout: 30_000 });
+  });
+
+  test("the navigation offers the appointments route", async ({ page }) => {
+    test.skip(!PORTAL_USER || !PORTAL_PASSWORD, 'PORTAL_USER / PORTAL_PASSWORD not set');
+
+    await signIn(page, PORTAL_USER!, PORTAL_PASSWORD!);
+    await page.goto('/organisatorv1/');
+
+    const sidebar = page.getByRole('navigation', { name: 'Hauptnavigation' });
+    await expect(sidebar.getByRole('link', { name: 'Meine Termine' })).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(sidebar.getByRole('link', { name: 'Meine Termine' })).toHaveAttribute(
+      'href',
+      /termine$/
+    );
+  });
+});
+
+/**
  * AUSGESETZT (2026-10-02) — es gibt keine Credentials für einen zweiten Portal-User.
  *
  * Der Nachweis selbst existiert bereits, und zwar über den Service-Aufruf, nicht über

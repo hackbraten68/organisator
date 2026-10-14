@@ -1,6 +1,7 @@
 import type { RouteObject } from 'react-router';
 import Dashboard from './pages/Dashboard';
 import LearningPath from './pages/LearningPath';
+import Appointments from './pages/Appointments';
 import MeinKonto from './pages/MeinKonto';
 import NotFound from './pages/NotFound';
 import Login from "./features/authentication/pages/Login";
@@ -38,6 +39,11 @@ export const routes: RouteObject[] = [
             path: "learning-path",
             element: <LearningPath />,
             handle: { showInNavigation: true, label: "Lernpfad", icon: "book" }
+          },
+          {
+            path: "termine",
+            element: <Appointments />,
+            handle: { showInNavigation: true, label: "Meine Termine", icon: "calendar" }
           },
           {
             path: "mein-konto",

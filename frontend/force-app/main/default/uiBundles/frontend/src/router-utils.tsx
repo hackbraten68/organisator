@@ -1,6 +1,7 @@
 import type { RouteObject } from 'react-router';
 import {
   BookOpen,
+  CalendarDays,
   Contact,
   LayoutDashboard,
   LayoutGrid,
@@ -61,6 +62,8 @@ export function navigationIcon(icon?: NavigationIcon): LucideIcon {
       return BookOpen;
     case 'contact':
       return Contact;
+    case 'calendar':
+      return CalendarDays;
     default:
       return LayoutGrid;
   }

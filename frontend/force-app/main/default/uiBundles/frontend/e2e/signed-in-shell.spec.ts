@@ -33,6 +33,11 @@ import { test, expect } from '@playwright/test';
 const CSRF_PATTERN = '**/ui-api/session/csrf';
 const GRAPHQL_PATTERN = '**/services/data/v67.0/graphql';
 const ME_PATTERN = '**/services/apexrest/participant-portal/me';
+// A separate pattern on purpose: Playwright matches the whole URL, so the `/me`
+// glob does not cover `/me/appointments`. Without this the dashboard's request
+// escapes to the static server, comes back as the SPA shell, and the card falls
+// back to the placeholder — which would pass for the right reason while testing
+// nothing.
 
 /**
  * The CSRF token endpoint, answered before anything else.
@@ -113,6 +118,7 @@ async function signIn(page: import('@playwright/test').Page): Promise<void> {
       }),
     });
   });
+
 }
 
 test.describe('signed-in portal shell', () => {
@@ -136,16 +142,35 @@ test.describe('signed-in portal shell', () => {
     await expect(sidebar).toBeVisible();
     await expect(sidebar.getByRole('link', { name: 'Dashboard' })).toBeVisible();
     await expect(sidebar.getByRole('link', { name: 'Lernpfad' })).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: 'Meine Termine' })).toBeVisible();
     await expect(sidebar.getByRole('link', { name: 'Mein Konto' })).toBeVisible();
+
+    // Exactly four, not "at least these". A fifth route that never reaches the
+    // sidebar would otherwise slip through unnoticed, which is the failure this
+    // list originally had: it asserted presence, never completeness.
+    await expect(sidebar.getByRole('link')).toHaveCount(4);
+  });
+
+  test('a guest sees neither the route nor its navigation entry', async ({ page }) => {
+    await page.goto('/termine');
+
+    await expect(page.getByRole('heading', { name: 'Meine Termine' })).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'Hauptnavigation' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Meine Termine' })).toHaveCount(0);
   });
 
   test('the dashboard placeholders are static, not a loading skeleton', async ({ page }) => {
     await signIn(page);
     await page.goto('/');
 
-    for (const title of ['Dein Programm', 'Nächster Termin', 'Abwesenheiten', 'Dein Lernpfad']) {
+    // 'Nächster Termin' is no longer a placeholder: it now reads /me/appointments
+    // and can render a real card or the placeholder again when nothing is upcoming.
+    // The other three are still placeholders. The assertion is therefore on the
+    // settled state — the stub answers before the card could swap in.
+    for (const title of ['Dein Programm', 'Abwesenheiten', 'Dein Lernpfad']) {
       await expect(page.getByRole('heading', { name: title })).toBeVisible();
     }
+    await expect(page.getByRole('heading', { name: 'Nächster Termin' })).toBeVisible();
 
     // `Skeleton` hardcodes animate-pulse. A pulsing block reads as "loading",
     // so the dashboard would look permanently busy — see dashboard-placeholder.

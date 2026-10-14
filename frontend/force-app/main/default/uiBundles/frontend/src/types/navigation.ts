@@ -17,7 +17,7 @@
  * Mirrors `backend/.../src/types/navigation.ts`, with a portal-specific icon
  * set. Keep the two in step when a concept is shared.
  */
-export type NavigationIcon = 'dashboard' | 'book' | 'contact';
+export type NavigationIcon = 'dashboard' | 'book' | 'contact' | 'calendar';
 
 export interface NavigationHandle {
   label?: string;

@@ -708,6 +708,10 @@ private class ParticipantPortalSharingServiceTest {
     }
 
     private static Appointment__Share apForeignShare(Id rowId, Id userId) {
+        // RowCause is not writable through DML, but an in-memory share object is
+        // never inserted here: planForAppointments() receives this as part of the
+        // "already held" map and only reads it. That is what lets this test stand
+        // in for a grant somebody made by hand.
         return new Appointment__Share(
             ParentId = rowId,
             UserOrGroupId = userId,
@@ -716,15 +720,22 @@ private class ParticipantPortalSharingServiceTest {
         );
     }
 
-    private static Map<Id, Map<Id, Appointment__Share>> apHeldFor(Appointment__Share share) {
+    private static Map<Id, Map<Id, Appointment__Share>> apHeldFor(List<Appointment__Share> shares) {
         Map<Id, Map<Id, Appointment__Share>> byRow = new Map<Id, Map<Id, Appointment__Share>>();
-        if (share == null) {
-            return byRow;
+        for (Appointment__Share share : shares) {
+            if (share == null) {
+                continue;
+            }
+            if (!byRow.containsKey(share.ParentId)) {
+                byRow.put(share.ParentId, new Map<Id, Appointment__Share>());
+            }
+            byRow.get(share.ParentId).put(share.UserOrGroupId, share);
         }
-        Map<Id, Appointment__Share> perUser = new Map<Id, Appointment__Share>();
-        perUser.put(share.UserOrGroupId, share);
-        byRow.put(share.ParentId, perUser);
         return byRow;
+    }
+
+    private static Map<Id, Map<Id, Appointment__Share>> apHeldFor(Appointment__Share share) {
+        return apHeldFor(new List<Appointment__Share>{ share });
     }
 
     private static Map<Id, Participant__c> apParticipantsById(List<Participant__c> participants) {
@@ -785,6 +796,12 @@ private class ParticipantPortalSharingServiceTest {
         Participant__c second = row('ApMoveSecond', userTwo());
         Appointment__c appointment = apRow(first, 'Confirmed');
 
+        // The appointment now hangs off a different participant. Persisting it again
+        // would fire the trigger, whose share insert cannot succeed in a test
+        // context, so the reassignment is made on the in-memory record — which is
+        // exactly what the trigger hands the service after a real update.
+        appointment.Participant__c = second.Id;
+
         Test.startTest();
         ParticipantPortalSharingService.AppointmentSharePlan plan = ParticipantPortalSharingService.planForAppointments(
             new List<Appointment__c>{ appointment },
@@ -844,23 +861,68 @@ private class ParticipantPortalSharingServiceTest {
     }
 
     @IsTest
-    static void aManualShareIsNeverTouched() {
-        Participant__c participant = row('ApForeign', userOne());
+    static void theDiffTrustsItsInputAndLetsTheQueryOwnTheReason() {
+        Participant__c participant = row('ApMixed', userOne());
         Appointment__c appointment = apRow(participant, 'Confirmed');
+        Id thirdUserId = makeUser('ApMixedThird');
 
-        // A Manual share under a different reason is not ours. It is not in the
-        // collected set, so the plan must leave it alone in both directions.
+        // Characterisation test, and the reason it reads this way is measured:
+        // removing the `AND RowCause = :APPOINTMENT_ROW_CAUSE` filter from
+        // heldAppointmentShares() leaves this test green, because this test never
+        // calls that query — planForAppointments() is handed the map instead. So
+        // the original name, "a manual share is never touched", asserted a
+        // property that does not exist at this layer: handing a Manual share in
+        // gets it removed, because the removal loop compares only the user id.
+        //
+        // The guard is real but lives one layer up, in heldAppointmentShares(),
+        // and it cannot be tested here at all: an Apex test cannot insert a share
+        // row, so no row with any reason can exist for a query to return. What
+        // this test can do is pin the boundary — if somebody later adds the
+        // reason check to the loop, this goes red and the change gets a look.
         Test.startTest();
         ParticipantPortalSharingService.AppointmentSharePlan plan = ParticipantPortalSharingService.planForAppointments(
             new List<Appointment__c>{ appointment },
-            apHeldFor(apForeignShare(appointment.Id, userTwo())),
+            apHeldFor(
+                new List<Appointment__Share>{
+                    apHeldShare(appointment.Id, userTwo()),
+                    apForeignShare(appointment.Id, thirdUserId)
+                }
+            ),
             apParticipantsById(new List<Participant__c>{ participant })
         );
         Test.stopTest();
 
-        System.assertEquals(0, plan.remove.size(), 'a Manual share must not be removed');
-        System.assertEquals(1, plan.grant.size(), 'and it must not suppress the portal share either');
-        System.assertEquals(userOne(), plan.grant[0].UserOrGroupId, 'the portal share still goes to the portal user');
+        // Both handed-in shares are stale — the participant's portal user is
+        // userOne, and neither share is theirs — so both come out.
+        System.assertEquals(2, plan.remove.size(), 'every share handed in that is stale is removed');
+        System.assertEquals(
+            userTwo(),
+            plan.remove[0].UserOrGroupId,
+            'our own stale share is removed first'
+        );
+        System.assertEquals(
+            Schema.Appointment__Share.RowCause.Portal_Access__c,
+            plan.remove[0].RowCause,
+            'and it carries our reason'
+        );
+        System.assertEquals(
+            thirdUserId,
+            plan.remove[1].UserOrGroupId,
+            'the reason on the second one is not examined'
+        );
+        System.assertEquals(
+            Schema.Appointment__Share.RowCause.Manual,
+            plan.remove[1].RowCause,
+            'which is the point: the reason check belongs to the query'
+        );
+
+        System.assertEquals(1, plan.grant.size(), 'the portal user still gains its share');
+        System.assertEquals(userOne(), plan.grant[0].UserOrGroupId, 'namely the current one');
+        System.assertEquals(
+            Schema.Appointment__Share.RowCause.Portal_Access__c,
+            plan.grant[0].RowCause,
+            'granted under our reason'
+        );
     }
 
     @IsTest
