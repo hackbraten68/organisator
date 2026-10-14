@@ -75,11 +75,13 @@ function coachLabel(coachName: string | null): string {
 	return coachName ?? "Coach nicht verfügbar";
 }
 
-function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+function DetailRow({ label, children, testId }: { label: string; children: React.ReactNode; testId?: string }) {
 	return (
 		<div className="grid grid-cols-1 gap-1 py-2 sm:grid-cols-3 sm:gap-4">
 			<dt className="text-sm text-muted-foreground">{label}</dt>
-			<dd className="text-sm font-medium sm:col-span-2">{children}</dd>
+			<dd className="text-sm font-medium sm:col-span-2" data-testid={testId}>
+				{children}
+			</dd>
 		</div>
 	);
 }
@@ -163,7 +165,7 @@ export default function AppointmentsPage() {
 			) : (
 				<div className="space-y-4">
 					{items?.map((appointment) => (
-						<Card key={appointment.appointmentId}>
+						<Card key={appointment.appointmentId} data-testid="appointment-row">
 							<CardHeader>
 								<CardTitle className="flex items-center justify-between gap-4">
 									<span>{formatDateTime(appointment.startTime)}</span>
@@ -176,7 +178,9 @@ export default function AppointmentsPage() {
 							</CardHeader>
 							<CardContent>
 								<dl className="divide-y">
-									<DetailRow label="Coach">{coachLabel(appointment.coachName)}</DetailRow>
+									<DetailRow label="Coach" testId="coach-name">
+										{coachLabel(appointment.coachName)}
+									</DetailRow>
 									{appointment.type ? (
 										<DetailRow label="Art">
 											{TYPE_LABELS[appointment.type] ?? appointment.type}
