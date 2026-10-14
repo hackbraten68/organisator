@@ -5,7 +5,7 @@
 
 export type AppointmentStatus = 'Draft' | 'Finding' | 'Confirmed' | 'Completed' | 'Documented' | 'Cancelled' | 'NoShow';
 export type AppointmentType = 'Coaching' | 'CheckIn' | 'Feedback' | 'Behörde' | 'Praktikum' | 'Sonstiges';
-export type AppointmentLocation = 'OnSite' | 'Teams' | 'Phone' | 'Hybrid' | 'External';
+export type AppointmentLocation = 'Discord' | 'Zoom' | 'Teams' | 'External';
 
 export const APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
   'Draft', 'Finding', 'Confirmed', 'Completed', 'Documented', 'Cancelled', 'NoShow'
@@ -16,8 +16,20 @@ export const APPOINTMENT_TYPES: readonly AppointmentType[] = [
 ] as const;
 
 export const APPOINTMENT_LOCATIONS: readonly AppointmentLocation[] = [
-  'OnSite', 'Teams', 'Phone', 'Hybrid', 'External'
+  'Discord', 'Zoom', 'Teams', 'External'
 ] as const;
+
+/**
+ * Anzeigename fuer die Orte. Abweichung vom API-Namen ist hier nur `External`,
+ * das im Dialog "Extern" heisst — die anderen drei bleiben unveraendert, damit
+ * ein Lookup im Fehlerfall auf den Wert zeigt, den Salesforce zurueckweist.
+ */
+export const APPOINTMENT_LOCATION_LABELS: Readonly<Record<AppointmentLocation, string>> = {
+  Discord: 'Discord',
+  Zoom: 'Zoom',
+  Teams: 'MS Teams',
+  External: 'Extern',
+};
 
 export interface Appointment {
   id: string;

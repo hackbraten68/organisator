@@ -111,7 +111,7 @@ describe("appointmentService audit integration", () => {
     it("does not record an audit event when the status is untouched", async () => {
       route();
 
-      await updateAppointment("apt-1", { location: "OnSite" });
+      await updateAppointment("apt-1", { location: "Discord" });
 
       expect(auditService.record).not.toHaveBeenCalled();
     });

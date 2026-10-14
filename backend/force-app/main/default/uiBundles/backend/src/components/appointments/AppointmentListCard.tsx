@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { Calendar, MapPin, Video, Phone, Hash, MessageSquare, CheckCheck, Star, Landmark, Briefcase, FileText, GitMerge, MoreHorizontal } from "lucide-react";
+import { Calendar, MapPin, Video, Hash, MessageSquare, CheckCheck, Star, Landmark, Briefcase, FileText, MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -26,10 +26,9 @@ const TYPE_ICONS: Record<Appointment["type"], React.ReactNode> = {
 };
 
 const LOCATION_ICONS: Record<Exclude<Appointment["location"], undefined>, React.ReactNode> = {
-  OnSite: <MapPin className="size-3.5" />,
+  Discord: <Video className="size-3.5" />,
+  Zoom: <Video className="size-3.5" />,
   Teams: <Video className="size-3.5" />,
-  Phone: <Phone className="size-3.5" />,
-  Hybrid: <GitMerge className="size-3.5 text-purple-500" />,
   External: <MapPin className="size-3.5" />,
 };
 

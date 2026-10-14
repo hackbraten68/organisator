@@ -63,20 +63,29 @@ function picklistValues(field: string): string[] {
 /**
  * Werte der Org, die das Bundle bewusst nicht anbietet.
  *
- * `Discord` und `Zoom` sind die Kanäle, ueber die vor der Umstellung auf
- * Vor-Ort-Termine gearbeitet wurde. Die Entscheidung vom 2026-10-07 war,
- * die Org-Picklist zu erweitern statt die Oberflaeche zurueckzubiegen —
- * damit bleiben `OnSite`, `Phone` und `Hybrid` auswaehlbar. Die beiden
- * alten Werte bleiben fuer Bestandstermine gueltig, werden aber nicht mehr
- * angeboten.
+ * Leer seit dem 2026-10-07. Damals war die Entscheidung, die Org-Picklist zu
+ * erweitern statt die Oberflaeche zurueckzubiegen — `OnSite`, `Phone` und
+ * `Hybrid` sollten in die Org kommen, `Discord` und `Zoom` blieben als
+ * Altwerte fuer Bestandstermine gueltig, wuerden aber nicht mehr angeboten.
  *
- * Bewusst benannt und nicht global erlaubt: eine Ausnahme, die still
- * mitwaechst, waere genau der Mechanismus, den dieser Test verhindert.
+ * **Die Setup-Erweiterung wurde nie ausgefuehrt.** `Location__c` kennt in der
+ * Org bis heute nur `Discord`, `Zoom`, `Teams` und `External`. Damit waren drei
+ * von fuenf Optionen im Dialog unbenutzbar: die restricted Picklist lehnt das
+ * Speichern ab, der Coach sieht nach dem Anlegen nur eine Fehlermeldung. Und
+ * der Test hier war gruen, weil er die Bundle-Liste gegen das *Deploy-Metadatum*
+ * prueft — und das Repo Metadaten fuer drei Werte fuehrte, die es in der Org
+ * nie gab.
+ *
+ * Die Liste ist deshalb jetzt auf die Org-Wahrheit gesetzt, per Retrieve
+ * bestaetigt. Ob `OnSite`, `Phone` und `Hybrid` spaeter in die Org kommen, ist
+ * eine Produktentscheidung und keine Frage dieses Tests. Sollen sie es, sind
+ * die Werte in der Org zuerst anzulegen und hier ueber Retrieve nachzuziehen —
+ * nicht umgekehrt.
+ *
+ * Bewusst als benannte Liste gefuehrt und nicht global erlaubt: eine Ausnahme,
+ * die still mitwaechst, waere genau der Mechanismus, den dieser Test verhindert.
  */
-const LEGACY_ORG_VALUES: ReadonlyArray<{ field: string; value: string; why: string }> = [
-  { field: "Location__c", value: "Discord", why: "Altes Beratungsformat, nicht mehr im Dialog." },
-  { field: "Location__c", value: "Zoom", why: "Altes Beratungsformat, nicht mehr im Dialog." },
-];
+const LEGACY_ORG_VALUES: ReadonlyArray<{ field: string; value: string; why: string }> = [];
 
 /** Zu vergleichen: Feld in der Org gegen die Liste, die das Bundle anbietet. */
 const LISTS: ReadonlyArray<{ field: string; bundleValues: readonly string[] }> = [
@@ -112,9 +121,15 @@ describe("Termin-Picklists decken sich mit der Org", () => {
     ).toEqual([]);
   });
 
-  it("Location__c startet auf einem Wert, den das Bundle anbietet", () => {
-    // AppointmentFormDialog.tsx faellt auf "OnSite" zurueck, wenn kein
-    // Termin bearbeitet wird. Der Wert muss deshalb in beiden Listen stehen.
-    expect<string[]>([...APPOINTMENT_LOCATIONS]).toContain("OnSite");
+  it("Location__c startet auf keinem erzwungenen Wert", () => {
+    // Die Org hat fuer Location__c keinen Default-Wert. AppointmentFormDialog
+    // darf deshalb keinen festen Wert vorsetzen, der dann auch noch im Wertset
+    // stehen muesste. Verifiziert: ein Insert ohne Location ergibt in der Org ein
+    // leeres Feld, kein OnSite.
+    const xml = readFileSync(
+      path.join(FIELDS_DIR, "Location__c.field-meta.xml"),
+      "utf8",
+    );
+    expect(xml).not.toMatch(/<default>true<\/default>/);
   });
 });

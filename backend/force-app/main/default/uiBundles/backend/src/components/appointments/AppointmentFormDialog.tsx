@@ -15,7 +15,7 @@ import { Check, Copy } from "lucide-react";
 import { parseISO } from "date-fns";
 import { toApiDateTime, toDateTimeLocalValue } from "@/lib/datetime";
 import type { AppointmentInput, AppointmentType, AppointmentStatus, AppointmentLocation } from "@/types/appointment";
-import { APPOINTMENT_TYPES, APPOINTMENT_LOCATIONS } from "@/types/appointment";
+import { APPOINTMENT_TYPES, APPOINTMENT_LOCATIONS, APPOINTMENT_LOCATION_LABELS } from "@/types/appointment";
 
 interface AppointmentFormDialogProps {
   isOpen: boolean;
@@ -48,7 +48,10 @@ export function AppointmentFormDialog({
   const [status, setStatus] = useState<AppointmentStatus>(initialData?.status || "Draft");
   const [startTime, setStartTime] = useState(initialData?.startTime || "");
   const [endTime, setEndTime] = useState(initialData?.endTime || "");
-  const [location, setLocation] = useState<AppointmentLocation>(initialData?.location || "OnSite");
+  // Kein Fallback auf einen festen Wert: Location__c hat in der Org keinen
+  // Default-Wert, ein erzwungener waere zudem ein Wert, den die Picklist gar
+  // nicht kennt. Ohne Auswahl bleibt das Feld leer — das erlaubt die Org.
+  const [location, setLocation] = useState<AppointmentLocation | "">(initialData?.location || "");
   const [meetingLink, setMeetingLink] = useState(initialData?.meetingLink || "");
   const [notes, setNotes] = useState(initialData?.notes || "");
   const [coachId, setCoachId] = useState(initialData?.coachId || "");
@@ -268,7 +271,7 @@ export function AppointmentFormDialog({
                   <SelectContent>
                     {appointmentLocations.map((l) => (
                       <SelectItem key={l} value={l}>
-                        {l === "OnSite" ? "Vor Ort" : l === "Teams" ? "MS Teams" : l === "Phone" ? "Telefon" : l === "Hybrid" ? "Hybrid" : "Extern"}
+                        {APPOINTMENT_LOCATION_LABELS[l] ?? l}
                       </SelectItem>
                     ))}
                   </SelectContent>
