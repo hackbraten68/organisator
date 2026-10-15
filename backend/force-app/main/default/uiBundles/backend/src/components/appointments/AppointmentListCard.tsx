@@ -11,7 +11,6 @@ const STATUS_STYLES: Record<Appointment["status"], { variant: "default" | "secon
   Finding: { variant: "default", icon: <Calendar className="size-3.5" />, label: "Terminfindung" },
   Confirmed: { variant: "default", icon: <Calendar className="size-3.5" />, label: "Bestätigt" },
   Completed: { variant: "default", icon: <Calendar className="size-3.5" />, label: "Durchgeführt" },
-  Documented: { variant: "default", icon: <Calendar className="size-3.5" />, label: "Dokumentiert" },
   Cancelled: { variant: "destructive", icon: <Hash className="size-3.5" />, label: "Abgesagt" },
   NoShow: { variant: "destructive", icon: <Hash className="size-3.5" />, label: "Nicht erschienen" },
 };

@@ -1,12 +1,18 @@
+# Fest verdrahtet. Als Picklist-Parameter war das die dritte Tuer zum
+# Endzustand: hier liess sich jeder der sieben Status setzen, ganz
+# ohne Zeitstempel. NoShow hat kein eigenes Datenfeld und daher auch
+# keinen eigenen Zeitstempel — die Begleitdaten sind bei Cancelled
+# definiert (Absagegrund), bei Confirmed (ConfirmedAt__c) und
+# Completed (CompletedAt__c). NoShow traegt keine, deshalb greift hier
+# bewusst keine Validierungsregel.
 mutation UpdateAppointmentAttendance(
   $id: IdOrRef!
-  $status: Picklist!
 ) {
   uiapi {
     Appointment__cUpdate(input: {
       Id: $id
       Appointment__c: {
-        Status__c: $status
+        Status__c: "NoShow"
       }
     }) {
       Record { Id }

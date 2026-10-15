@@ -1,8 +1,11 @@
+# Kein Status__c, kein ConfirmedAt__c, kein CompletedAt__c. Diese
+# Mutation aendert Termindaten, nicht den fachlichen Zustand — dafuer
+# gibt es je Status eine benannte Mutation, die Status und Zeitstempel
+# atomar setzt.
 mutation UpdateAppointment(
   $id: IdOrRef!
   $coachId: IdOrRef
   $type: Picklist
-  $status: Picklist
   $startTime: DateTime
   $endTime: DateTime
   $location: Picklist
@@ -10,8 +13,6 @@ mutation UpdateAppointment(
   $notes: LongTextArea
   $cancellationReason: LongTextArea
   $correlationId: String
-  $confirmedAt: DateTime
-  $completedAt: DateTime
 ) {
   uiapi {
     Appointment__cUpdate(input: {
@@ -19,7 +20,6 @@ mutation UpdateAppointment(
       Appointment__c: {
         Coach__c: $coachId
         Type__c: $type
-        Status__c: $status
         StartTime__c: $startTime
         EndTime__c: $endTime
         Location__c: $location
@@ -27,8 +27,6 @@ mutation UpdateAppointment(
         Notes__c: $notes
         CancellationReason__c: $cancellationReason
         CorrelationId__c: $correlationId
-        ConfirmedAt__c: $confirmedAt
-        CompletedAt__c: $completedAt
       }
     }) {
       Record { Id }

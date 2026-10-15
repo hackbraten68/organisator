@@ -655,3 +655,132 @@ wäre grün, obwohl die Schicht darüber fehlt. Der zugehörige Test ist deshalb
 Characterisation-Test: er reicht dem Plan eine fremde Share und **erwartet, dass sie
 entfernt wird**, damit die Grenze festgenagelt bleibt und eine spätere Änderung auffällt.
 Dieselbe Naht besteht beim Appointment-Plan.
+
+## ADR-014 — Genau ein Weg in jeden fachlichen Zustand
+
+**Status:** entschieden und umgesetzt (2026-10-15), Auslöser war ein gemessener Live-Befund
+
+### Ausgangslage
+
+Die Listenansicht „Meine Termine" filtert auf `ConfirmedAt__c` („Bestätigt am"). Gemessen
+gegen den Datenbestand, Zeitraum letzte 30 Tage:
+
+| Filter | Treffer |
+|---|---|
+| `ConfirmedAt__c` | **1** (TERM-0007, *Completed*) |
+| `StartTime__c`, gleicher Zeitraum | **3** (TERM-0001 *Confirmed*, TERM-0007, TERM-0008) |
+
+TERM-0001 ist ein regulärer bestätigter Termin und erscheint unter dem Filter **nicht**.
+Ein Datumsfilter lässt Datensätze ohne Wert weg, sobald der Zeitraum grenzt — bei „All
+Time" sind es noch alle fünf.
+
+### Die erste Erklärung war falsch
+
+Der Befund sah danach aus, als fülle das Feld am falschen Ort: leer bei `Confirmed`,
+gesetzt beim `Completed`. **Das ist nicht der Fall.** Die Lifecycle-Mutationen sind
+atomar und korrekt:
+
+| Mutation | setzt |
+|---|---|
+| `ConfirmAppointment` | `Status=Confirmed` **+** `ConfirmedAt__c` |
+| `CompleteAppointment` | `Status=Completed` **+** `CompletedAt__c` |
+| `CancelAppointment` | `Status=Cancelled` **+** `CancellationReason__c` |
+
+TERM-0007 hat beide Zeitstempel, weil der Termin bestätigt und danach abgeschlossen
+wurde. Historische Zeitstempel stehen beim Folgeübergang weiter — das ist gewollt.
+
+### Die eigentliche Ursache
+
+Derselbe fachliche Zustand war über zwei verschieden strenge Wege erreichbar:
+
+1. `CreateAppointment` mit `status: "Confirmed"` — **ohne** jeden Zeitstempel, weil die
+   Mutation gar keine Zeitstempel-Felder kennt. Dazu die Oberfläche, die beim Anlegen
+   **alle sieben** Status zur freien Auswahl anbot.
+2. `ConfirmAppointment` — Status und Zeitstempel zusammen.
+
+Dazu eine dritte Tür, die beim Suchen leicht übersehen wird:
+`UpdateAppointmentAttendance` nahm `$status` als **Pflichtparameter** frei entgegen und
+setzte keinen Zeitstempel. Der Weg ist aktiv verdrahtet (`handleNoShow`).
+
+### Entscheidung
+
+Ein neu angelegter Termin hat genau einen Initialstatus, `Draft`. Jeder weitere Zustand
+wird ausschließlich über die benannte Lifecycle-Aktion erreicht, die ihren Zeitstempel
+im selben Aufruf mitsetzt. Umgesetzt als:
+
+- `CreateAppointment`: kein `$status`, `Status__c: "Draft"` fest im Dokument
+- `AppointmentFormDialog`: Statusfeld beim Anlegen entfernt
+- `UpdateAppointment`: `status`, `confirmedAt`, `completedAt` aus dem allgemeinen Patch
+  entfernt — der Patch ändert Termindaten, nicht den Zustand
+- `UpdateAppointmentAttendance`: `$status` entfernt, `Status__c: "NoShow"` fest
+- `AppointmentStatus`/`APPOINTMENT_STATUSES`: `Documented` entfernt
+
+### Warum `Documented` raus ist
+
+Der Wert hatte **keinen Erzeuger** — nirgends im Repo wurde er gesetzt, außer über die
+freie Statusauswahl beim Anlegen —, **kein Datenfeld** und **keinen erklärbaren
+Übergang**. `backend/docs/ux-walkthrough.md:218` fragt seit der ersten Ausarbeitung:
+*„Was passiert nach ‚Durchgeführt'? Wann folgt `Documented`?"* Er trat gleichwohl in
+Filtern und in der Zählung vergangener Termine auf, ohne dass je ein Datensatz entstünde.
+Kein einziger Datensatz im Org hatte diesen Status, die Entfernung brauchte keine
+Datenmigration.
+
+Wird die Dokumentation der Anwesenheit später gebraucht, gehört sie als Feld **und**
+benannte Aktion zurück — nicht als beschrifteter Wert.
+
+### Festgelegte Übergänge
+
+| Status | Erzeuger | Begleitdaten |
+|---|---|---|
+| `Draft` | Create (Initialstatus) | keine |
+| `Finding` | Reschedule | keine |
+| `Confirmed` | `ConfirmAppointment` | `ConfirmedAt__c` |
+| `Completed` | `CompleteAppointment` | `CompletedAt__c` |
+| `Cancelled` | `CancelAppointment` | `CancellationReason__c` |
+| `NoShow` | `updateAppointmentAttendance` | keine — der Status hat kein Feld |
+
+Ausdrücklich entschieden:
+
+- **`Completed` verlangt kein `ConfirmedAt__c`.** Die beiden Zeitpunkte sind unabhängige
+  historische Ereignisse; TERM-0007 belegt das Muster.
+- **`Confirmed → Cancelled` ist erlaubt**, und `ConfirmedAt__c` bleibt stehen.
+- **Für `NoShow` gibt es bewusst keine Regel.** Eine Begründung wäre fachlich sinnvoll,
+  ist aber ein neues Feld und damit Ausbau, nicht Reparatur.
+
+### Plattformseitige Absicherung: Validierungsregeln, kein Trigger
+
+Die drei Regeln (`Confirmed` braucht `ConfirmedAt__c`, `Completed` braucht
+`CompletedAt__c`, `Cancelled` braucht `CancellationReason__c`) stehen in
+`backend/docs/g1-manual-checklist.md`, **nicht** im Repo: `CustomValidationRule` fehlt im
+Registry des `@salesforce/cli`, und die XML-Dateien im Repo lassen *jeden* Deploy des
+Objekts scheitern (`unable to find matching parent xml file for ValidationRule`).
+Manuell in Classic anlegen, wie die `ApexSharingReason`.
+
+Ein Trigger wäre erst die richtige Wahl, wenn Salesforce den Zeitstempel **selbst**
+setzen soll. Das ist hier nicht der Fall — die Mutationen liefern ihn bereits — also wäre
+er zusätzliche Logik ohne zusätzliche Absicherung.
+
+### Was das für bestehende Daten bedeutet
+
+Die Regeln feuern bei jeder Änderung, auch wenn der Status schon gesetzt war. Damit
+werden **TERM-0001 und TERM-0002 nach dem Anlegen der Regeln nicht mehr bearbeitbar** —
+jede Änderung, auch ein Coach-Wechsel, scheitert an der Regel.
+
+Bewusst in Kauf genommen: beide Datensätze sind ohnehin fachlich ungeklärt, ein
+eingefrorener Datensatz blockiert keine produktive Arbeit. **Nicht** rückwirkend
+reparieren — ein Bestätigungszeitpunkt ist ein historisches Ereignis, und das
+Erstellungsdatum als solchen zu setzen wäre geraten. Diese beiden Sätze gehören zu
+„Offene Punkte" unten.
+
+### Tests
+
+- Anlegen sendet keinen Status, und das Dokument setzt `Status__c: "Draft"` — beide Seiten
+  werden geprüft, weil eine davon ohne die andere wirkungslos wäre
+- Ein mitgeschickter Endstatus kommt nicht durch
+- `updateAppointment` reicht `status`/`confirmedAt`/`completedAt` nicht durch und das
+  Dokument enthält die Felder nicht
+- `updateAppointmentAttendance` setzt `NoShow` fest, ohne Status-Parameter
+- Der inverse Audit-Test: `updateAppointment` kann **überhaupt kein** Status-Event mehr
+  erzeugen
+- `appointmentPicklist.test.ts` hält die Bundle-Liste gegen das Deploy-Metadatum, in beide
+  Richtungen — ein einseitiger Eingriff wäre dort aufgefallen

@@ -8,6 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { executeGraphQL } from "../graphqlClient";
 import {
+  updateAppointmentAttendance,
   createAppointment,
   deleteAvailabilitySlot,
   getAppointment,
@@ -157,7 +158,7 @@ describe("createAppointment – keine Staff-Variable", () => {
     expect(variables.coachId).toBe("0059b00000gUfkFAAS");
   });
 
-  it("setzt den Default-Status Draft", async () => {
+  it("sendet keinen Status — der Anfangszustand wird in der Mutation fest gesetzt", async () => {
     mockedExecute.mockResolvedValue({
       uiapi: { Appointment__cCreate: { Record: { Id: "a0C9b0000Kx5LFtEQM" } } },
     });
@@ -169,8 +170,59 @@ describe("createAppointment – keine Staff-Variable", () => {
       endTime: "2026-09-30T11:00:00.000Z",
     });
 
+    const [document, variables] = mockedExecute.mock.calls[0] as [string, Record<string, unknown>];
+
+    // Beide Seiten pruefen, nicht nur eine. Ein Client, der nichts sendet, ist
+    // bei einem Dokument mit freiem $status wirkungslos — und umgekehrt
+    // haette ein Default "Draft" im Client weiterhin jeden Aufrufer erreicht,
+    // der einen Endstatus mitschickt.
+    expect(variables).not.toHaveProperty("status");
+    expect(document).toContain('Status__c: "Draft"');
+    // Auf die ausfuehrbare Form pruefen, nicht auf den Substring: die Mutation
+    // erklaert im Kommentar, warum es kein $status gibt, und ein
+    // `not.toContain("$status")` wuerde an dieser Erklaerung anschlagen.
+    expect(document).not.toMatch(/\$status\s*:/);
+    expect(document).not.toContain("Status__c: $status");
+  });
+
+  it("laesst einen mitgeschickten Endstatus nicht durch", async () => {
+    // Der Aufrufer darf den Anfangszustand nicht bestimmen koennen. `as never`
+    // erzwingt den Aufruf gegen die Typen, die genau das verbieten.
+    mockedExecute.mockResolvedValue({
+      uiapi: { Appointment__cCreate: { Record: { Id: "a0C9b0000Kx5LFtEQM" } } },
+    });
+
+    await createAppointment({
+      participantId: "a059b00000gdNKkAAM",
+      type: "Coaching",
+      status: "Completed",
+      startTime: "2026-09-30T10:00:00.000Z",
+      endTime: "2026-09-30T11:00:00.000Z",
+    } as never);
+
     const [, variables] = mockedExecute.mock.calls[0] as [string, Record<string, unknown>];
-    expect(variables.status).toBe("Draft");
+    expect(variables).not.toHaveProperty("status");
+  });
+});
+
+describe("updateAppointmentAttendance – der Status ist fest verdrahtet", () => {
+  it("sendet keinen Status und setzt NoShow fest", async () => {
+    // Als Picklist-Parameter war das die dritte Tuer in einen Endzustand: alle
+    // sieben Status, ohne Zeitstempel. Der Test haelt beide Seiten fest —
+    // der Client reicht nichts durch, und die Mutation verdrahtet NoShow.
+    mockedExecute
+      .mockResolvedValueOnce({
+        uiapi: { query: { Appointment__c: { edges: [{ node: { Id: "a0C9b0000Kx5LFtEQM", Participant__c: { value: "p-1" } } }] } } },
+      })
+      .mockResolvedValue({ uiapi: { Appointment__cUpdate: { Record: { Id: "a0C9b0000Kx5LFtEQM" } } } });
+
+    await updateAppointmentAttendance("a0C9b0000Kx5LFtEQM");
+
+    const [document, variables] = mockedExecute.mock.calls[1] as [string, Record<string, unknown>];
+
+    expect(variables).not.toHaveProperty("status");
+    expect(document).toContain('Status__c: "NoShow"');
+    expect(document).not.toMatch(/\$status\s*:/);
   });
 });
 
@@ -185,13 +237,26 @@ describe("updateAppointment – keine Staff-Variable", () => {
     await updateAppointment("a0C9b0000Kx5LFtEQM", {
       staffId: "0059b00000gUfkFAAS",
       status: "Confirmed",
+      confirmedAt: "2026-09-30T09:00:00.000Z",
+      completedAt: "2026-09-30T11:00:00.000Z",
     } as never);
 
     const [document, variables] = mockedExecute.mock.calls[1] as [string, Record<string, unknown>];
 
+    // staffId wie bisher. Neu: auch status/confirmedAt/completedAt kommen nicht
+    // durch. Der allgemeine Patch aendert Termindaten, nicht den fachlichen
+    // Zustand — sonst koennte ein spaeter verdrahteter Bearbeitungsdialog die
+    // Luecke wieder oeffnen, die die benannten Mutationen geschlossen haben.
     expect(variables).not.toHaveProperty("staffId");
     expect(document).not.toContain("Staff__c");
-    expect(variables.status).toBe("Confirmed");
+    expect(variables).not.toHaveProperty("status");
+    expect(variables).not.toHaveProperty("confirmedAt");
+    expect(variables).not.toHaveProperty("completedAt");
+    // Wieder die ausfuehrbare Form: die Kommentare in der Mutation nennen die
+    // Felder, die dort bewusst fehlen.
+    expect(document).not.toMatch(/Status__c\s*:/);
+    expect(document).not.toMatch(/ConfirmedAt__c\s*:/);
+    expect(document).not.toMatch(/CompletedAt__c\s*:/);
   });
 });
 

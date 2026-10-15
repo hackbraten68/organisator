@@ -32,11 +32,6 @@
                 <label>Completed</label>
             </value>
             <value>
-                <fullName>Documented</fullName>
-                <default>false</default>
-                <label>Documented</label>
-            </value>
-            <value>
                 <fullName>Cancelled</fullName>
                 <default>false</default>
                 <label>Cancelled</label>

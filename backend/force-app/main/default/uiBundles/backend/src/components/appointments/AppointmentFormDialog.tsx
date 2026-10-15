@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Check, Copy } from "lucide-react";
 import { parseISO } from "date-fns";
 import { toApiDateTime, toDateTimeLocalValue } from "@/lib/datetime";
-import type { AppointmentInput, AppointmentType, AppointmentStatus, AppointmentLocation } from "@/types/appointment";
+import type { AppointmentInput, AppointmentType, AppointmentLocation } from "@/types/appointment";
 import { APPOINTMENT_TYPES, APPOINTMENT_LOCATIONS, APPOINTMENT_LOCATION_LABELS } from "@/types/appointment";
 
 interface AppointmentFormDialogProps {
@@ -45,7 +45,6 @@ export function AppointmentFormDialog({
   availableCoaches = [],
 }: AppointmentFormDialogProps) {
   const [type, setType] = useState<AppointmentType>(initialData?.type || "Coaching");
-  const [status, setStatus] = useState<AppointmentStatus>(initialData?.status || "Draft");
   const [startTime, setStartTime] = useState(initialData?.startTime || "");
   const [endTime, setEndTime] = useState(initialData?.endTime || "");
   // Kein Fallback auf einen festen Wert: Location__c hat in der Org keinen
@@ -112,7 +111,6 @@ export function AppointmentFormDialog({
         participantId: resolvedParticipantId,
         coachId: coachId || undefined,
         type,
-        status,
         startTime: startTimeIso,
         endTime: endTimeIso,
         location: location || undefined,
@@ -136,7 +134,6 @@ export function AppointmentFormDialog({
   }, [initialData]);
 
   const appointmentTypes: AppointmentType[] = [...APPOINTMENT_TYPES];
-  const appointmentStatuses: AppointmentStatus[] = ["Draft", "Finding", "Confirmed", "Completed", "Documented", "Cancelled", "NoShow"];
   const appointmentLocations: AppointmentLocation[] = [...APPOINTMENT_LOCATIONS];
 
   return (
@@ -213,21 +210,10 @@ export function AppointmentFormDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select value={status} onValueChange={(v: AppointmentStatus) => setStatus(v)}>
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Status wählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {appointmentStatuses.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s === "Draft" ? "Entwurf" : s === "Finding" ? "Terminfindung" : s === "Confirmed" ? "Bestätigt" : s === "Completed" ? "Durchgeführt" : s === "Documented" ? "Dokumentiert" : s === "Cancelled" ? "Abgesagt" : "Nicht erschienen"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Kein Statusfeld. Der Termin startet fest als Draft; jeden weiteren
+                  Zustand erreicht er ueber die benannte Lifecycle-Aktion. Eine
+                  Auswahl hier liess Termine direkt in einen Endzustand entstehen,
+                  ohne die zugehoerigen Zeitstempel — siehe CreateAppointment. */}
             </div>
           </fieldset>
 

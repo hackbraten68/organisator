@@ -228,7 +228,6 @@ export async function createAppointment(input: AppointmentInput): Promise<string
     participantId: string;
     coachId?: string;
     type: string;
-    status: string;
     startTime: string;
     endTime: string;
     location?: string;
@@ -239,7 +238,6 @@ export async function createAppointment(input: AppointmentInput): Promise<string
     participantId: input.participantId,
     coachId: input.coachId,
     type: input.type,
-    status: input.status || "Draft",
     startTime: input.startTime,
     endTime: input.endTime,
     location: input.location,
@@ -259,7 +257,10 @@ export async function createAppointment(input: AppointmentInput): Promise<string
         coachId: input.coachId,
         coachName: "",
         type: input.type,
-        status: input.status || "Draft",
+        // Fest: die Mutation setzt Draft, also kann im Audit nichts anderes
+        // stehen. Aus input.status zu lesen waere hier eine stille
+        // Wiedereinfuehrung des entfernten Parameters.
+        status: "Draft",
         startTime: input.startTime,
         endTime: input.endTime,
         location: input.location,
@@ -286,7 +287,6 @@ export async function updateAppointment(id: string, patch: AppointmentPatch): Pr
   const vars: Record<string, any> = { id };
   if (patch.coachId !== undefined) vars.coachId = patch.coachId;
   if (patch.type !== undefined) vars.type = patch.type;
-  if (patch.status !== undefined) vars.status = patch.status;
   if (patch.startTime !== undefined) vars.startTime = patch.startTime;
   if (patch.endTime !== undefined) vars.endTime = patch.endTime;
   if (patch.location !== undefined) vars.location = patch.location;
@@ -294,44 +294,20 @@ export async function updateAppointment(id: string, patch: AppointmentPatch): Pr
   if (patch.notes !== undefined) vars.notes = patch.notes;
   if (patch.cancellationReason !== undefined) vars.cancellationReason = patch.cancellationReason;
   if (patch.correlationId !== undefined) vars.correlationId = patch.correlationId;
-  if (patch.confirmedAt !== undefined) vars.confirmedAt = patch.confirmedAt;
-  if (patch.completedAt !== undefined) vars.completedAt = patch.completedAt;
+  // status / confirmedAt / completedAt werden bewusst nicht mehr durchgereicht.
+  // Der allgemeine Patch aendert Termindaten, nicht den fachlichen Zustand.
 
   const existing = await getAppointment(id);
 
   await executeGraphQL<MutationResponse, Record<string, any>>(UPDATE_APPOINTMENT_RAW, vars);
 
-  if (patch.status !== undefined) {
-    const actor = getAuditActor();
-    await recordAppointmentStatusChanged({
-      appointment: {
-        id,
-        name: "",
-        participantId: existing?.participantId ?? "",
-        participantName: "",
-        coachId: patch.coachId,
-        coachName: "",
-        type: patch.type ?? "Sonstiges",
-        status: patch.status,
-        startTime: patch.startTime ?? "",
-        endTime: patch.endTime ?? "",
-        location: patch.location,
-        meetingLink: patch.meetingLink,
-        notes: patch.notes,
-        cancellationReason: patch.cancellationReason,
-        correlationId: patch.correlationId,
-        confirmedAt: patch.confirmedAt ?? "",
-        completedAt: patch.completedAt ?? "",
-        createdAt: "",
-        updatedAt: "",
-      },
-      oldStatus: "",
-      newStatus: patch.status,
-      actor,
-      // Wie beim Anlegen: Record und Event teilen sich die Correlation-Id.
-      correlationId: patch.correlationId ?? generateUUID(),
-    });
-  }
+  // Kein Statuswechsel-Audit mehr an dieser Stelle. Der allgemeine Patch kann
+  // den Status nicht mehr aendern — `if (patch.status !== undefined)` waere
+  // toter Zweig, und ein Statuswechsel wird von der jeweiligen Lifecycle-
+  // Mutation protokolliert (confirmAppointment, completeAppointment,
+  // cancelAppointment, updateAppointmentAttendance). Dort gehoert der Hinweis
+  // auch hin: er steht in der Naehe der Aktion, die ihn ausloest.
+  void existing;
 }
 
 export async function confirmAppointment(id: string): Promise<void> {
@@ -475,9 +451,9 @@ export async function cancelAppointment(id: string, cancellationReason?: string)
   });
 }
 
-export async function updateAppointmentAttendance(id: string, status: "Completed" | "NoShow"): Promise<void> {
+export async function updateAppointmentAttendance(id: string, status: "NoShow" = "NoShow"): Promise<void> {
   const existing = await getAppointment(id);
-  await executeGraphQL<MutationResponse, { id: string; status: string }>(UPDATE_APPOINTMENT_ATTENDANCE_RAW, { id, status });
+  await executeGraphQL<MutationResponse, { id: string }>(UPDATE_APPOINTMENT_ATTENDANCE_RAW, { id });
   const actor = getAuditActor();
   await recordAppointmentAttendanceChanged({
     appointment: {

@@ -81,6 +81,28 @@ Zwei Dinge, die dabei regelmäßig falsch eingeschätzt werden:
 
 - Der Eintrag **fehlt im Lightning Object Manager vollständig**. Ein leerer Object Manager
   ist kein Hinweis auf einen Org-Defekt — die Oberfläche muss wirklich wechseln.
+- `CustomValidationRule` fehlt ebenfalls in der Registry des `@salesforce/cli` — dieselbe
+  Lücke wie `ApexSharingReason`, mit einem Zusatzproblem: legt man die XML-Dateien unter
+  `objects/<Objekt>/validationRules/` ab, schlägt **jeder** Deploy fehl, der das Objekt
+  anfasst, mit `unable to find matching parent xml file for ValidationRule`. Deshalb
+  liegen die Regeln zu `Appointment__c` nur hier und nicht im Repo:
+
+  ```text
+  Classic → Setup → Build → Customize → Objects
+        → Termin (Objektnamen anklicken, nicht „Edit")
+        → Related List „Validation Rules" → New
+  ```
+
+  | Regel | Bedingung (WHEN) | Fehlermeldung |
+  | --- | --- | --- |
+  | `Status_Confirmed_Requires_ConfirmedAt` | `ISPICKVAL($Object.Status__c,"Confirmed"),ISBLANK($Object.ConfirmedAt__c)` | Bestätigter Termin ohne Bestätigungszeitpunkt. Bitte "ConfirmedAt__c" füllen. |
+  | `Status_Completed_Requires_CompletedAt` | `ISPICKVAL($Object.Status__c,"Completed"),ISBLANK($Object.CompletedAt__c)` | Abgeschlossener Termin ohne Abschlusszeitpunkt. Bitte "CompletedAt__c" füllen. |
+  | `Status_Cancelled_Requires_Reason` | `ISPICKVAL($Object.Status__c,"Cancelled"),ISBLANK($Object.CancellationReason__c)` | Abgesagter Termin ohne Absagegrund. Bitte "CancellationReason__c" füllen. |
+
+  Absichtlich **keine** Regel für `NoShow`: der Status hat kein Datenfeld. Und **keine**
+  Regel „`Completed` braucht `ConfirmedAt__c`" — die beiden Zeitpunkte sind unabhängige
+  historische Ereignisse, siehe ADR-014.
+
 - `ApexSharingReason` fehlt in der Registry des `@salesforce/cli`, der Grund ist also
   **nicht deploybar**. Er muss einmalig von Hand entstehen.
 

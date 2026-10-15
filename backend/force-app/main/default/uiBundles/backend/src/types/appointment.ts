@@ -3,12 +3,18 @@
  * Mirrors Appointment__c SObject fields (camelCase ↔ PascalCase__c)
  */
 
-export type AppointmentStatus = 'Draft' | 'Finding' | 'Confirmed' | 'Completed' | 'Documented' | 'Cancelled' | 'NoShow';
+/**
+ * 'Documented' ist bewusst nicht dabei: der Wert hatte keinen Erzeuger, kein
+ * Datenfeld und keinen erklärbaren Uebergang. Er taucht gleichwohl in Filtern
+ * und in der Zaehlung vergangener Termine auf, ohne dass je ein Datensatz
+ * entstuende. Bei Bedarf gehoert er zurueck — mit Feld und benannter Aktion.
+ */
+export type AppointmentStatus = 'Draft' | 'Finding' | 'Confirmed' | 'Completed' | 'Cancelled' | 'NoShow';
 export type AppointmentType = 'Coaching' | 'CheckIn' | 'Feedback' | 'Behörde' | 'Praktikum' | 'Sonstiges';
 export type AppointmentLocation = 'Discord' | 'Zoom' | 'Teams' | 'External';
 
 export const APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
-  'Draft', 'Finding', 'Confirmed', 'Completed', 'Documented', 'Cancelled', 'NoShow'
+  'Draft', 'Finding', 'Confirmed', 'Completed', 'Cancelled', 'NoShow'
 ] as const;
 
 export const APPOINTMENT_TYPES: readonly AppointmentType[] = [
@@ -57,7 +63,6 @@ export interface AppointmentInput {
   participantId: string;
   coachId?: string;
   type: AppointmentType;
-  status?: AppointmentStatus;      // Default: Draft
   startTime: string;
   endTime: string;
   location?: AppointmentLocation;
@@ -69,7 +74,6 @@ export interface AppointmentInput {
 export interface AppointmentPatch {
   coachId?: string;
   type?: AppointmentType;
-  status?: AppointmentStatus;
   startTime?: string;
   endTime?: string;
   location?: AppointmentLocation;
@@ -77,8 +81,6 @@ export interface AppointmentPatch {
   notes?: string;
   cancellationReason?: string;
   correlationId?: string;
-  confirmedAt?: string;
-  completedAt?: string;
 }
 
 export interface AppointmentFilters {

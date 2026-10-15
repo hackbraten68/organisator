@@ -156,7 +156,7 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
   const weekEnd = endOfWeek(adjustedStart, { weekStartsOn: 1 });
 
   const upcomingCount = appointments.filter((a) => new Date(a.startTime) >= new Date() && ["Confirmed", "Finding"].includes(a.status)).length;
-  const pastCount = appointments.filter((a) => new Date(a.startTime) < new Date() || ["Completed", "Documented", "Cancelled", "NoShow"].includes(a.status)).length;
+  const pastCount = appointments.filter((a) => new Date(a.startTime) < new Date() || ["Completed", "Cancelled", "NoShow"].includes(a.status)).length;
 
   const filteredAppointments = useMemo(() => {
     return appointments.filter((a) => {
@@ -174,7 +174,7 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
 
   const pastAppointments = useMemo(() => {
     return filteredAppointments
-      .filter((a) => new Date(a.startTime) < new Date() || ["Completed", "Documented", "Cancelled", "NoShow"].includes(a.status))
+      .filter((a) => new Date(a.startTime) < new Date() || ["Completed", "Cancelled", "NoShow"].includes(a.status))
       .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
   }, [filteredAppointments]);
 
@@ -194,7 +194,6 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
     { value: "Finding", label: "Terminfindung" },
     { value: "Confirmed", label: "Bestätigt" },
     { value: "Completed", label: "Durchgeführt" },
-    { value: "Documented", label: "Dokumentiert" },
     { value: "Cancelled", label: "Abgesagt" },
     { value: "NoShow", label: "Nicht erschienen" },
   ];

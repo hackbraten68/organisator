@@ -92,23 +92,21 @@ describe("appointmentService audit integration", () => {
   });
 
   describe("updateAppointment", () => {
-    it("records appointment.status_changed with the participant resolved from the record", async () => {
+    it("cannot record a status change at all — the patch has no status", async () => {
+      // Umgekehrter Test. Frueher stand hier `status: "Confirmed"` und es wurde
+      // ein appointment.status_changed erwartet. Genau das ist jetzt ausgeschlossen:
+      // AppointmentPatch traegt kein status mehr, und ein Aufrufer, der es trotzdem
+      // mitschickt, erreicht damit weder die Mutation noch das Audit. Der
+      // Statuswechsel gehoert in confirmAppointment/completeAppointment/
+      // cancelAppointment/updateAppointmentAttendance.
       route();
 
-      await updateAppointment("apt-1", { status: "Confirmed" });
+      await updateAppointment("apt-1", { status: "Confirmed" } as never);
 
-      expect(auditService.record).toHaveBeenCalledWith(
-        expect.objectContaining({
-          eventType: "appointment.status_changed",
-          domain: "appointment",
-          action: "status_changed",
-          subjectId: "apt-1",
-          participantId: "p-1",
-        }),
-      );
+      expect(auditService.record).not.toHaveBeenCalled();
     });
 
-    it("does not record an audit event when the status is untouched", async () => {
+    it("does not record an audit event for a plain data change", async () => {
       route();
 
       await updateAppointment("apt-1", { location: "Discord" });
@@ -189,7 +187,7 @@ describe("appointmentService audit integration", () => {
     it("records appointment.attendance_changed with the participant resolved from the record", async () => {
       route();
 
-      await updateAppointmentAttendance("apt-1", "Completed");
+      await updateAppointmentAttendance("apt-1");
 
       expect(auditService.record).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -256,15 +254,14 @@ describe("appointmentService audit integration", () => {
       expect(correlations).toEqual(["biz-42", "biz-42"]);
     });
 
-    it("uebernimmt die Correlation-Id auch beim Status-Update", async () => {
-      route();
-
-      await updateAppointment("apt-1", { status: "Confirmed", correlationId: "biz-7" });
-
-      expect(auditService.record).toHaveBeenCalledWith(
-        expect.objectContaining({ correlationId: "biz-7" }),
-      );
-    });
+    // Entfallen: dieser Test pruefte, dass updateAppointment eine
+    // Statusaenderung mit der fachlichen Correlation-Id protokolliert. Genau
+    // dieser Weg existiert nicht mehr — der allgemeine Patch kann den Status
+    // nicht aendern (siehe der Test weiter oben) und protokolliert deshalb
+    // gar nichts. Die Aussage "eine reine Datenaenderung erzeugt kein Audit"
+    // steht jetzt dort. Was hier frueher stand, hat keine Entsprechung mehr
+    // und wurde nicht auf eine andere Funktion umgehaengt, weil das eine
+    // andere Behauptung waere.
   });
 
   describe("actor resolution", () => {

@@ -1,8 +1,14 @@
+# Feste Anfangslage. Der Status ist kein Eingabeparameter: jeder weitere
+# Zustand wird ausschliesslich ueber die benannte Lifecycle-Mutation
+# erreicht (Confirm/Complete/Cancel/Attendance), und die setzt den
+# zugehoerigen Zeitstempel im selben Aufruf. Ein frei waehlbares
+# $status hier liess Termine direkt in einen Endzustand entstehen, ohne
+# dessen Begleitdaten — der Grund, warum ConfirmedAt__c auf
+# bestaetigten Terminen leer war.
 mutation CreateAppointment(
   $participantId: IdOrRef!
   $coachId: IdOrRef
   $type: Picklist!
-  $status: Picklist
   $startTime: DateTime!
   $endTime: DateTime!
   $location: Picklist
@@ -16,7 +22,7 @@ mutation CreateAppointment(
         Participant__c: $participantId
         Coach__c: $coachId
         Type__c: $type
-        Status__c: $status
+        Status__c: "Draft"
         StartTime__c: $startTime
         EndTime__c: $endTime
         Location__c: $location
