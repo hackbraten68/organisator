@@ -1014,7 +1014,13 @@ public without sharing class ParticipantPortalSharingService {
         ]) {
             sharingUsers.add(share.UserOrGroupId);
         }
-        if (sharingUsers.isEmpty()) {
+        // Only when BOTH sets are empty is there nothing to do. Returning because
+        // no shares exist yet would skip every participant who does have a portal
+        // user — which is exactly the state right after the reasons were created,
+        // so the first reconcile would have granted nothing and looked like a
+        // silent no-op. Measured 2026-10-14: 0 -> 0 with one provisioned
+        // participant.
+        if (withPortalUser.isEmpty() && sharingUsers.isEmpty()) {
             return;
         }
 

@@ -524,6 +524,21 @@ Classic → Setup → Build → Create → Objects
             Name:  Portal_Access
 ```
 
+Derselbe Grund mit identischem Namen existiert inzwischen auf **vier** Objekten:
+
+| Objekt | Angelegt | Wofür |
+|---|---|---|
+| `Participant__c` | Bestand | Teilnehmerzeile selbst |
+| `Learning_Path__c` | Bestand | Lernpfad |
+| `Appointment__c` | 2026-10-14 | Termine des Teilnehmers |
+| `Coach_Profile__c` | 2026-10-14 | Name des Coaches in `/me` und in den Terminen |
+| `Program__c` | 2026-10-14 | `programName` in `/me` |
+
+Ohne den Grund auf den letzten beiden übersetzt `ParticipantPortalSharingService` nicht —
+der Compiler meldet dann viermal `Variable does not exist: Portal_Access__c`, was wie ein
+Syntaxfehler aussieht und in Wahrheit ein fehlendes Org-Objekt ist. Siehe
+[ADR-013](portal/architecture-decisions.md).
+
 `ApexSharingReason` fehlt in der Registry des `@salesforce/cli`, der Grund ist also nicht
 deploybar. Nötige Berechtigung ist *Author Apex*; *Modify All Data* betrifft nur das
 Anlegen der Share-Datensätze selbst, nicht das Definieren des Grundes.

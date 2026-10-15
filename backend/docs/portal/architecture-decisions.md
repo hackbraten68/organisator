@@ -503,3 +503,117 @@ entfernen. Als Entscheidung vorgemerkt, nicht als offene Blockade.
 - Die Gruppenpflege (`Portal_Participants`) ist mit dem Sharing Reason überflüssig
   geworden und wurde entfernt. Offen bleibt nur, **neue** Portal-User anzulegen — eine
   Tätigkeit, kein Mechanismus.
+
+## ADR-013 — `Coach_Profile__c` und `Program__c` beziehungsbasiert freigeben, nicht per `without sharing`
+
+**Status:** entschieden und umgesetzt (2026-10-14), Auslöser war ein gemessener Live-Fehler
+
+### Ausgangslage
+
+Die Terminseite und `/me` konnten verknüpfte Namen grundsätzlich nicht auflösen. Gemessen
+gegen die Live-Site mit einer echten Portal-Session:
+
+```text
+/me                      coachName: null      programName: null
+/me/appointments (4)     coachName: null      (alle vier Termine)
+```
+
+Obwohl drei der vier Coaches ein verlinktes `Coach_Profile__c` haben und
+`Participant__c.Program__c` gesetzt ist. Beide Objekte sind
+`externalSharingModel = Private`, und kein Portal-User hielt einen Share darauf — weder
+`ParticipantPortalSharingService` noch ein Trigger gaben sie frei. Das war **kein**
+Randfall der neuen Terminseite: `/me` zeigte denselben Defekt, er war nur nie aufgefallen,
+weil niemand mit einem echten Portal-Login auf das Feld sah.
+
+### `without sharing` wurde gebaut, gemessen und verworfen
+
+Der naheliegende Fix war eine Aufweitung des Namens-Lookups. Sie ist implementiert,
+deployt und gemessen worden:
+
+```text
+als Admin,      gleiche Abfrage, gleiche Ids   -> 3 Treffer
+als Portal-User, gleiche Abfrage, gleiche Ids   -> 0 Treffer, keine Exception
+```
+
+Eine eigene `global without sharing`-Klasse (`ParticipantPortalCoachNames`) lag kurzzeitig
+im Org. Sie ist wieder entfernt: eine Klasse, die so tut, als löste sie das Problem, wäre
+schlimmer als gar keine.
+
+**Die Lehre daraus steht hier, weil sie wiederholt werden wird:** ein `null` **ohne**
+Exception ist in diesem Portal ein Sharing-Symptom und kein Beleg für fehlende
+Stammdaten. Genau dieser `null` hat die Entscheidung „Coach nicht verfügbar“ ausgelöst —
+sie war ehrlich gemeint und hat trotzdem ein systematisches Berechtigungsproblem
+zugedeckt. Erst der Live-Lauf mit echten Zugangsdaten hat es aufgedeckt.
+
+### Entscheidung
+
+Freigabe ausschließlich über die fachliche Beziehung, mit demselben Mechanismus wie bei
+`Participant__c`, `Learning_Path__c` und `Appointment__c`:
+
+| Objekt | Freigabe nur, wenn | Zweck |
+|---|---|---|
+| `Coach_Profile__c` | das Profil zum persönlichen Coach oder zu einem Coach eines eigenen Termins gehört | `coachName` in `/me` und in den Terminen |
+| `Program__c` | das Programm aus `Participant__c.Program__c` stammt | `programName` in `/me` |
+
+Beide Pfade laufen über `planForCoachProfiles()` bzw. `planForPrograms()` mit je einem
+eigenen Plan-Typ, damit eine Share-Zeile nachvollziehbar der Beziehung zugeordnet bleibt,
+die sie begründet hat. Der gemeinsame Eintrag heißt `synchroniseReferences()`.
+
+Nicht getan und bewusst so:
+
+- **Keine globale Freigabe.** Jeder Portal-User sieht nicht jeden Coach und nicht jedes
+  Programm, sondern nur die, zu denen eine Beziehung besteht.
+- **Kein Zugriff auf `User.Name`.** Der Name läuft weiterhin rückwärts über
+  `Coach_Profile__c.User__c`; die Permission-Set-Rechte auf `User` bleiben unangetastet.
+- **Keine Sharing-Regel und keine zweite Identitätskette.** Das Programm kommt aus genau
+  der Beziehung, aus der `/me` ohnehin liest.
+
+### Widerruf und Neuberechnung
+
+Der Sollzustand wird je Teilnehmer **vollständig neu berechnet**, nicht pro Ereignis
+gepatcht. Der Grund ist ein konkretes Fehlverhalten, das ereignisweises Löschen erzeugen
+würde: hat ein Teilnehmer zwei Termine mit verschiedenen Coaches und fällt einer weg,
+dürfte das Profil des anderen nicht mitgelöscht werden. Der Reconcile betrachtet deshalb
+alle Beziehungen und behält, was mindestens eine davon noch begründet.
+
+Ausgelöst wird die Neuberechnung bei: Coach- oder Programmwechsel am Teilnehmer, Coach-
+ oder Teilnehmerwechsel am Termin, **Löschen eines Termins**, Widerruf des Portal-Users
+sowie Anlegen, Ändern oder Löschen eines `Coach_Profile__c`.
+
+Der Delete-Fall am Termin ist der, der leicht übersehen wird: Salesforce entfernt die
+Share-Zeilen des gelöschten Termins von selbst, deshalb kehrte der Trigger ursprünglich
+früh zurück — und hätte ein Coach-Profil stehen lassen, das nichts mehr begründet.
+
+Ein Coach ohne Profil bleibt `null`, ohne Fehler. „Coach nicht verfügbar“ bezeichnet damit
+endlich das, was es sagen soll: fehlende Stammdaten.
+
+### Voraussetzung, die nicht deploybar ist
+
+`ApexSharingReason` steht nicht im `@salesforce/cli`-Registry. Der Grund `Portal_Access__c`
+musste auf `Coach_Profile__c` und `Program__c` in **Salesforce Classic** angelegt werden
+(`Setup → Switch to Salesforce Classic → Build → Create → Objects`). Ohne ihn ist
+`Schema.Coach_Profile__Share.RowCause.Portal_Access__c` nicht übersetzbar und der Deploy
+bricht ab — ein Fehlschlag mit vier `Variable does not exist: Portal_Access__c`-Meldungen,
+die wie ein Syntaxproblem aussehen.
+
+### Verifikation
+
+- 41 Sharing-Tests, davon 13 neu: Freigabe, Dedupe über beide Beziehungswege, fremder
+  Coach bleibt draußen, Coach ohne Profil, Coach-Wechsel, Programmwechsel, Widerruf,
+  Mehrfachberechtigung ohne Doppelshare.
+- Live mit echter Session: `/me.coachName` = `Ghaith Saidani`,
+  `/me.programName` = `IT Pro Advanced`, Termine mit `Frank Blum`, `Sam Dillenburg`,
+  `Sandra Krüger`; nur der Coach ohne Profil bleibt `null`.
+- **Gegenprobe im Live-Betrieb:** den Share von `Sandra Krüger` entfernt → ihr Termin
+  antwortet `coach=null`; `synchroniseReferencesAll()` stellt ihn wieder her (3 → 4).
+  Damit ist belegt, dass der Share die Ursache ist und nicht ein Zufall oder ein
+  gecachter Wert.
+
+### Testnähe, die absichtlich eine Schwäche festhält
+
+`planForCoachProfiles()` prüft **nicht** selbst, ob eine Share dem richtigen User gehört —
+das erledigt die Query davor (`WHERE UserOrGroupId IN :portalUserIds`). Ein Test dafür
+wäre grün, obwohl die Schicht darüber fehlt. Der zugehörige Test ist deshalb ein
+Characterisation-Test: er reicht dem Plan eine fremde Share und **erwartet, dass sie
+entfernt wird**, damit die Grenze festgenagelt bleibt und eine spätere Änderung auffällt.
+Dieselbe Naht besteht beim Appointment-Plan.

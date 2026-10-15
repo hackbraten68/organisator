@@ -21,6 +21,28 @@ import { dirname, resolve } from 'node:path';
  * Set PORTAL_USER and PORTAL_PASSWORD to run the sign-in cases; without them they
  * are skipped, the rest still runs. The cross-participant case is suspended by
  * design and needs no credentials — see its own describe block below.
+ *
+ * Baseline with a real portal session (2026-10-14, before the coach-name fix):
+ * 9 passed, 0 failed, 2 skipped. The second skip was `test.fixme`, which recorded
+ * that all four appointments answered coachName: null — three of them with a linked
+ * Coach_Profile__c — because nothing shared those records with the portal user.
+ *
+ * After ADR-013 released Coach_Profile__c and Program__c along the participant's
+ * own relationships: 12 passed, 0 failed, 1 skipped. The fixme became three real
+ * tests: the coach names on the page, the names on /me, and a negative control
+ * that a participant id in the query string changes nothing.
+ *
+ * Only one case is skipped now, and it is the one that was already suspended:
+ * cross-participant isolation, which needs a second portal user.
+ *
+ * Two things this suite is the only place that can catch, both of which hid a
+ * broken live feature behind a green Apex suite:
+ *
+ *   - a name resolving to null without an exception is a sharing symptom, not
+ *     proof of missing master data. See ADR-013.
+ *   - sign-in is two hops. The first carries no /login, so waiting for "no longer
+ *     on /login" returns while the frontdoor redirect is still running, and a
+ *     following page.goto() aborts it with ERR_ABORTED.
  */
 const PORTAL_USER = process.env.PORTAL_USER;
 const PORTAL_PASSWORD = process.env.PORTAL_PASSWORD;
@@ -253,29 +275,78 @@ test.describe("appointments page (live)", () => {
     }
   });
 
-  test.fixme("only the coach without a profile is reported as unavailable", async ({ page }) => {
-    // Blocked on a sharing gap, not on the page. Measured 2026-10-14 against the
-    // live site: Coach_Profile__c is Private, no portal member holds a share to
-    // one, and the name lookup returns nothing for EVERY appointment — three of
-    // the four do have a linked Coach_Profile__c, so this expects 1 and measures
-    // 4. Widening the query to `without sharing` changed nothing: same user, same
-    // query, still zero rows and no exception. /me shows the same thing
-    // (coachName null although Participant__c.Coach_Profile__c is set), so this is
-    // a pre-existing portal-wide gap, not something the appointments page caused.
-    //
-    // The fix is to share Coach_Profile__c to portal users in
-    // ParticipantPortalSharingService, the same way Participant__c and
-    // Appointment__c are shared. That changes the sharing posture and has not
-    // been done.
+  test("only the coach without a profile is reported as unavailable", async ({ page }) => {
     test.skip(!PORTAL_USER || !PORTAL_PASSWORD, 'PORTAL_USER / PORTAL_PASSWORD not set');
 
     await signIn(page, PORTAL_USER!, PORTAL_PASSWORD!);
     await page.goto('/organisatorv1/termine');
 
-    await expect(page.getByRole('heading', { name: 'Meine Termine', level: 1 })).toBeVisible({
-      timeout: 30_000,
-    });
+    const rows = page.locator('[data-testid="appointment-row"]');
+    await expect(rows.first()).toBeVisible({ timeout: 30_000 });
+
+    // Three of the four fixtures have a linked Coach_Profile__c and must show a
+    // name. Exactly one row does not — coach.test, who has no profile at all.
+    //
+    // This was the defect this file recorded while it was still true: all four
+    // rows said "Coach nicht verfuegbar", because Coach_Profile__c is Private and
+    // no portal member held a share on one. Fixed by releasing the profiles the
+    // participant's own relationships justify. `without sharing` had been tried
+    // and measured first — null rows, no exception — and rejected.
     await expect(page.getByText('Coach nicht verfügbar')).toHaveCount(1);
+    for (const name of ['Frank Blum', 'Sam Dillenburg', 'Sandra Krüger']) {
+      await expect(page.getByTestId('coach-name').filter({ hasText: name })).toHaveCount(1);
+    }
+  });
+
+  test("/me resolves the coach and the program name", async ({ page }) => {
+    test.skip(!PORTAL_USER || !PORTAL_PASSWORD, 'PORTAL_USER / PORTAL_PASSWORD not set');
+
+    await signIn(page, PORTAL_USER!, PORTAL_PASSWORD!);
+
+    // Both were null for the same reason as coachName on the appointments page:
+    // Coach_Profile__c and Program__c are Private and nothing shared them with
+    // this user. Asserted at the service boundary rather than through the UI,
+    // because the header shows no coach name.
+    const me = await page.evaluate(async () => {
+      const r = await fetch('/organisatorv1/sf/api/services/apexrest/participant-portal/me', {
+        headers: { Accept: 'application/json' },
+        credentials: 'include',
+      });
+      return r.json();
+    });
+
+    expect(me.coachName).toBe('Ghaith Saidani');
+    expect(me.programName).toBe('IT Pro Advanced');
+  });
+
+  test("a participant id in the query string changes nothing", async ({ page }) => {
+    test.skip(!PORTAL_USER || !PORTAL_PASSWORD, 'PORTAL_USER / PORTAL_PASSWORD not set');
+
+    await signIn(page, PORTAL_USER!, PORTAL_PASSWORD!);
+
+    // Negative control for the appointments endpoint. Identity is resolved
+    // server-side and the query takes no parameter, so a foreign participant id
+    // must be ignored rather than honoured. What would catch a regression is a
+    // row count that changes, or an id that is not ours appearing at all.
+    const plain = await page.evaluate(async () => {
+      const r = await fetch('/organisatorv1/sf/api/services/apexrest/participant-portal/me/appointments', {
+        headers: { Accept: 'application/json' },
+        credentials: 'include',
+      });
+      return r.json();
+    });
+    const injected = await page.evaluate(async () => {
+      const r = await fetch(
+        '/organisatorv1/sf/api/services/apexrest/participant-portal/me/appointments?participantId=a0s9X00000boVT9QAM',
+        { headers: { Accept: 'application/json' }, credentials: 'include' }
+      );
+      return r.json();
+    });
+
+    expect(injected.appointments.length).toBe(plain.appointments.length);
+    expect(injected.appointments.map((a: { appointmentId: string }) => a.appointmentId)).toEqual(
+      plain.appointments.map((a: { appointmentId: string }) => a.appointmentId)
+    );
   });
 
   test("the dashboard shows the next appointment rather than a placeholder", async ({ page }) => {
