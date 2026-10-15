@@ -131,7 +131,7 @@ verloren.
 | Keine Anwesenheit                   | ✅     | `updateAppointmentAttendance(id, "NoShow")`, Status `NoShow` in der Filterliste                                                                                                            |
 | Keine Notizen                       | ✅     | `AppointmentFormDialog.tsx` hat ein Notizen-Feld                                                                                                                                           |
 | Keine Bestätigung vor dem Abschluss | ⬜     | `handleComplete` ruft direkt auf. `AlertDialog` existiert (`components/ui/alert-dialog.tsx`) und wird nur in `AbsenceApprovalActions.tsx` benutzt — die Lücke ist also billig zu schließen |
-| Was passiert danach?                | ⬜     | Statusübergang zu `Documented` ist nicht im UI erklärt                                                                                                                                     |
+| Was passiert danach?                | ✅     | Statusübergang zu `Documented` gab es nie — der Wert ist seit 2026-10-15 aus der Picklist entfernt, siehe ADR-014. Ein Termin endet auf `Completed` oder `NoShow`.                                     |
 
 ---
 
@@ -215,7 +215,10 @@ sondern Fehler:
 1. Tooltips/Description für Onboarding-Felder (Programm, Coach, GitHub, Discord)
 2. Bedeutung des Termin-Typs — welche der sechs Typen ist der Normalfall?
 3. Bedeutung des Ortes (Discord / Zoom / Teams / Extern)
-4. Was passiert nach „Durchgeführt"? Wann folgt `Documented`?
+4. ~~Was passiert nach „Durchgeführt"? Wann folgt `Documented`?~~ **Beantwortet 2026-10-15,
+   siehe ADR-014:** gar nicht — `Documented` wurde aus der Picklist entfernt. Der Wert hatte
+   keinen Erzeuger, kein Datenfeld und keinen erklärbaren Übergang. Wird die Dokumentation
+   der Anwesenheit später gebraucht, kommt sie als Feld **und** benannte Aktion zurück.
 5. Gibt es eine Standarddauer für Termine und Slots?
 6. Warum kann der Vertrieb einen Contact freigeben und nicht das Backend?
 

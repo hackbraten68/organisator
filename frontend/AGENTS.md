@@ -577,6 +577,20 @@ dist/ restored                          -> 1 passed
   $User.UserRecord.Id` and `= $User.Id` are both stored and displayed, and both match zero
   rows — every portal user gets `NO_PARTICIPANT`. A static user id works. Measured, not
   assumed.
+- **`CustomValidationRule` is not in the `@salesforce/cli` registry, same as `ApexSharingReason`.**
+  It can be neither deployed nor retrieved — create validation rules in Classic Setup. Do not
+  put the XML under `objects/<Objekt>/validationRules/` in the repo: it makes **every**
+  deploy that touches that object fail with `unable to find matching parent xml file for
+  ValidationRule`, through `--source-dir objects/<Objekt>` and through a manifest listing
+  `CustomValidationRule` members alike. Measured 2026-10-15 on `Appointment__c`. The rules
+  live in `backend/docs/g1-manual-checklist.md` instead.
+- **Validation rule formulas on a custom object take no `$Object.` prefix.** The Classic
+  editor answers `Field $Object.Status__c does not exist. Check spelling.` — at a custom
+  object the fields are referenced by API name alone. The prefix belongs in formulas that
+  traverse a lookup to a parent.
+- **A validation rule cannot be verified from the CLI.** Neither query nor retrieve lists
+  them. The only proof is functional: a DML that must be rejected and one that must pass.
+  Always run both directions — a rule that also blocks valid saves is worse than none.
 - **Creating a CustomField via the Metadata API fails silently here.** The deploy reports
   `Created`, `describe` does not show the field. New fields must be created once in Setup.
 - **`SharingReason`, `SharingCriteriaRule` and `SharingGuestRule` are not in the CLI

@@ -1089,6 +1089,47 @@ fails with \"Sie können kein Pflichtfeld bereitstellen\". With the default
 failed deploy is a null deploy, not a partial one. Permission sets have no such
 restriction, and `backend_Access` is the only one this project assigns.
 
+
+### 15. An org-level invariant breaks test fixtures, not the feature
+
+Adding a validation rule or a picklist change on a real object is not a code change — it
+lands in the org first and every test that writes that object finds out.
+
+`Appointment__c` got three validation rules on 2026-10-15 (`Confirmed` requires
+`ConfirmedAt__c`, `Completed` requires `CompletedAt__c`, `Cancelled` requires
+`CancellationReason__c`). Eight tests in `ParticipantPortalSharingServiceTest` failed
+afterwards — on the *insert of the fixture*, never reaching their assertion:
+
+```text
+System.DmlException: Insert failed. First exception on row 0;
+first error: FIELD_CUSTOM_VALIDATION_EXCEPTION,
+Bestätigter Termin ohne Bestätigungszeitpunkt. Bitte ConfirmedAt__c füllen.
+```
+
+`apRow` created appointments with `Status__c = 'Confirmed'` and no timestamp — precisely
+the state the new rule forbids. The fix is in the fixture, not the rule.
+
+**After changing anything org-level, run the full suite, not the classes you touched.**
+Running only the two affected classes reported `47/47` while the whole suite was at 81%.
+A test that fails while building its fixture proves nothing, and it fails *silently*, in a
+class you were not looking at.
+
+The same rules also froze two pre-existing records (`TERM-0001`, `TERM-0002`): they are
+`Confirmed` without a timestamp, so now every edit to them is rejected. That was accepted
+deliberately rather than repaired by inventing a confirmation date — a timestamp is a
+historical event, and back-filling the creation date would be a guess.
+
+### 16. Why the rules are not in the repo
+
+`CustomValidationRule` is missing from the `@salesforce/cli` registry, the same gap as
+`ApexSharingReason`. Worse: leaving the XML under `objects/Appointment__c/validationRules/`
+breaks **every** deploy that touches the object — `--source-dir` and a manifest both fail
+with `unable to find matching parent xml file for ValidationRule`. They were created in
+Classic Setup and the formulas are documented in `g1-manual-checklist.md`.
+
+At the Custom Object the formula takes no `$Object.` prefix; the Classic editor rejects
+it with `Field $Object.Status__c does not exist. Check spelling.`
+
 ---
 
 ## Scratch Org Rebuild Result

@@ -1,11 +1,20 @@
 # Architecture Decisions — Teilnehmerportal
 
-**Stand:** 2026-09-29
-**Status:** Alle Entscheidungen vom 2026-09-29 bestätigt
+**Stand:** 2026-10-15
+**Status:** ADR-001 bis ADR-012 vom 2026-09-29 bestätigt; ADR-013 und ADR-014 am
+2026-10-14/15 aus einer Messung in der Live-Site entstanden und ebenfalls entschieden
 **Umsetzung:** [`portal-access-plan.md`](./portal-access-plan.md)
 
-Zehn Entscheidungen, die den Portal-Aufbau bestimmen. Wer eine ändern will, ändert den
+Vierzehn Entscheidungen, die den Portal-Aufbau bestimmen. Wer eine ändern will, ändert den
 Eintrag hier mit Datum — nicht stillschweigend den Code.
+
+**Manuelle Setup-Schritte, die aus dem Repo nicht deploybar sind** und ohne die ein Deploy
+scheitert oder nicht übersetzt:
+
+| Was | Objekte | Nachweis |
+| --- | --- | --- |
+| Apex Sharing Reason `Portal_Access__c` | `Participant__c`, `Learning_Path__c`, `Appointment__c`, `Coach_Profile__c`, `Program__c` | ADR-013 |
+| Validierungsregeln auf `Appointment__c` | drei Regeln, siehe [g1-manual-checklist.md](../g1-manual-checklist.md) | ADR-014 |
 
 ---
 

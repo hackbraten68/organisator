@@ -547,6 +547,35 @@ Nach dem Anlegen ist er in Apex referenzierbar und nach einem Deploy der
 `ParticipantPortalSharingService` in Gebrauch — siehe [Abschnitt Apex Sharing
 Reason](#apex-sharing-reason-portal_access__c).
 
+#### Validierungsregeln auf `Appointment__c` (angelegt 2026-10-15)
+
+```text
+Classic → Setup → Build → Customize → Objects
+        → Termin (Objektnamen anklicken)
+        → Related List „Validation Rules" → New
+```
+
+Drei Regeln, Error Location jeweils **Top of Page**, Active:
+
+| Regel | Bedingung |
+| --- | --- |
+| `Status_Confirmed_Requires_ConfirmedAt` | `AND(ISPICKVAL(Status__c, "Confirmed"), ISBLANK(ConfirmedAt__c))` |
+| `Status_Completed_Requires_CompletedAt` | `AND(ISPICKVAL(Status__c, "Completed"), ISBLANK(CompletedAt__c))` |
+| `Status_Cancelled_Requires_Reason` | `AND(ISPICKVAL(Status__c, "Cancelled"), ISBLANK(CancellationReason__c))` |
+
+`CustomValidationRule` fehlt wie `ApexSharingReason` in der Registry des `@salesforce/cli`.
+Zusatzproblem: die XML-Dateien im Repo lassen **jeden** Deploy scheitern, der `Appointment__c`
+anfasst. Sie liegen deshalb ausschließlich in
+[g1-manual-checklist.md](g1-manual-checklist.md), nicht im Quellbaum.
+
+**Nachweis:** neun DML-Proben auf einem Wegwerf-Termin, beide Richtungen — je Status eine
+Abweisung ohne das Begleitfeld und ein Durchgang mit. Details in
+[ADR-014](portal/architecture-decisions.md).
+
+**Folge:** `TERM-0001` und `TERM-0002` sind `Confirmed` ohne `ConfirmedAt__c` und damit
+**nicht mehr bearbeitbar** — gemessen, eine Änderung an `Notes__c` wird abgewiesen und
+lässt das Feld unverändert. Nicht rückwirkend reparieren; die fachliche Entscheidung steht aus.
+
 #### Login-Site: das React-Login wird ausgeliefert (geklärt 2026-10-01)
 
 **Die Site ist richtig konfiguriert.** `/organisatorv1/login` liefert das React-Bundle:
