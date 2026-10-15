@@ -572,9 +572,39 @@ anfasst. Sie liegen deshalb ausschließlich in
 Abweisung ohne das Begleitfeld und ein Durchgang mit. Details in
 [ADR-014](portal/architecture-decisions.md).
 
-**Folge:** `TERM-0001` und `TERM-0002` sind `Confirmed` ohne `ConfirmedAt__c` und damit
-**nicht mehr bearbeitbar** — gemessen, eine Änderung an `Notes__c` wird abgewiesen und
-lässt das Feld unverändert. Nicht rückwirkend reparieren; die fachliche Entscheidung steht aus.
+**Folge:** Beide Datensätze sind nicht mehr **isoliert** bearbeitbar — jede Änderung
+muss den Verstoß im selben Speichervorgang beseitigen. `Status__c → Draft` ist dagegen
+eine zulässige Reparatur; gemessen wurde beides (Proben P1 und P3/P6). Die Formulierung
+„eingefroren“ ist damit **unzutreffend**, siehe [ADR-014](portal/architecture-decisions.md).
+
+### Bekannter Altfall: TERM-0002
+
+`TERM-0002` (`a0u9X00000SSahxQAD`) steht am 2026-10-15 absichtlich unverändert auf
+`Confirmed` ohne `ConfirmedAt__c`.
+
+| | |
+| --- | --- |
+| Teilnehmer | Mehmet Kaya, `Active`, mit Portal-User |
+| Termin | 20.10.2026 10:00–11:00, Zoom, Coach Frank Blum |
+| Portal-Share | vorhanden — im Portal sichtbar |
+| Audit-Events | **keine** |
+| Erstellt | 14.10.2026 09:37, danach einmal geändert |
+| Geändert | 15.10.2026 11:17 (Rücksetzung einer Teständerung) |
+
+Nicht angefasst, weil eine technische Inkonsistenz keine potenziell falsche fachliche
+Korrektur rechtfertigt: Eine Rücksetzung auf `Draft` erzeugt unmittelbar die sichtbare
+Aussage gegenüber dem Teilnehmer, der Termin sei nur ein Entwurf. Dafür fehlt der Beleg.
+
+`AppointmentIntegrityService.findInconsistent()` meldet ihn bei jedem Lauf weiter —
+der Befund verschwindet nicht, nur weil er einmal angesehen wurde.
+
+Zu entscheiden nach Sichtung der Änderungshistorie: **A** kein Beleg → `Draft` nach
+Freigabe · **B** Zeitpunkt belegbar → `Confirmed` bleibt und `ConfirmedAt__c` bekommt den
+belegten Wert, als eigene Reparaturart · **C** wahrscheinlich, Zeitpunkt unbekannt →
+dokumentierte Ausnahme. Fall C ist die unangenehme Mitte: jeder Eingriff erfindet eine
+Aussage.
+
+Details und die Messung in [ADR-015](portal/architecture-decisions.md).
 
 #### Login-Site: das React-Login wird ausgeliefert (geklärt 2026-10-01)
 

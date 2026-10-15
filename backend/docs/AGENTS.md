@@ -1119,6 +1119,44 @@ The same rules also froze two pre-existing records (`TERM-0001`, `TERM-0002`): t
 deliberately rather than repaired by inventing a confirmation date — a timestamp is a
 historical event, and back-filling the creation date would be a guess.
 
+### 17. `@TestSetup` static variables do not survive into the test method
+
+Measured 2026-10-15 in `hubSandbox`. `AppointmentIntegrityServiceTest` failed every
+test that read a `private static Id` assigned inside `@TestSetup` — the value arrived
+as `null`. Two separate things were proven, in that order:
+
+| Observation | Result |
+|---|---|
+| Does the DML from `@TestSetup` persist? | **yes** — a `[SELECT COUNT()]` in the test saw the row |
+| Does the static variable assigned there arrive? | **null** |
+
+Reproduced with `static void` and with `public static void`, with the declaration at
+class level and on a private field. The fix in that test is to find the fixture by a
+marker field instead:
+
+```apex
+private static final String MARKER = 'https://…/marker';
+
+private static Id fixtureId() {
+    List<Appointment__c> found = [SELECT Id FROM Appointment__c WHERE MeetingLink__c = :MARKER LIMIT 1];
+    if (found.isEmpty()) { throw new …('Testtermin fehlt — TestSetup hat nicht gelaufen.'); }
+    return found[0].Id;
+}
+```
+
+The throw matters as much as the query: it turns "the fixture vanished" into a named
+failure instead of a `List index out of bounds` somewhere else.
+
+**Rule: in a test, prove the data exists — do not trust a variable.** Two other
+lessons from the same debugging session, both about believing a green result:
+
+- **A failed deploy can print `Succeeded`.** Grepping the output for that word matched
+  text that was not the deploy status. Always check the process exit code and the
+  JSON `status`, not a word in stdout. Twice in one session a silently failed deploy
+  made it look like TestSetup was not running at all.
+- **Custom exception classes must end in `Exception`.** `ZzDiagMarker` was rejected
+  with `Classes extending Exception must have a name ending in Exception`.
+
 ### 16. Why the rules are not in the repo
 
 `CustomValidationRule` is missing from the `@salesforce/cli` registry, the same gap as

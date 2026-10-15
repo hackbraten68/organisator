@@ -112,6 +112,16 @@ Zwei Dinge, die dabei regelmäßig falsch eingeschätzt werden:
   Die Felderamen am besten aus der Autovervollständigung des Editors wählen statt
   abzutippen — dann stimmt die Schreibweise sicher.
 
+  **Folge der Regeln für Altbestand:** Datensätze, die vor ihrem Anlegen angelegt wurden,
+  erfüllen sie nicht. Das ist kein Fehler im Datenbestand, sondern in der Zeitfolge — und
+  es bedeutet nicht, dass sie gesperrt wären: Die Regel prüft das **Ergebnis** eines
+  Speicherns, deshalb ist `Status__c → Draft` eine zulässige Reparatur, während jede
+  andere Änderung scheitert. Ein benannter Weg dafür steht in
+  `AppointmentIntegrityService` (deploybar, siehe
+  [ADR-015](portal/architecture-decisions.md)); `findInconsistent()` findet Altbestand,
+  `repair()` führt ihn zurück. Der aktuell bekannte Fall, `TERM-0002`, ist dort
+  dokumentiert und ausdrücklich nicht angefasst.
+
   Absichtlich **keine** Regel für `NoShow`: der Status hat kein Datenfeld. Und **keine**
   Regel „`Completed` braucht `ConfirmedAt__c`" — die beiden Zeitpunkte sind unabhängige
   historische Ereignisse, siehe ADR-014.

@@ -1,11 +1,11 @@
 # Architecture Decisions — Teilnehmerportal
 
 **Stand:** 2026-10-15
-**Status:** ADR-001 bis ADR-012 vom 2026-09-29 bestätigt; ADR-013 und ADR-014 am
+**Status:** ADR-001 bis ADR-012 vom 2026-09-29 bestätigt; ADR-013 bis ADR-015 am
 2026-10-14/15 aus einer Messung in der Live-Site entstanden und ebenfalls entschieden
 **Umsetzung:** [`portal-access-plan.md`](./portal-access-plan.md)
 
-Vierzehn Entscheidungen, die den Portal-Aufbau bestimmen. Wer eine ändern will, ändert den
+Fünfzehn Entscheidungen, die den Portal-Aufbau bestimmen. Wer eine ändern will, ändert den
 Eintrag hier mit Datum — nicht stillschweigend den Code.
 
 **Manuelle Setup-Schritte, die aus dem Repo nicht deploybar sind** und ohne die ein Deploy
@@ -15,6 +15,9 @@ scheitert oder nicht übersetzt:
 | --- | --- | --- |
 | Apex Sharing Reason `Portal_Access__c` | `Participant__c`, `Learning_Path__c`, `Appointment__c`, `Coach_Profile__c`, `Program__c` | ADR-013 |
 | Validierungsregeln auf `Appointment__c` | drei Regeln, siehe [g1-manual-checklist.md](../g1-manual-checklist.md) | ADR-014 |
+
+Alles Übrige aus [ADR-015](#adr-015--ein-benannter-weg-für-altbestand-der-die-invarianten-verletzt)
+— `AppointmentIntegrityService` samt Tests — ist regulär aus dem Repo deploybar.
 
 ---
 
@@ -834,3 +837,155 @@ Erstellungsdatum als solchen zu setzen wäre geraten. Diese beiden Sätze gehör
   erzeugen
 - `appointmentPicklist.test.ts` hält die Bundle-Liste gegen das Deploy-Metadatum, in beide
   Richtungen — ein einseitiger Eingriff wäre dort aufgefallen
+
+## ADR-015 — Ein benannter Weg für Altbestand, der die Invarianten verletzt
+
+**Status:** Mechanismus entschieden und deployed (2026-10-15). Datenreparatur an
+TERM-0001 **steht aus**, bewusst zurückgestellt bis zur Sichtung der Änderungshistorie.
+
+### Der Fehler in der Beschreibung „eingefroren“
+
+Nach dem Anlegen der drei Validierungsregeln galt TERM-0001 und TERM-0002 als
+„eingefroren“. Das ist falsch, und die Messung steckt in den eigenen Proben:
+
+| Probe | Ausgangslage | Ergebnis nach dem Speichern | Gegangen? |
+|---|---|---|---|
+| P2 | `Confirmed` **mit** Zeitstempel | `Confirmed` mit Zeitstempel | ja |
+| P8 | `Cancelled` **mit** Grund | `Cancelled` mit Grund | ja |
+| P9 | `Confirmed` **ohne** Zeitstempel | nur `Notes__c` geändert → Endzustand weiter verletzt | **nein** |
+
+Die Regel prüft das **Ergebnis** eines Speichervorgangs, nicht dessen Vorgeschichte.
+P9 scheitert nicht, weil der Datensatz gesperrt wäre, sondern weil das Ergebnis
+weiter verletzt. Präzise heißt es:
+
+> TERM-0001 und TERM-0002 sind änderbar, aber jede Änderung muss den Verstoß im
+> selben Speichervorgang beseitigen. Ein isoliertes Ändern eines anderen Feldes ist
+> nicht möglich — `Status__c → Draft` dagegen ist eine zulässige Reparatur.
+
+### Warum trotzdem ein Service
+
+Die Reparatur ist technisch ein Update. Der Wert liegt im **benannten,
+wiederholbaren und auditierten** Weg — und in `findInconsistent()` für den nächsten
+historischen Ausreißer. Ohne das wäre die Bereinigung in drei Wochen wieder ein
+Ad-hoc-Skript.
+
+`AppointmentIntegrityService`:
+
+| Methode | Zweck | DML |
+|---|---|---|
+| `findInconsistent()` | org-weite Suche, **benannte Befunde** | nein |
+| `planRepair(ids, reason)` | deterministischer Plan je Datensatz, inkl. Warnungen | nein |
+| `repair(ids, reason)` | Ausführung, all-or-none je Datensatz | ja |
+
+### Befund-Vokabular statt „inkonsistent“
+
+| Code | Bedingung | Reparatur |
+|---|---|---|
+| `CONFIRMED_WITHOUT_CONFIRMED_AT` | `Confirmed` ∧ Zeitstempel leer | `reset_to_draft` |
+| `COMPLETED_WITHOUT_COMPLETED_AT` | `Completed` ∧ Zeitstempel leer | `reset_to_draft` |
+| `CANCELLED_WITHOUT_REASON` | `Cancelled` ∧ Grund leer | `reset_to_draft` |
+
+`CancellationReason__c` ist ein Long Text Area und **nicht** in WHERE filterbar
+(`field 'CancellationReason__c' can not be filtered in a query call`). Cancelled-Sätze
+kommen deshalb breit herein und werden in Apex geprüft.
+
+**Nur eine Reparaturart gebaut.** `reset_to_draft` und „Bestätigung aus Belegen
+rekonstruieren“ sind verschiedene Vorgänge mit verschiedener Beweislage. Die zweite
+Art existiert nicht — und soll auch erst dann entstehen, wenn es einen belastbaren
+Zeitpunkt zu rekonstruieren gibt.
+
+### Atomarität — die Stelle, an der Apex überrascht
+
+Ein abgefangener DML-Fehler lässt ein vorher erfolgreiches Update **stehen**. Genau
+das ist der Zustand, der nicht entstehen darf: Termin auf `Draft`, kein Audit-Event.
+Deshalb je Datensatz ein Savepoint statt `try/catch`:
+
+```apex
+Savepoint sp = Database.setSavepoint();
+Database.SaveResult updateResult = Database.update(change, false);
+if (!updateResult.isSuccess()) { Database.rollback(sp); … }
+Database.SaveResult auditResult = Database.insert(audit, false);
+if (!auditResult.isSuccess()) { Database.rollback(sp); … }
+```
+
+`allOrNone=false` umgeht die Validierungsregeln nicht, es **sammelt** ihre Meldung —
+die Fehlermeldung kommt damit programmatisch statt als Ausnahme.
+
+### Wächter
+
+- **Begründung ist Pflicht.** `isBlank` nach `trim` wirft; zusätzlich Mindestlänge
+  und Obergrenze von 1 000 (`AuditEvent__c.Reason__c`). Eine zu lange Begründung
+  wird **abgelehnt, nicht gekürzt**.
+- **Notizanhang, nie Überschreiben.** Format mit Datum, Befund, Ziel und Grund.
+  Überschreitet der Anhang 32 768 Zeichen (`Appointment__c.Notes__c`), wird der
+  Datensatz aus dem Lauf ausgeschlossen — mit Meldung, ohne Kürzung.
+- **Kein impliziter Batch.** `repair(findInconsistent(), …)` existiert nicht.
+  TERM-0002 bleibt erkannt und sichtbar, aber unangetastet.
+- **TOCTOU.** `repair()` prüft unmittelbar vor dem Update erneut. Zwischen Plan und
+  Ausführung wurde zwischenzeitlich korrekt bestätigt, wird **übersprungen**,
+  niemals zurückgesetzt.
+
+### Audit-Event
+
+`Action__c` sagt, **was** technisch geschah (`reset_to_draft`), `Reason__c`, **warum**
+in diesem Einzelfall. Alle Picklist-Werte existieren bereits — `Source__c =
+automation` ist ein erlaubter Wert, es braucht **keinen** manuellen Setup-Schritt.
+
+### Testgrenzen — drei Ebenen, ausdrücklich
+
+1. **Voll testbar:** Begründungswächter, Planstruktur, Notizformatierung als reine
+   Funktion, Audit-Payload, No-op-Pfad, Fremd-Id. 19 Tests.
+2. **Nur negativ testbar:** `findInconsistent()` an sauberer Fixture beweist *keine*
+   Falschpositive — **nicht**, dass echte Verstöße gefunden werden.
+3. **Nicht isolierbar:** der End-to-End-Pfad. Die aktive Regel verhindert das Anlegen
+   inkonsistenter Sätze — **auch im Testkontext**.
+
+Ebene 3 wird durch den kontrollierten Lauf ersetzt, nicht durch einen Test, der die
+Regel umgeht.
+
+### Messung (2026-10-15, Live, ohne Datenänderung)
+
+| Schritt | Ergebnis |
+|---|---|
+| `findInconsistent()` | **genau 2**: TERM-0001 und TERM-0002, beide `CONFIRMED_WITHOUT_CONFIRMED_AT` |
+| `planRepair([TERM-0001], …)` | `approved=true`, `executable=true`, Ziel `Draft`, Ereignis `appointment.legacy_repaired` |
+| Gegenprobe TERM-0002 | **Warnung greift**: „Portal-Share vorhanden — die Rücksetzung ändert den teilnehmerseitig sichtbaren Status. Ausdrückliche Freigabe nötig.“ |
+| Kontrolle nach dem Plan | `LastModifiedDate` beider Datensätze unverändert, **0** `appointment.legacy_repaired`-Events |
+
+Der Wächter gegen die falsche Datenmenge arbeitet damit nachweislich.
+
+### Offen: TERM-0002 bleibt bewusst inkonsistent
+
+Nach dieser Entscheidung ist TERM-0002 unverändert `Confirmed` ohne Zeitstempel und
+taucht bei jedem künftigen `findInconsistent()` auf. Das ist Absicht: Der Befund
+verschwindet nicht, nur weil er einmal angesehen wurde.
+
+Zu entscheiden, sobald die Änderungshistorie gesichtet ist:
+
+- **A — keine Bestätigung belegbar:** `Draft` wäre die vorsichtigere Aussage, aber
+  erst nach ausdrücklicher Freigabe.
+- **B — Zeitpunkt belegbar:** `Confirmed` bleibt, `ConfirmedAt__c` bekommt den
+  **belegten** Wert, als eigene Reparaturart. Kein Erstellungsdatum als Beweis.
+- **C — wahrscheinlich, Zeitpunkt unbekannt:** als dokumentierte Ausnahme stehen
+  lassen. **Fall C ist die unangenehme Mitte** — jeder Eingriff erfindet eine
+  Aussage.
+
+TERM-0002 ist fachlich plausibel (aktiver Teilnehmer, Portal-Share, Termin am
+20.10.2026, eine Stunde Dauer). Eine technische Inkonsistenz rechtfertigt keine
+potenziell falsche fachliche Korrektur.
+
+## Umgebungsbefund — `@TestSetup` und statische Variablen
+
+Bei `AppointmentIntegrityServiceTest` waren alle Tests rot, die eine statische Variable
+aus `@TestSetup` benutzt haben. Gemessen am 2026-10-15:
+
+| Beobachtung | Ergebnis |
+|---|---|
+| DML aus `@TestSetup` persistiert | **ja** |
+| Statisch gesetzte Variable im Test | **null** |
+
+Unabhängig von Zugriffsstufe und Deklaration. Der Test umging die Datenexistenz über
+`MeetingLink__c = MARKER` statt über eine gespeicherte Id.
+
+Die Lehre ist nicht „TestSetup ist kaputt“, sondern: **im Test die Datenexistenz
+belegen, nicht eine Variable.** Siehe `backend/docs/AGENTS.md`.
