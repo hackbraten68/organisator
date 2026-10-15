@@ -608,6 +608,9 @@ private class ParticipantPortalSharingServiceTest {
         // Name is not writeable on Appointment__c — the platform generates it.
         Appointment__c appointment = new Appointment__c(
             Status__c = 'Confirmed',
+            // Pflicht seit der Validierungsregel Status_Confirmed_Requires_ConfirmedAt
+            // (Classic, manuell — siehe backend/docs/g1-manual-checklist.md).
+            ConfirmedAt__c = Datetime.newInstanceGmt(2026, 11, 15, 9, 0, 0),
             Type__c = 'Coaching',
             StartTime__c = Datetime.newInstanceGmt(2026, 11, 20, 10, 0, 0),
             EndTime__c = Datetime.newInstanceGmt(2026, 11, 20, 11, 0, 0),
@@ -1068,6 +1071,18 @@ private class ParticipantPortalSharingServiceTest {
             StartTime__c = Datetime.newInstanceGmt(2026, 10, 20, 10, 0, 0),
             EndTime__c = Datetime.newInstanceGmt(2026, 10, 20, 11, 0, 0)
         );
+        // Die Begleitdaten mitgeben, die die Validierungsregel fuer den gewaehlten
+        // Status verlangt. Ohne das schlaegt die Regel zu und der Test scheitert
+        // an etwas, das nichts mit dem Gegenstand des Tests zu tun hat — genau
+        // das war der erste Symptom: acht Tests brachen nach dem Anlegen der
+        // Regeln ab. Die Zeitpunkte sind hier egal, es geht um die Shares.
+        if (status == 'Confirmed') {
+            appointment.ConfirmedAt__c = Datetime.newInstanceGmt(2026, 10, 15, 9, 0, 0);
+        } else if (status == 'Completed') {
+            appointment.CompletedAt__c = Datetime.newInstanceGmt(2026, 10, 20, 11, 0, 0);
+        } else if (status == 'Cancelled') {
+            appointment.CancellationReason__c = 'Testgrund';
+        }
         insert appointment;
         return appointment;
     }
