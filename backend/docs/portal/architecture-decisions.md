@@ -753,18 +753,59 @@ Die drei Regeln (`Confirmed` braucht `ConfirmedAt__c`, `Completed` braucht
 `CompletedAt__c`, `Cancelled` braucht `CancellationReason__c`) stehen in
 `backend/docs/g1-manual-checklist.md`, **nicht** im Repo: `CustomValidationRule` fehlt im
 Registry des `@salesforce/cli`, und die XML-Dateien im Repo lassen *jeden* Deploy des
-Objekts scheitern (`unable to find matching parent xml file for ValidationRule`).
-Manuell in Classic anlegen, wie die `ApexSharingReason`.
+Objekts scheitern (`unable to find matching parent xml file for ValidationRule`) — sowohl
+über `--source-dir objects/Appointment__c` als auch über ein Manifest mit
+`CustomValidationRule`-Membern. Manuell in Classic angelegt, wie die `ApexSharingReason`.
 
-Ein Trigger wäre erst die richtige Wahl, wenn Salesforce den Zeitstempel **selbst**
-setzen soll. Das ist hier nicht der Fall — die Mutationen liefern ihn bereits — also wäre
-er zusätzliche Logik ohne zusätzliche Absicherung.
+Ein Trigger wäre erst die richtige Wahl, wenn Salesforce den Zeitstempel **selbst** setzen
+soll. Das ist hier nicht der Fall — die Mutationen liefern ihn bereits — also wäre er
+zusätzliche Logik ohne zusätzliche Absicherung.
+
+#### Nachweis (2026-10-15, Live)
+
+Regeln lassen sich über keine API auslesen; belegt sind sie deshalb nur funktional. Wegwerf-
+Termin angelegt, neun DML-Proben, jede einzeln, Ausgangslage danach wiederhergestellt:
+
+| Probe | Erwartung | Ergebnis |
+|---|---|---|
+| 0 `Notes__c` bei Status Draft | OK | **OK** — Kontrollprobe, sonst wäre eine Abweisung nicht interpretierbar |
+| 1 `Confirmed` ohne Zeitstempel | abweisen | **abgewiesen** — `Bestätigter Termin ohne Bestätigungszeitpunkt` |
+| 2 `Confirmed` mit Zeitstempel | OK | **OK** |
+| 3 zurück auf Draft, Zeitstempel leeren | OK | **OK** |
+| 4 `Completed` ohne Zeitstempel | abweisen | **abgewiesen** — `Abgeschlossener Termin ohne Abschlusszeitpunkt` |
+| 5 `Completed` mit Zeitstempel | OK | **OK** |
+| 6 zurück auf Draft, Zeitstempel leeren | OK | **OK** |
+| 7 `Cancelled` ohne Grund | abweisen | **abgewiesen** — `Abgesagter Termin ohne Absagegrund` |
+| 8 `Cancelled` mit Grund | OK | **OK** |
+
+Beide Richtungen sind nötig: eine Regel, die auch gültige Speicherungen blockiert, wäre
+schlimmer als gar keine, und das zeigt erst der Gegentest.
+
+Probe 9 auf `TERM-0001`: eine Änderung an `Notes__c` wird abgewiesen, das Feld bleibt
+`null`. Damit ist der eingefrorene Altbestand belegt und nicht bloß behauptet.
+
+Nach dem Aufräumen: 5 Termine, 4 `Coach_Profile__`-Shares, 1 `Program__`-Share — die
+Ausgangslage vor der Messung.
+
+#### Ein Editorfehler, der hier Zeit gekostet hat
+
+Die erste Fassung der Formeln trug das Präfix `$Object.` und wurde mit
+`Field $Object.Status__c does not exist. Check spelling.` abgelehnt. Bei einem **Custom
+Object** werden die Felder ohne Präfix referenziert; das Präfig gehört in Formeln, die über
+einen Lookup auf ein übergeordnetes Objekt gehen. Die korrigierte Fassung steht in der
+Checkliste, mit dem Hinweis — sonst schreibt das der nächste nach.
 
 ### Was das für bestehende Daten bedeutet
 
-Die Regeln feuern bei jeder Änderung, auch wenn der Status schon gesetzt war. Damit
-werden **TERM-0001 und TERM-0002 nach dem Anlegen der Regeln nicht mehr bearbeitbar** —
-jede Änderung, auch ein Coach-Wechsel, scheitert an der Regel.
+Die Regeln feuern bei jeder Änderung, auch wenn der Status schon gesetzt war. Damit sind
+**TERM-0001 und TERM-0002 nicht mehr bearbeitbar** — jede Änderung, auch ein
+Coach-Wechsel, scheitert an der Regel. Das war vorher eine Befürchtung und ist jetzt
+gemessen: eine Änderung an `TERM-0001.Notes__c` wird abgewiesen, das Feld bleibt `null`
+(Probe 9 oben).
+
+Das trifft auch den Testfall, an dem die Trigger aus ADR-013 gemessen wurden — dieser
+Termin ist für weitere Probes nicht mehr verwendbar. Für die Messung selbst war es nicht
+schlimm, weil der Wegwerf-Termin eigene Statuswechsel durchlaufen hat.
 
 Bewusst in Kauf genommen: beide Datensätze sind ohnehin fachlich ungeklärt, ein
 eingefrorener Datensatz blockiert keine produktive Arbeit. **Nicht** rückwirkend

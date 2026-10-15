@@ -93,11 +93,24 @@ Zwei Dinge, die dabei regelmäßig falsch eingeschätzt werden:
         → Related List „Validation Rules" → New
   ```
 
+  **Kein `$Object.`-Präfix.** Der Editor lehnt es hier ab — bei einem Custom Object werden
+  die Felder mit ihrem API-Namen ohne Präfix referenziert. Mit Präfix antwortet er
+  `Field $Object.Status__c does not exist. Check spelling.` (gemessen 2026-10-15). Das
+  Präfig gehört in Formeln, die über einen Lookup auf ein übergeordnetes Objekt gehen, nicht
+  in die Regel auf dem Objekt selbst.
+
   | Regel | Bedingung (WHEN) | Fehlermeldung |
   | --- | --- | --- |
-  | `Status_Confirmed_Requires_ConfirmedAt` | `ISPICKVAL($Object.Status__c,"Confirmed"),ISBLANK($Object.ConfirmedAt__c)` | Bestätigter Termin ohne Bestätigungszeitpunkt. Bitte "ConfirmedAt__c" füllen. |
-  | `Status_Completed_Requires_CompletedAt` | `ISPICKVAL($Object.Status__c,"Completed"),ISBLANK($Object.CompletedAt__c)` | Abgeschlossener Termin ohne Abschlusszeitpunkt. Bitte "CompletedAt__c" füllen. |
-  | `Status_Cancelled_Requires_Reason` | `ISPICKVAL($Object.Status__c,"Cancelled"),ISBLANK($Object.CancellationReason__c)` | Abgesagter Termin ohne Absagegrund. Bitte "CancellationReason__c" füllen. |
+  | `Status_Confirmed_Requires_ConfirmedAt` | `AND(ISPICKVAL(Status__c, "Confirmed"), ISBLANK(ConfirmedAt__c))` | Bestätigter Termin ohne Bestätigungszeitpunkt. Bitte "ConfirmedAt__c" füllen. |
+  | `Status_Completed_Requires_CompletedAt` | `AND(ISPICKVAL(Status__c, "Completed"), ISBLANK(CompletedAt__c))` | Abgeschlossener Termin ohne Abschlusszeitpunkt. Bitte "CompletedAt__c" füllen. |
+  | `Status_Cancelled_Requires_Reason` | `AND(ISPICKVAL(Status__c, "Cancelled"), ISBLANK(CancellationReason__c))` | Abgesagter Termin ohne Absagegrund. Bitte "CancellationReason__c" füllen. |
+
+  Error Location jeweils **Top of Page**, Active anhaken. „Field" wäre irreführend: Die
+  Regel feuert, wenn jemand den **Status** ändert, und der Fehler würde dann unter dem
+  Datumsfeld erscheinen, das niemand angefasst hat.
+
+  Die Felderamen am besten aus der Autovervollständigung des Editors wählen statt
+  abzutippen — dann stimmt die Schreibweise sicher.
 
   Absichtlich **keine** Regel für `NoShow`: der Status hat kein Datenfeld. Und **keine**
   Regel „`Completed` braucht `ConfirmedAt__c`" — die beiden Zeitpunkte sind unabhängige
