@@ -609,6 +609,44 @@ die wie ein Syntaxproblem aussehen.
   Damit ist belegt, dass der Share die Ursache ist und nicht ein Zufall oder ein
   gecachter Wert.
 
+#### Trigger im echten Betrieb (2026-10-14)
+
+Die Unit-Tests prüfen den Plan, nicht die Trigger. Vier Datenänderungen in der Sandbox,
+jede gegen Share-Stand und Live-Endpunkt gemessen:
+
+| Schritt | Änderung | Share-Stand | coachName |
+|---|---|---|---|
+| S1 | Coach am bestätigten Termin von Frank auf Sam | 4 → **3** | Frank → Sam |
+| S2a | zweiter Termin mit Sandra | **3**, Sandra genau 1 | unverändert |
+| S2b | diesen zweiten Termin wieder gelöscht | **3**, Sandra weiter **1** | unverändert |
+| S2c | letzte Sandra-Beziehung weg, Frank dazu | **3**, Sandra raus, Frank rein | Sandra → Frank |
+| S3 | `Coach_Profile__c` für Coach Test angelegt | 3 → **4** | `null` → `Coach Test` |
+
+**S2b ist der eigentliche Nachweis.** Zwei Beziehungen zu Sandra, eine fällt weg, die
+Freigabe bleibt bestehen — weil der Sollzustand aus *allen* Beziehungen neu berechnet
+wird. Ereignisweises Löschen hätte hier 2 ergeben. Genau das ist die Eigenschaft, die
+der Reconcile von einer naiven Triggerlogik unterscheidet, und sie war vorher nur als
+Testidee dokumentiert.
+
+S3 zeigt die Gegenrichtung: es wurde **kein Termin angefasst**, nur ein Coach-Profil
+angelegt. `CoachProfilePortalSharing` hat daran die Freigabe erteilt und der Termin
+zeigt erstmals einen Namen. Dieser Trigger hatte vorher nie ausgelöst.
+
+Bei S1, S2c und S3 wurde vor der Messung **kein** `synchroniseReferencesAll()` aufgerufen.
+Hätte man es getan, hätte die Selbstheilung einen fehlenden Share repariert und der
+Trigger-Erfolg wäre nicht mehr von ihr zu unterscheiden gewesen.
+
+Zwei Korrekturen an der Planung während der Durchführung:
+
+- Der Ausgangswert für S2 stand in der Planung auf 4, tatsächlich waren es nach S1 noch 3.
+  Die Erwartung „4 → 3" war damit falsch; korrekt ist „3 → 3, dafür wechselt die
+  Zusammensetzung". Bei S2c bedeutet das sogar Entzug **und** Erteilung in einem Schritt.
+- Die Diagnose, ein fehlender Tab sei der Grund für den fehlenden „Records"-Eintrag in
+  Object Manager, war **falsch**. Der Tab existierte nach dem Anlegen, „Records" erschien
+  trotzdem nicht. In dieser Salesforce-Version führt die Objektseite schlicht keinen
+  solchen Eintrag; Datensätze sind über den Tab erreichbar. Der Tab ist trotzdem sinnvoll,
+  er macht „Termine" im App Launcher auffindbar.
+
 ### Testnähe, die absichtlich eine Schwäche festhält
 
 `planForCoachProfiles()` prüft **nicht** selbst, ob eine Share dem richtigen User gehört —
