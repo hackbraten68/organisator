@@ -306,7 +306,7 @@ public class AppointmentIntegrityService {
             AuditEvent__c audit = buildAuditEvent(row, finding, reason);
             Savepoint sp = Database.setSavepoint();
 
-            Appointment__c change = new Appointment__c(Id = row.Id, Status__c = 'Draft');
+            Appointment__c change = buildUpdate(row, finding, reason);
             Database.SaveResult updateResult = Database.update(change, false);
             if (!updateResult.isSuccess()) {
                 Database.rollback(sp);
@@ -331,6 +331,24 @@ public class AppointmentIntegrityService {
         }
 
         return result;
+    }
+
+    /**
+     * Der Datensatz, der geschrieben wird. Reine Funktion, ohne DML.
+     *
+     * Ausgelagert, weil das Inline-Bauen des Update-Objekts einen echten Fehler
+     * versteckt hat: Am 2026-10-15 wurde im ersten Lauf nur `Status__c`
+     * geschrieben, die berechnete Notiz landete im Audit-Event und nie am
+     * Datensatz. Ein Test auf `repair()` haette das nicht gesehen — die Fixture
+     * laesst sich nicht bauen (siehe Dateikopf). Als eigene Methode ist es
+     * ohne inkonsistenten Datensatz pruefbar.
+     */
+    public static Appointment__c buildUpdate(Appointment__c row, String finding, String reason) {
+        return new Appointment__c(
+            Id = row.Id,
+            Status__c = 'Draft',
+            Notes__c = buildNotesEntry(row, finding, reason)
+        );
     }
 
     /**
@@ -374,7 +392,16 @@ public class AppointmentIntegrityService {
      */
     public static AuditEvent__c buildAuditEvent(Appointment__c row, String finding, String reason) {
         return new AuditEvent__c(
-            Action__c = RESET_TO_DRAFT,
+            // `Action__c` ist eine RESTRICTED Picklist und kennt kein
+            // `reset_to_draft`. Die Unterscheidung trägt deshalb `EventType__c`,
+            // das ein freies Textfeld ist: Maschinenlesbar bleibt die Reparatur
+            // über `appointment.legacy_repaired`, während `Action__c` korrekt
+            // nur sagt, dass geschrieben wurde.
+            //
+            // Erster Lauf am 2026-10-15: mit `reset_to_draft` scheiterte der
+            // Audit-Insert, und der Savepoint hat das Update zurückgerollt.
+            // Genau der Zustand, den die Absicherung verhindern soll.
+            Action__c = 'updated',
             ActorId__c = UserInfo.getUserId(),
             ActorType__c = 'staff',
             Changes__c = JSON.serialize(

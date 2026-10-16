@@ -577,6 +577,24 @@ muss den Verstoß im selben Speichervorgang beseitigen. `Status__c → Draft` is
 eine zulässige Reparatur; gemessen wurde beides (Proben P1 und P3/P6). Die Formulierung
 „eingefroren“ ist damit **unzutreffend**, siehe [ADR-014](portal/architecture-decisions.md).
 
+### Geborgen: TERM-0001
+
+`TERM-0001` (`a0u9X00000RzRbdQAF`, Aylin Yilmaz) wurde am **16.10.2026** auf `Draft`
+zurückgesetzt. Beleg:
+
+| | |
+| --- | --- |
+| Grund | `[Legacy-Repair 2026-10-15] Confirmed ohne ConfirmedAt; als Testdatensatz klassifiziert (11 Tage Dauer, Onboarding, kein Portal-User, nie bearbeitet); Ruecksetzung auf Draft freigegeben.` |
+| `Status__c` | `Draft` |
+| `Notes__c` | `[2026-10-16 Legacy-Reparatur] Status von Confirmed auf Draft zurückgesetzt (CONFIRMED_WITHOUT_CONFIRMED_AT → reset_to_draft). Grund: …` |
+| Audit | `appointment.legacy_repaired`, `Action__c = updated`, `Source__c = automation`, `CorrelationId__c = repair-a0u9X00000RzRbdQAF` |
+| Idempotenz | zweiter Aufruf → `SKIPPED_NOT_INCONSISTENT`, Event-Zahl 1 → 1 |
+
+Die Beweislage ohne Setup-Historie: `LastModifiedDate == CreatedDate` (01.10.2026
+20:54:05) belegt, dass seit der Erstellung **kein** DML erfolgt ist; das
+Audit-Event zeigt `Status__c: null → Confirmed`. Der Status war also bei der Anlage
+gesetzt und wurde nie geändert.
+
 ### Bekannter Altfall: TERM-0002
 
 `TERM-0002` (`a0u9X00000SSahxQAD`) steht am 2026-10-15 absichtlich unverändert auf
@@ -603,6 +621,11 @@ Freigabe · **B** Zeitpunkt belegbar → `Confirmed` bleibt und `ConfirmedAt__c`
 belegten Wert, als eigene Reparaturart · **C** wahrscheinlich, Zeitpunkt unbekannt →
 dokumentierte Ausnahme. Fall C ist die unangenehme Mitte: jeder Eingriff erfindet eine
 Aussage.
+
+Die Änderungshistorie im Setup wurde **nicht** eingesehen — sie war aus der Ferne
+nicht erreichbar. Für TERM-0002 wäre sie ohnehin die einzige Quelle, die einen
+externen, also nicht über die App gelaufenen Statuswechsel zeigen könnte; die
+Restunsicherheit bleibt damit bestehen und ist hier festgehalten.
 
 Details und die Messung in [ADR-015](portal/architecture-decisions.md).
 

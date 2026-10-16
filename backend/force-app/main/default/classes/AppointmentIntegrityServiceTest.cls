@@ -313,7 +313,15 @@ private class AppointmentIntegrityServiceTest {
         System.assertNotEquals(null, audit.SubjectType__c, 'SubjectType__c');
         System.assertNotEquals(null, audit.Visibility__c, 'Visibility__c');
 
-        System.assertEquals('reset_to_draft', audit.Action__c, 'Action sagt, was technisch geschah');
+        // `Action__c` ist restricted und kennt kein `reset_to_draft`. Die
+        // Unterscheidung traegt EventType__c — sonst waere die Reparatur von
+        // einem normalen Schreibvorgang nicht zu trennen.
+        System.assertEquals('updated', audit.Action__c, 'Action__c nimmt einen vorhandenen Wert');
+        System.assertEquals(
+            'appointment.legacy_repaired',
+            audit.EventType__c,
+            'EventType__c traegt die Unterscheidung der Reparatur'
+        );
         System.assertEquals(REASON, audit.Reason__c, 'Reason sagt, warum in diesem Fall');
         System.assertEquals('automation', audit.Source__c, 'die Quelle ist automation — ein zulaessiger Wert');
         System.assertEquals('staff', audit.ActorType__c, 'Akteur ist staff');
@@ -334,6 +342,31 @@ private class AppointmentIntegrityServiceTest {
         System.assert(audit.Changes__c.contains('Status__c'), 'die Aenderung ist benannt');
         System.assert(audit.Changes__c.contains('Confirmed'), 'der alte Wert steht drin');
         System.assert(audit.ChangedFields__c.contains('Notes__c'), 'auch die Notiz ist Teil der Aenderung');
+    }
+
+    @IsTest
+    static void dasUpdateSchreibtStatusUndNotiz() {
+        // Regression auf einen echten Fehler vom 2026-10-15: `repair()` schrieb
+        // nur `Status__c`. Die berechnete Notiz stand im Audit-Event und nie am
+        // Datensatz — und `repair()` selbst ist hier nicht testbar, weil die
+        // Validierungsregel die Fixture verhindert. Ausgelagert in `buildUpdate()`
+        // ist genau das pruefbar.
+        Appointment__c row = new Appointment__c(
+            Id = cleanAppointmentId(),
+            Status__c = 'Confirmed',
+            ConfirmedAt__c = null
+        );
+
+        Appointment__c change = AppointmentIntegrityService.buildUpdate(
+            row,
+            AppointmentIntegrityService.CONFIRMED_WITHOUT_CONFIRMED_AT,
+            REASON
+        );
+
+        System.assertEquals('Draft', change.Status__c, 'der Status wird zurueckgesetzt');
+        System.assertNotEquals(null, change.Notes__c, 'die Notiz wird geschrieben, nicht nur berechnet');
+        System.assert(change.Notes__c.contains(REASON), 'die Begruendung steht in der Notiz');
+        System.assert(change.Notes__c.contains('Legacy-Reparatur'), 'der Eintrag ist als solcher erkennbar');
     }
 
     @IsTest

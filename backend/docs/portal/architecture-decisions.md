@@ -943,6 +943,74 @@ automation` ist ein erlaubter Wert, es braucht **keinen** manuellen Setup-Schrit
 Ebene 3 wird durch den kontrollierten Lauf ersetzt, nicht durch einen Test, der die
 Regel umgeht.
 
+### Durchgeführter Lauf (2026-10-15, TERM-0001)
+
+Zehn Schritte, jeder mit Ergebnis — die Reihenfolge ist die aus der Planung.
+
+| # | Schritt | Ergebnis |
+|---|---|---|
+| 1–4 | Vorherzustand, `findInconsistent()`, `planRepair()`, Gegenprobe | siehe „Erkundung“ unten |
+| 5 | Vorherzustand TERM-0001 festgehalten | `Confirmed`, Zeitstempel leer, `Notes__c` leer, `LastModifiedDate == CreatedDate` |
+| 6 | **Erster Reparaturversuch** | **FAILED, vollständig zurückgerollt** — siehe Vorfall 1 |
+| 7 | Zweiter Versuch nach Korrektur | **REPAIRED** |
+| 8 | Audit-Event vollständig geprüft | alle elf Pflichtfelder gesetzt, `Changes__c` mit altem und neuem Wert |
+| 9 | Zweiter Aufruf | `SKIPPED_NOT_INCONSISTENT`, Events **1 → 1**, kein zweites Event |
+| 10 | TERM-0002 verifiziert | Status, Zeitstempel, `Notes__c`, `LastModifiedDate` und Share **alle unverändert**; `findInconsistent()` meldet nur noch ihn |
+
+Ergebnis TERM-0001: `Status__c = Draft`, `ConfirmedAt__c` leer, `Notes__c` mit dem
+Eintrag, ein `appointment.legacy_repaired`-Event mit `Source__c = automation` und
+`CorrelationId__c = repair-a0u9X00000RzRbdQAF`.
+
+#### Vorfall 1 — die Atomarität hat sich bezahlt gemacht
+
+Der erste Versuch scheiterte:
+
+```text
+FAILED  Audit-Event fehlgeschlagen, Update zurückgerollt:
+        INVALID_OR_NULL_FOR_RESTRICTED_PICKLIST:
+        Action: bad value for restricted picklist field: reset_to_draft
+```
+
+`Action__c` ist eine **restricted** Picklist mit 30 Werten — `reset_to_draft` ist
+keiner davon. (Erste Fehldiagnose meinerseits: es sah nach einer Drift zwischen
+Repo und Org aus, weil ein abgeschnittenes `grep -A20` nur vier Werte zeigte. Repo
+und Org enthalten dieselben 30 Werte.)
+
+Ohne Savepoint wäre jetzt ein Termin auf `Draft` gestanden **ohne** Audit-Event —
+genau der Zustand, den die Konstruktion ausschließen soll. Nach dem Fehler waren
+`Status__c` weiter `Confirmed`, `Notes__c` leer und `LastModifiedDate` unverändert
+01.10.: **der Rollback war vollständig.**
+
+Korrektur: `Action__c = 'updated'`. Die Unterscheidung trägt `EventType__c`, das ein
+freies Textfeld ist und `appointment.legacy_repaired` zulässt. Maschinenlesbar bleibt
+die Reparatur damit vollständig.
+
+#### Vorfall 2 — ein echter Fehler, den die Verifikation gefunden hat
+
+Der erste erfolgreiche Lauf setzte **nur** `Status__c`. Die berechnete Notiz landete
+im `Changes__c` des Audit-Events und **nie am Datensatz** — `Notes__c` blieb leer.
+
+Der Grund ist strukturell: Das Update-Objekt wurde inline in `repair()` gebaut, und
+`repair()` ist mit realistischer Fixture **nicht testbar** (Ebene 3 im Testkopf). Ein
+Fehler dort hätte ungetestet in die Org gehen können.
+
+Behoben durch `buildUpdate()` — eine reine Funktion ohne DML. Damit war genau das
+prüfbar, was vorher nur behauptet werden konnte:
+
+```apex
+@Test
+static void dasUpdateSchreibtStatusUndNotiz() {
+    // Regression auf den Fehler vom 2026-10-15
+    Appointment__c change = AppointmentIntegrityService.buildUpdate(row, finding, reason);
+    System.assertEquals('Draft', change.Status__c, …);
+    System.assertNotEquals(null, change.Notes__c, 'die Notiz wird geschrieben, nicht nur berechnet');
+}
+```
+
+Die fehlende Notiz an TERM-0001 wurde danach mit `buildNotesEntry()` **aus dem Service
+selbst** nachgetragen, nicht von Hand getippt, und mit dem rekonstruierten
+Ausgangsstatus, damit der Eintrag korrekt „von Confirmed auf Draft“ lautet.
+
 ### Messung (2026-10-15, Live, ohne Datenänderung)
 
 | Schritt | Ergebnis |
