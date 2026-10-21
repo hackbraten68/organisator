@@ -841,7 +841,8 @@ Erstellungsdatum als solchen zu setzen wäre geraten. Diese beiden Sätze gehör
 ### Folgepunkt (2026-10-21): Einheitlicher Fehlervertrag für Create und Edit
 
 **Status:** offen — Umsetzung zusammen mit dem Kollisionsschutz (D2), bewusst nicht im
-Montagspaket vom 2026-10-21
+Montagspaket vom 2026-10-21. Die fachliche Regel steht in ADR-016; diese ADR bleibt das
+übergeordnete Prinzip und wird nicht ersetzt.
 
 `ParticipantAppointmentsTab.handleCreate` verschluckt Fehler derzeit, während
 `handleEditSubmit` Fehler nach dem Toast erneut wirft. Dadurch kann der Anlegen-Dialog trotz
@@ -1083,6 +1084,110 @@ Zu entscheiden, sobald die Änderungshistorie gesichtet ist:
 TERM-0002 ist fachlich plausibel (aktiver Teilnehmer, Portal-Share, Termin am
 20.10.2026, eine Stunde Dauer). Eine technische Inkonsistenz rechtfertigt keine
 potenziell falsche fachliche Korrektur.
+
+## ADR-016 — Terminüberschneidungen zentral beim Schreiben verhindern
+
+**Status:** Regel entschieden (2026-10-21), Umsetzung steht aus (D2, Woche „Terminbearbeitung")
+**Abgrenzung:** ADR-014 bleibt das übergeordnete Prinzip („genau ein Weg in jeden fachlichen
+Zustand"). Diese ADR konkretisiert es für Zeitüberschneidungen; der Create-Fehlervertrag aus dem
+Folgepunkt in ADR-014 gehört zu derselben Regel.
+
+### Der Anlass
+
+`AppointmentEditService` prüft heute den Zustand eines Termins (Draft-Gate, Feld-Whitelist,
+`start < end`) — aber **nicht**, ob die gewünschte Zeit mit einem anderen Termin desselben
+Coaches kollidiert. Ein Coach kann dieselbe Stunde an zwei Teilnehmende vergeben. Die
+Oberfläche kann das nicht erkennen: ihr fehlt die Sicht auf alle Termine eines Coachs.
+
+Ein zweiter Befund kam aus derselben Woche: Zeit ließe sich über `RescheduleAppointment`
+(UI-API) und über den neuen Apex-Einstiegspunkt verändern — zwei Wege, zwei Regeln. Solange
+das so bleibt, ist „nur der sichtbare Pfad ist abgesichert" keine Zusage, sondern eine
+Hoffnung.
+
+### Die Regel
+
+Der Schutz liegt **serverseitig auf `Appointment__c`**, in einem Trigger (`Before Insert`,
+`Before Update`), der **jeden** Schreibweg sieht: UI-API, Apex REST, Data Loader, anderer
+Client. Eine Prüfung in der Oberfläche oder in einer Serviceklasse wäre nur eine zusätzliche
+Tür, die jemand offen lässt.
+
+Der Trigger ist damit die **zentrale letzte Schutzschicht** — nicht die einzige. Der
+fachliche Zustand (D1) bleibt im benannten Einstiegspunkt, die Oberfläche filtert nur aus
+Bequemlichkeit. Umgekehrt gilt: wer einen Schreibweg auslässt, verliert den Schutz nicht,
+weil der Trigger über allen Wegen sitzt.
+
+### Was gilt
+
+| Fall | Regel |
+|---|---|
+| Zeitüberschneidung beim Anlegen | abgewiesen |
+| Zeitüberschneidung beim Bearbeiten | abgewiesen |
+| Zeitüberschneidung beim Verschieben | abgewiesen |
+| Coach-Wechsel, der in eine belegte Zeit führt | abgewiesen |
+| `start >= end` | abgewiesen |
+| direkt angrenzende Termine (Ende = Beginn des nächsten) | erlaubt |
+| der eigene Datensatz | von der Prüfung ausgenommen |
+
+**Blockierende Status:** `Draft`, `Finding`, `Confirmed`, `Completed`, `NoShow`.
+**Nicht blockierend:** `Cancelled` — eine stornierte Zeit ist frei.
+
+`NoShow` blockiert: der Zeitraum war belegt, der Coach stand nicht zur Verfügung. Ein NoShow
+ist kein stornierter Termin. Historische Daten betrifft das überwiegend, die fachliche
+Semantik bleibt sauber.
+
+**Anlegen und Bearbeiten behandeln `409 Conflict` identisch:** derselbe Fehlercode, dieselbe
+Meldung, derselbe Dialog — offen, mit erhaltenen Eingaben. Der Create-Pfad ist dabei
+nachzuziehen (siehe „Folgepunkt" in ADR-014).
+
+### Zeitwerte
+
+Vor dem Vergleich werden die Zeitwerte **konsistent normalisiert**: Salesforce-DateTime
+speichert in UTC, `datetime-local` liefert Wanduhrzeit ohne Zone. Verglichen wird in
+einem einheitlichen Format, sonst verschiebt sich ein Termin um Stunden. `start < end` wird
+auf denselben Werten geprüft.
+
+### Konflikte werden vor dem Schreiben erkannt
+
+Der Trigger läuft **vor** dem Schreiben (`Before`). Ein Konflikt ist damit ein abgelehnter
+Schreibversuch, kein nachträglich reparierter Datensatz: der Termin bleibt unverändert, es
+entsteht kein Teilzustand.
+
+### Audit und Transaktion
+
+Die fachliche Änderung und ihr Audit-Event bleiben **transaktional konsistent**: gelingt das
+Audit nicht, wird die fachliche Änderung zurückgerollt. `AppointmentEditService` macht das
+bereits über Savepoint und `Database.rollback`; dieselbe Disziplin gilt für jeden weiteren
+Schreibpfad.
+
+### Abgrenzung zur Wochenplan-Materialisation
+
+Die Materialisation aus dem Wochenplan (Termine aus Planzeilen erzeugen) schreibt Termine.
+Sie darf **erst aktiviert werden, wenn dieser Schutz steht** — sonst erzeugt der Wochenplan
+genau die Doppelbelegung, die er verhindern soll. Der Schritt ist im Schrittkatalog als S19
+geführt: `docs/plans/wochenplan/2026-10-21-wochenplan-schritte.md`.
+
+### Ausnahmen
+
+Für **bewusst** in Kauf genommene historische Überschneidungen gibt es **keine allgemeine
+Ausnahme**. Solche Fälle brauchen einen **ausdrücklich benannten Administrationspfad** mit
+eigener Begründungspflicht — kein stiller Schalter am Wächter. Der Pfad ist noch nicht
+entworfen; das ist ein offener Punkt, kein Detail.
+
+### Offene Punkte
+
+- Administrationspfad für bewusst gewollte historische Überschneidungen
+- Zeitanzeige in Coach- und Teilnehmer-Zeitzone gegen den in UTC verglichenen Werten: die
+  Grenzfälle (Termin über Mitternacht, Sommer-/Winterzeit) sind zu belegen, bevor der
+  Wächter freigeschaltet wird
+- `Finding` (Terminfindung) belegt den Slot wie `Confirmed` — die fachliche Bestätigung dafür
+  steht unter den Statuswerten in der Tabelle oben
+
+### Tests
+
+Die Testmatrix steht in der Wochenplan-Planung, Abschnitt 4.3, einschließlich der Fälle 15
+und 16. Für den Wächter selbst gilt: die Matrix muss **beide Richtungen** prüfen — eine
+Regel, die auch gültige Speicherungen blockiert, wäre schlimmer als gar keine. Dieselbe
+Erfahrung wie bei den Validation Rules in ADR-015.
 
 ## Umgebungsbefund — `@TestSetup` und statische Variablen
 
