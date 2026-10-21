@@ -1,6 +1,6 @@
 # Setup Worklist — Academy data model in `hubSandbox`
 
-**Stand:** 2026-10-14
+**Stand:** 2026-10-21
 **Zweck:** anleitung zum Anlegen aller Objekte und Felder von Hand in Salesforce Setup.
 
 ## Warum von Hand
@@ -31,11 +31,18 @@ sein Zielfeld existiert. Die 5 Wurzelobjekte sind unabhaengig.
 | 4 | `Contact` | 1 | — (Wurzelobjekt) |
 | 5 | `Program__c` | 3 | — (Wurzelobjekt) |
 | 6 | `Module__c` | 3 | `Program__c` |
-| 7 | `Participant__c` | 12 | `Coach_Profile__c`, `Contact`, `Program__c` |
-| 8 | `Absence__c` | 11 | `Participant__c` |
-| 9 | `Appointment__c` | 13 | `Participant__c` |
-| 10 | `AuditEvent__c` | 22 | `Participant__c` |
-| 11 | `Learning_Path__c` | 6 | `Participant__c`, `Program__c` |
+| 7 | `ParticipantGroup__c` | 3 | `Coach_Profile__c`, `Program__c` |
+| 8 | `Participant__c` | 12 | `Coach_Profile__c`, `Contact`, `Program__c` |
+| 9 | `Absence__c` | 11 | `Participant__c` |
+| 10 | `Appointment__c` | 13 | `Participant__c` |
+| 11 | `AuditEvent__c` | 22 | `Participant__c` |
+| 12 | `Learning_Path__c` | 6 | `Participant__c`, `Program__c` |
+| 13 | `ParticipantGroupMember__c` | 3 | `ParticipantGroup__c`, `Participant__c` |
+| 14 | `ProgramWeek__c` | 5 | `Module__c`, `Program__c` |
+| 15 | `ScheduleTemplate__c` | 5 | `Module__c`, `ProgramWeek__c`, `Program__c` |
+| 16 | `WeeklySchedule__c` | 13 | `ParticipantGroup__c`, `Participant__c`, `ProgramWeek__c`, `ScheduleTemplate__c` |
+| 17 | `ScheduleEntry__c` | 22 | `Coach_Profile__c`, `ParticipantGroup__c`, `Participant__c`, `ScheduleEntry__c`, `ScheduleTemplate__c`, `WeeklySchedule__c` |
+| 18 | `TaskCompletion__c` | 5 | `Participant__c`, `ScheduleEntry__c` |
 
 ---
 
@@ -50,6 +57,7 @@ sein Zielfeld existiert. Die 5 Wurzelobjekte sind unabhaengig.
 | Setup form field | Enter |
 | --- | --- |
 | Label | Audit Outbox |
+| Object Name (API) | `AuditOutbox__c` |
 | Plural Label | Audit Outbox Entries |
 | Record Name | AutoNumber |
 | Display Format | OB-{000000} |
@@ -61,9 +69,11 @@ sein Zielfeld existiert. Die 5 Wurzelobjekte sind unabhaengig.
 | Allow Search | unchecked |
 | Allow in Chatter Groups | unchecked |
 
-> The API name is generated from the Label. After saving, Object Manager must show the API name `AuditOutbox__c`. If it differs, the object cannot be renamed — delete it and redo.
+> **Enter the API name exactly as given above.** Salesforce derives it from the Label, and for this object it would derive `Audit_Outbox__c` — not the name this project uses. The API name cannot be changed after saving: a wrong name means deleting the object and creating it again.
 >
 > **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
 
 ### Step 2 — Create the tab
 
@@ -78,7 +88,7 @@ sein Zielfeld existiert. Die 5 Wurzelobjekte sind unabhaengig.
 
 > Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
 >
-> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for all ten objects so the tabs end up together.
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
 
 ### Step 3 — Fields (9)
 
@@ -231,6 +241,7 @@ Values — enter **Value** and **Display Value** separately:
 | Setup form field | Enter |
 | --- | --- |
 | Label | Verfügbarkeits-Slot |
+| Object Name (API) | `AvailabilitySlot__c` |
 | Plural Label | Verfügbarkeits-Slots |
 | Record Name | AutoNumber |
 | Display Format | SLOT-{0000} |
@@ -242,9 +253,11 @@ Values — enter **Value** and **Display Value** separately:
 | Allow Search | checked |
 | Allow in Chatter Groups | unchecked |
 
-> The API name is generated from the Label. After saving, Object Manager must show the API name `AvailabilitySlot__c`. If it differs, the object cannot be renamed — delete it and redo.
+> **Enter the API name exactly as given above.** Salesforce derives it from the Label, and for this object it would derive `Verfuegbarkeits_Slot__c` — not the name this project uses. The API name cannot be changed after saving: a wrong name means deleting the object and creating it again.
 >
 > **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
 
 ### Step 2 — Create the tab
 
@@ -259,7 +272,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
 >
-> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for all ten objects so the tabs end up together.
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
 
 ### Step 3 — Fields (8)
 
@@ -403,6 +416,7 @@ Values — enter **Value** and **Display Value** separately:
 | Setup form field | Enter |
 | --- | --- |
 | Label | Coach Profile |
+| Object Name (API) | `Coach_Profile__c` |
 | Plural Label | Coach Profiles |
 | Record Name | Text |
 | Description | Die Person eines Coachs mit den fuer die Betreuung relevanten Stammdaten. Unterscheidet sich vom Contact: der Contact ist die Privatperson, das Coach-Profil die berufliche Rolle in der Academy. |
@@ -412,9 +426,11 @@ Values — enter **Value** and **Display Value** separately:
 | Allow Search | unchecked |
 | Allow in Chatter Groups | unchecked |
 
-> The API name is generated from the Label. After saving, Object Manager must show the API name `Coach_Profile__c`. If it differs, the object cannot be renamed — delete it and redo.
+> **Enter the API name exactly as given above.** It cannot be changed after saving.
 >
 > **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
 
 ### Step 2 — Create the tab
 
@@ -429,7 +445,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
 >
-> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for all ten objects so the tabs end up together.
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
 
 ### Step 3 — Fields (7)
 
@@ -576,6 +592,7 @@ Contact is a standard object and already exists. Only its custom fields are crea
 | Setup form field | Enter |
 | --- | --- |
 | Label | Program |
+| Object Name (API) | `Program__c` |
 | Plural Label | Programs |
 | Record Name | Text |
 | Description | Course Program |
@@ -585,9 +602,11 @@ Contact is a standard object and already exists. Only its custom fields are crea
 | Allow Search | unchecked |
 | Allow in Chatter Groups | unchecked |
 
-> The API name is generated from the Label. After saving, Object Manager must show the API name `Program__c`. If it differs, the object cannot be renamed — delete it and redo.
+> **Enter the API name exactly as given above.** It cannot be changed after saving.
 >
 > **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
 
 ### Step 2 — Create the tab
 
@@ -602,7 +621,7 @@ Contact is a standard object and already exists. Only its custom fields are crea
 
 > Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
 >
-> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for all ten objects so the tabs end up together.
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
 
 ### Step 3 — Fields (3)
 
@@ -671,6 +690,7 @@ Values — enter **Value** and **Display Value** separately:
 | Setup form field | Enter |
 | --- | --- |
 | Label | Module |
+| Object Name (API) | `Module__c` |
 | Plural Label | Modules |
 | Record Name | Text |
 | Description | Reuseable program content template |
@@ -680,9 +700,11 @@ Values — enter **Value** and **Display Value** separately:
 | Allow Search | unchecked |
 | Allow in Chatter Groups | unchecked |
 
-> The API name is generated from the Label. After saving, Object Manager must show the API name `Module__c`. If it differs, the object cannot be renamed — delete it and redo.
+> **Enter the API name exactly as given above.** It cannot be changed after saving.
 >
 > **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
 
 ### Step 2 — Create the tab
 
@@ -697,7 +719,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
 >
-> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for all ten objects so the tabs end up together.
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
 
 ### Step 3 — Fields (3)
 
@@ -751,6 +773,101 @@ Values — enter **Value** and **Display Value** separately:
 
 ---
 
+## ParticipantGroup__c
+
+**Fields:** 3 &nbsp;&nbsp; **Record Name:** Text
+
+### Step 1 — Create the object
+
+`Setup → Object Manager → Create → Custom Object`
+
+| Setup form field | Enter |
+| --- | --- |
+| Label | Teilnehmergruppe |
+| Object Name (API) | `ParticipantGroup__c` |
+| Plural Label | Teilnehmergruppen |
+| Record Name | Text |
+| Description | Gruppe von Teilnehmenden, die gemeinsam betreut wird |
+| Allow Reports | checked |
+| Allow Activities | unchecked |
+| Track Field History | checked |
+| Allow Search | checked |
+| Allow in Chatter Groups | unchecked |
+
+> **Enter the API name exactly as given above.** Salesforce derives it from the Label, and for this object it would derive `Teilnehmergruppe__c` — not the name this project uses. The API name cannot be changed after saving: a wrong name means deleting the object and creating it again.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
+
+### Step 2 — Create the tab
+
+`Setup → App Launcher → New → Object`
+
+| Setup form field | Enter |
+| --- | --- |
+| Category | any existing category — the repo defines none |
+| Tab | Teilnehmergruppe |
+| Tab Style | any |
+| Object | Teilnehmergruppe (`ParticipantGroup__c`) |
+
+> Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
+>
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
+
+### Step 3 — Fields (3)
+
+#### 1. `Description__c`
+
+`Object Manager → Teilnehmergruppe → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Text Area (Long) |
+| Field Label | Beschreibung |
+| Length | 32768 |
+| Lines to display | 3 |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Beschreibung der Gruppe |
+
+#### 2. `Coach_Profile__c`
+
+`Object Manager → Teilnehmergruppe → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Coach |
+| Related To | Coach_Profile__c |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Participant_Groups |
+| What happens when the related record is deleted | Set null |
+| Description | Coach der Gruppe |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 3. `Program__c`
+
+`Object Manager → Teilnehmergruppe → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Program |
+| Related To | Program__c |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Participant_Groups |
+| What happens when the related record is deleted | Set null |
+| Description | Programm, in dem die Gruppe laeuft |
+| Track Field History (Object-level, not per field) | see object step |
+
+---
+
 ## Participant__c
 
 **Fields:** 12 &nbsp;&nbsp; **Record Name:** Text
@@ -762,6 +879,7 @@ Values — enter **Value** and **Display Value** separately:
 | Setup form field | Enter |
 | --- | --- |
 | Label | Participant |
+| Object Name (API) | `Participant__c` |
 | Plural Label | Participants |
 | Record Name | Text |
 | Description | Participant Object |
@@ -771,9 +889,11 @@ Values — enter **Value** and **Display Value** separately:
 | Allow Search | unchecked |
 | Allow in Chatter Groups | unchecked |
 
-> The API name is generated from the Label. After saving, Object Manager must show the API name `Participant__c`. If it differs, the object cannot be renamed — delete it and redo.
+> **Enter the API name exactly as given above.** It cannot be changed after saving.
 >
 > **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
 
 ### Step 2 — Create the tab
 
@@ -788,7 +908,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
 >
-> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for all ten objects so the tabs end up together.
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
 
 ### Step 3 — Fields (12)
 
@@ -1001,6 +1121,7 @@ Values — enter **Value** and **Display Value** separately:
 | Setup form field | Enter |
 | --- | --- |
 | Label | Abwesenheit |
+| Object Name (API) | `Absence__c` |
 | Plural Label | Abwesenheiten |
 | Record Name | AutoNumber |
 | Display Format | ABS-{0000} |
@@ -1012,9 +1133,11 @@ Values — enter **Value** and **Display Value** separately:
 | Allow Search | checked |
 | Allow in Chatter Groups | unchecked |
 
-> The API name is generated from the Label. After saving, Object Manager must show the API name `Absence__c`. If it differs, the object cannot be renamed — delete it and redo.
+> **Enter the API name exactly as given above.** Salesforce derives it from the Label, and for this object it would derive `Abwesenheit__c` — not the name this project uses. The API name cannot be changed after saving: a wrong name means deleting the object and creating it again.
 >
 > **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
 
 ### Step 2 — Create the tab
 
@@ -1029,7 +1152,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
 >
-> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for all ten objects so the tabs end up together.
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
 
 ### Step 3 — Fields (11)
 
@@ -1231,6 +1354,7 @@ Values — enter **Value** and **Display Value** separately:
 | Setup form field | Enter |
 | --- | --- |
 | Label | Termin |
+| Object Name (API) | `Appointment__c` |
 | Plural Label | Termine |
 | Record Name | AutoNumber |
 | Display Format | TERM-{0000} |
@@ -1242,9 +1366,11 @@ Values — enter **Value** and **Display Value** separately:
 | Allow Search | checked |
 | Allow in Chatter Groups | unchecked |
 
-> The API name is generated from the Label. After saving, Object Manager must show the API name `Appointment__c`. If it differs, the object cannot be renamed — delete it and redo.
+> **Enter the API name exactly as given above.** Salesforce derives it from the Label, and for this object it would derive `Termin__c` — not the name this project uses. The API name cannot be changed after saving: a wrong name means deleting the object and creating it again.
 >
 > **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
 
 ### Step 2 — Create the tab
 
@@ -1259,7 +1385,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
 >
-> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for all ten objects so the tabs end up together.
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
 
 ### Step 3 — Fields (13)
 
@@ -1352,9 +1478,6 @@ Values — enter **Value** and **Display Value** separately:
 
 | Value (API name) | Display Value | Default |
 | --- | --- | --- |
-| `OnSite` | Vor Ort  <- different! | yes |
-| `Phone` | Telefon  <- different! |  |
-| `Hybrid` | Hybrid |  |
 | `Discord` | Discord |  |
 | `Zoom` | Zoom |  |
 | `Teams` | Teams |  |
@@ -1426,7 +1549,6 @@ Values — enter **Value** and **Display Value** separately:
 | `Finding` | Finding |  |
 | `Confirmed` | Confirmed |  |
 | `Completed` | Completed |  |
-| `Documented` | Documented |  |
 | `Cancelled` | Cancelled |  |
 | `NoShow` | NoShow |  |
 
@@ -1504,6 +1626,7 @@ Values — enter **Value** and **Display Value** separately:
 | Setup form field | Enter |
 | --- | --- |
 | Label | Audit Event |
+| Object Name (API) | `AuditEvent__c` |
 | Plural Label | Audit Events |
 | Record Name | AutoNumber |
 | Display Format | AE-{000000} |
@@ -1515,9 +1638,11 @@ Values — enter **Value** and **Display Value** separately:
 | Allow Search | unchecked |
 | Allow in Chatter Groups | unchecked |
 
-> The API name is generated from the Label. After saving, Object Manager must show the API name `AuditEvent__c`. If it differs, the object cannot be renamed — delete it and redo.
+> **Enter the API name exactly as given above.** Salesforce derives it from the Label, and for this object it would derive `Audit_Event__c` — not the name this project uses. The API name cannot be changed after saving: a wrong name means deleting the object and creating it again.
 >
 > **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
 
 ### Step 2 — Create the tab
 
@@ -1532,7 +1657,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
 >
-> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for all ten objects so the tabs end up together.
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
 
 ### Step 3 — Fields (22)
 
@@ -1950,6 +2075,7 @@ Values — enter **Value** and **Display Value** separately:
 | Setup form field | Enter |
 | --- | --- |
 | Label | Learning Path |
+| Object Name (API) | `Learning_Path__c` |
 | Plural Label | Learning Paths |
 | Record Name | AutoNumber |
 | Display Format | LP-{0000} |
@@ -1961,9 +2087,11 @@ Values — enter **Value** and **Display Value** separately:
 | Allow Search | unchecked |
 | Allow in Chatter Groups | unchecked |
 
-> The API name is generated from the Label. After saving, Object Manager must show the API name `Learning_Path__c`. If it differs, the object cannot be renamed — delete it and redo.
+> **Enter the API name exactly as given above.** It cannot be changed after saving.
 >
 > **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
 
 ### Step 2 — Create the tab
 
@@ -1978,7 +2106,7 @@ Values — enter **Value** and **Display Value** separately:
 
 > Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
 >
-> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for all ten objects so the tabs end up together.
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
 
 ### Step 3 — Fields (6)
 
@@ -2082,6 +2210,1225 @@ Values — enter **Value** and **Display Value** separately:
 
 ---
 
+## ParticipantGroupMember__c
+
+**Fields:** 3 &nbsp;&nbsp; **Record Name:** AutoNumber
+
+### Step 1 — Create the object
+
+`Setup → Object Manager → Create → Custom Object`
+
+| Setup form field | Enter |
+| --- | --- |
+| Label | Gruppenzuordnung |
+| Object Name (API) | `ParticipantGroupMember__c` |
+| Plural Label | Gruppenzuordnungen |
+| Record Name | AutoNumber |
+| Display Format | PGM-{0000} |
+| Starting Number | 1 |
+| Description | Zuordnung eines Teilnehmers zu einer Teilnehmergruppe |
+| Allow Reports | checked |
+| Allow Activities | unchecked |
+| Track Field History | checked |
+| Allow Search | checked |
+| Allow in Chatter Groups | unchecked |
+
+> **Enter the API name exactly as given above.** Salesforce derives it from the Label, and for this object it would derive `Gruppenzuordnung__c` — not the name this project uses. The API name cannot be changed after saving: a wrong name means deleting the object and creating it again.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
+
+### Step 2 — Create the tab
+
+`Setup → App Launcher → New → Object`
+
+| Setup form field | Enter |
+| --- | --- |
+| Category | any existing category — the repo defines none |
+| Tab | Gruppenzuordnung |
+| Tab Style | any |
+| Object | Gruppenzuordnung (`ParticipantGroupMember__c`) |
+
+> Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
+>
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
+
+### Step 3 — Fields (3)
+
+#### 1. `Order__c`
+
+`Object Manager → Gruppenzuordnung → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Number |
+| Field Label | Reihenfolge |
+| Length (total digits) | 3 |
+| Decimal Places | 0 |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Reihenfolge in der Gruppe |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 2. `ParticipantGroup__c`
+
+`Object Manager → Gruppenzuordnung → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Teilnehmergruppe |
+| Related To | ParticipantGroup__c |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Participant_Group_Members |
+| What happens when the related record is deleted | Restrict |
+| Description | Gruppe, der der Teilnehmer angehoert |
+| Track Field History (Object-level, not per field) | see object step |
+
+> **Set "Restrict delete" now.** It cannot be changed to a weaker setting later — only tightened.
+
+#### 3. `Participant__c`
+
+`Object Manager → Gruppenzuordnung → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Teilnehmer |
+| Related To | Participant__c |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Participant_Group_Members |
+| What happens when the related record is deleted | Restrict |
+| Description | Teilnehmer der Gruppe |
+| Track Field History (Object-level, not per field) | see object step |
+
+> **Set "Restrict delete" now.** It cannot be changed to a weaker setting later — only tightened.
+
+---
+
+## ProgramWeek__c
+
+**Fields:** 5 &nbsp;&nbsp; **Record Name:** Text
+
+### Step 1 — Create the object
+
+`Setup → Object Manager → Create → Custom Object`
+
+| Setup form field | Enter |
+| --- | --- |
+| Label | Kurswoche |
+| Object Name (API) | `ProgramWeek__c` |
+| Plural Label | Kurswochen |
+| Record Name | Text |
+| Description | Kurswoche (AZAV-Woche) innerhalb eines Programms |
+| Allow Reports | checked |
+| Allow Activities | unchecked |
+| Track Field History | checked |
+| Allow Search | checked |
+| Allow in Chatter Groups | unchecked |
+
+> **Enter the API name exactly as given above.** Salesforce derives it from the Label, and for this object it would derive `Kurswoche__c` — not the name this project uses. The API name cannot be changed after saving: a wrong name means deleting the object and creating it again.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
+
+### Step 2 — Create the tab
+
+`Setup → App Launcher → New → Object`
+
+| Setup form field | Enter |
+| --- | --- |
+| Category | any existing category — the repo defines none |
+| Tab | Kurswoche |
+| Tab Style | any |
+| Object | Kurswoche (`ProgramWeek__c`) |
+
+> Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
+>
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
+
+### Step 3 — Fields (5)
+
+#### 1. `Description__c`
+
+`Object Manager → Kurswoche → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Text Area (Long) |
+| Field Label | Beschreibung |
+| Length | 32768 |
+| Lines to display | 3 |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Didaktische Beschreibung der Kurswoche |
+
+#### 2. `Number__c`
+
+`Object Manager → Kurswoche → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Number |
+| Field Label | Woche |
+| Length (total digits) | 2 |
+| Decimal Places | 0 |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Wochenindex innerhalb des Programms (1..n). Eindeutigkeit je Program wird serverseitig geprueft |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 3. `Status__c`
+
+`Object Manager → Kurswoche → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Picklist |
+| Field Label | Status |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Restrict picklist to the values defined in the value set | checked |
+| Description | Status der Kurswoche |
+| Track Field History (Object-level, not per field) | see object step |
+
+Values — enter **Value** and **Display Value** separately:
+
+| Value (API name) | Display Value | Default |
+| --- | --- | --- |
+| `Draft` | Draft | yes |
+| `Active` | Active |  |
+| `Completed` | Completed |  |
+
+#### 4. `Module__c`
+
+`Object Manager → Kurswoche → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Modul |
+| Related To | Module__c |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Program_Weeks |
+| What happens when the related record is deleted | Restrict |
+| Description | Modul, das in dieser Kurswoche behandelt wird |
+| Track Field History (Object-level, not per field) | see object step |
+
+> **Set "Restrict delete" now.** It cannot be changed to a weaker setting later — only tightened.
+
+#### 5. `Program__c`
+
+`Object Manager → Kurswoche → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Program |
+| Related To | Program__c |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Program_Weeks |
+| What happens when the related record is deleted | Restrict |
+| Description | Programm, zu dem die Kurswoche gehoert |
+| Track Field History (Object-level, not per field) | see object step |
+
+> **Set "Restrict delete" now.** It cannot be changed to a weaker setting later — only tightened.
+
+---
+
+## ScheduleTemplate__c
+
+**Fields:** 5 &nbsp;&nbsp; **Record Name:** Text
+
+### Step 1 — Create the object
+
+`Setup → Object Manager → Create → Custom Object`
+
+| Setup form field | Enter |
+| --- | --- |
+| Label | Wochenplan-Vorlage |
+| Object Name (API) | `ScheduleTemplate__c` |
+| Plural Label | Wochenplan-Vorlagen |
+| Record Name | Text |
+| Description | Wiederverwendbare Vorlage fuer Kurswochen oder Programme |
+| Allow Reports | checked |
+| Allow Activities | unchecked |
+| Track Field History | checked |
+| Allow Search | checked |
+| Allow in Chatter Groups | unchecked |
+
+> **Enter the API name exactly as given above.** Salesforce derives it from the Label, and for this object it would derive `Wochenplan_Vorlage__c` — not the name this project uses. The API name cannot be changed after saving: a wrong name means deleting the object and creating it again.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
+
+### Step 2 — Create the tab
+
+`Setup → App Launcher → New → Object`
+
+| Setup form field | Enter |
+| --- | --- |
+| Category | any existing category — the repo defines none |
+| Tab | Wochenplan-Vorlage |
+| Tab Style | any |
+| Object | Wochenplan-Vorlage (`ScheduleTemplate__c`) |
+
+> Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
+>
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
+
+### Step 3 — Fields (5)
+
+#### 1. `Description__c`
+
+`Object Manager → Wochenplan-Vorlage → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Text Area (Long) |
+| Field Label | Beschreibung |
+| Length | 32768 |
+| Lines to display | 3 |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Beschreibung der Vorlage |
+
+#### 2. `Status__c`
+
+`Object Manager → Wochenplan-Vorlage → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Picklist |
+| Field Label | Status |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Restrict picklist to the values defined in the value set | checked |
+| Description | Status der Vorlage |
+| Track Field History (Object-level, not per field) | see object step |
+
+Values — enter **Value** and **Display Value** separately:
+
+| Value (API name) | Display Value | Default |
+| --- | --- | --- |
+| `Active` | Active | yes |
+| `Inactive` | Inactive |  |
+
+#### 3. `Module__c`
+
+`Object Manager → Wochenplan-Vorlage → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Modul |
+| Related To | Module__c |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Schedule_Templates |
+| What happens when the related record is deleted | Set null |
+| Description | Fachliche Zuordnung, falls moduluebergreifend |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 4. `ProgramWeek__c`
+
+`Object Manager → Wochenplan-Vorlage → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Kurswoche |
+| Related To | ProgramWeek__c |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Schedule_Templates |
+| What happens when the related record is deleted | Set null |
+| Description | Regelfall: Vorlage fuer eine Kurswoche |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 5. `Program__c`
+
+`Object Manager → Wochenplan-Vorlage → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Program |
+| Related To | Program__c |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Schedule_Templates |
+| What happens when the related record is deleted | Set null |
+| Description | Vorlage fuer ein ganzes Programm |
+| Track Field History (Object-level, not per field) | see object step |
+
+---
+
+## WeeklySchedule__c
+
+**Fields:** 13 &nbsp;&nbsp; **Record Name:** Text
+
+### Step 1 — Create the object
+
+`Setup → Object Manager → Create → Custom Object`
+
+| Setup form field | Enter |
+| --- | --- |
+| Label | Wochenplan |
+| Object Name (API) | `WeeklySchedule__c` |
+| Plural Label | Wochenpläne |
+| Record Name | Text |
+| Description | Wochenplan-Instanz: eine konkrete Kalenderwoche fuer Kurs, Gruppe oder Teilnehmer |
+| Allow Reports | checked |
+| Allow Activities | unchecked |
+| Track Field History | checked |
+| Allow Search | checked |
+| Allow in Chatter Groups | unchecked |
+
+> **Enter the API name exactly as given above.** Salesforce derives it from the Label, and for this object it would derive `Wochenplan__c` — not the name this project uses. The API name cannot be changed after saving: a wrong name means deleting the object and creating it again.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
+
+### Step 2 — Create the tab
+
+`Setup → App Launcher → New → Object`
+
+| Setup form field | Enter |
+| --- | --- |
+| Category | any existing category — the repo defines none |
+| Tab | Wochenplan |
+| Tab Style | any |
+| Object | Wochenplan (`WeeklySchedule__c`) |
+
+> Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
+>
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
+
+### Step 3 — Fields (13)
+
+#### 1. `DeviationReason__c`
+
+`Object Manager → Wochenplan → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Text Area (Long) |
+| Field Label | Abweichungsbegründung |
+| Length | 32768 |
+| Lines to display | 4 |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Begruendung, warum diese Instanz vom Standard der Kurswoche abweicht |
+
+#### 2. `EndDate__c`
+
+`Object Manager → Wochenplan → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Date |
+| Field Label | Woche endet |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Letzter Tag der Woche |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 3. `Notes__c`
+
+`Object Manager → Wochenplan → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Text Area (Long) |
+| Field Label | Notizen |
+| Length | 32768 |
+| Lines to display | 4 |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Freie Notizen zum Wochenplan |
+
+#### 4. `PublishedAt__c`
+
+`Object Manager → Wochenplan → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Date/Time |
+| Field Label | Veröffentlicht am |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Zeitpunkt der Veroeffentlichung |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 5. `ScopeType__c`
+
+`Object Manager → Wochenplan → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Picklist |
+| Field Label | Geltungsbereich |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Restrict picklist to the values defined in the value set | checked |
+| Description | Course = Standard der Kurswoche, Group = eine Teilnehmergruppe, Individual = einzelne Teilnehmer |
+| Track Field History (Object-level, not per field) | see object step |
+
+Values — enter **Value** and **Display Value** separately:
+
+| Value (API name) | Display Value | Default |
+| --- | --- | --- |
+| `Course` | Course | yes |
+| `Group` | Group |  |
+| `Individual` | Individual |  |
+
+#### 6. `StartDate__c`
+
+`Object Manager → Wochenplan → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Date |
+| Field Label | Woche beginnt |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Montag der kalendarischen Woche dieser Instanz |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 7. `Status__c`
+
+`Object Manager → Wochenplan → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Picklist |
+| Field Label | Status |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Restrict picklist to the values defined in the value set | checked |
+| Description | Status der Woche |
+| Track Field History (Object-level, not per field) | see object step |
+
+Values — enter **Value** and **Display Value** separately:
+
+| Value (API name) | Display Value | Default |
+| --- | --- | --- |
+| `Draft` | Draft | yes |
+| `Published` | Published |  |
+
+#### 8. `TemplateAppliedAt__c`
+
+`Object Manager → Wochenplan → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Date/Time |
+| Field Label | Vorlage angewendet am |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Zeitpunkt, zu dem die Vorlage angewendet wurde |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 9. `AppliedTemplate__c`
+
+`Object Manager → Wochenplan → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Angewendete Vorlage |
+| Related To | ScheduleTemplate__c |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Weekly_Schedules |
+| What happens when the related record is deleted | Set null |
+| Description | Nur Provenienz, keine fachliche Verbindung |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 10. `ParticipantGroup__c`
+
+`Object Manager → Wochenplan → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Teilnehmergruppe |
+| Related To | ParticipantGroup__c |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Weekly_Schedules |
+| What happens when the related record is deleted | Set null |
+| Description | Nur bei ScopeType = Group |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 11. `Participant__c`
+
+`Object Manager → Wochenplan → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Teilnehmer |
+| Related To | Participant__c |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Weekly_Schedules |
+| What happens when the related record is deleted | Restrict |
+| Description | Nur bei ScopeType = Individual |
+| Track Field History (Object-level, not per field) | see object step |
+
+> **Set "Restrict delete" now.** It cannot be changed to a weaker setting later — only tightened.
+
+#### 12. `ProgramWeek__c`
+
+`Object Manager → Wochenplan → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Kurswoche |
+| Related To | ProgramWeek__c |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Weekly_Schedules |
+| What happens when the related record is deleted | Restrict |
+| Description | Kurswoche, die dieser Plan abbildet |
+| Track Field History (Object-level, not per field) | see object step |
+
+> **Set "Restrict delete" now.** It cannot be changed to a weaker setting later — only tightened.
+
+#### 13. `PublishedBy__c`
+
+`Object Manager → Wochenplan → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Veröffentlicht von |
+| Related To | User |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Weekly_Schedules |
+| What happens when the related record is deleted | Set null |
+| Description | Staff-Mitglied, das den Plan veroeffentlicht hat |
+| Track Field History (Object-level, not per field) | see object step |
+
+---
+
+## ScheduleEntry__c
+
+**Fields:** 22 &nbsp;&nbsp; **Record Name:** Text
+
+### Step 1 — Create the object
+
+`Setup → Object Manager → Create → Custom Object`
+
+| Setup form field | Enter |
+| --- | --- |
+| Label | Planzeile |
+| Object Name (API) | `ScheduleEntry__c` |
+| Plural Label | Planzeilen |
+| Record Name | Text |
+| Description | Planzeile eines Wochenplans: eine Aktivitaet oder eine Aufgabe |
+| Allow Reports | checked |
+| Allow Activities | unchecked |
+| Track Field History | checked |
+| Allow Search | checked |
+| Allow in Chatter Groups | unchecked |
+
+> **Enter the API name exactly as given above.** Salesforce derives it from the Label, and for this object it would derive `Planzeile__c` — not the name this project uses. The API name cannot be changed after saving: a wrong name means deleting the object and creating it again.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
+
+### Step 2 — Create the tab
+
+`Setup → App Launcher → New → Object`
+
+| Setup form field | Enter |
+| --- | --- |
+| Category | any existing category — the repo defines none |
+| Tab | Planzeile |
+| Tab Style | any |
+| Object | Planzeile (`ScheduleEntry__c`) |
+
+> Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
+>
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
+
+### Step 3 — Fields (22)
+
+#### 1. `Date__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Date |
+| Field Label | Datum |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | In Vorlagenzeilen leer, in Planzeilen serverseitig aus StartDate__c der Instanz und dem Wochentag berechnet |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 2. `DayOfWeek__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Picklist |
+| Field Label | Wochentag |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Restrict picklist to the values defined in the value set | checked |
+| Description | Wochentag der Planzeile; Date__c wird daraus und StartDate__c berechnet |
+| Track Field History (Object-level, not per field) | see object step |
+
+Values — enter **Value** and **Display Value** separately:
+
+| Value (API name) | Display Value | Default |
+| --- | --- | --- |
+| `Monday` | Monday | yes |
+| `Tuesday` | Tuesday |  |
+| `Wednesday` | Wednesday |  |
+| `Thursday` | Thursday |  |
+| `Friday` | Friday |  |
+| `Saturday` | Saturday |  |
+| `Sunday` | Sunday |  |
+
+#### 3. `Description__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Text Area (Long) |
+| Field Label | Beschreibung |
+| Length | 32768 |
+| Lines to display | 4 |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Standard-Aufgabenbeschreibung, editierbar |
+
+#### 4. `DeviationReason__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Text Area (Long) |
+| Field Label | Abweichungsbegründung |
+| Length | 32768 |
+| Lines to display | 4 |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Begruendung fuer die Abweichung dieser Zeile von der Vorlage |
+
+#### 5. `DurationMinutes__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Number |
+| Field Label | Dauer (Minuten) |
+| Length (total digits) | 4 |
+| Decimal Places | 0 |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Alternative zu EndTime__c |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 6. `EndTime__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Time |
+| Field Label | Bis |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Ende der Aktivitaet; bei Aufgaben leer |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 7. `EntryKind__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Picklist |
+| Field Label | Art |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Restrict picklist to the values defined in the value set | checked |
+| Description | Aktivitaet = Termin mit Uhrzeit, Aufgabe = Arbeit ohne festen Zeitpunkt |
+| Track Field History (Object-level, not per field) | see object step |
+
+Values — enter **Value** and **Display Value** separately:
+
+| Value (API name) | Display Value | Default |
+| --- | --- | --- |
+| `Aktivität` | Aktivität | yes |
+| `Aufgabe` | Aufgabe |  |
+
+#### 8. `IsCustomized__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Checkbox |
+| Field Label | Angepasst |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Nach dem Anwenden einer Vorlage nachtraeglich geaendert |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 9. `IsRequired__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Checkbox |
+| Field Label | Pflicht |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Pflichtbestandteil des AZAV-Standards |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 10. `Location__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Picklist |
+| Field Label | Ort |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Restrict picklist to the values defined in the value set | checked |
+| Description | Ort oder Kanal der Aktivitaet |
+| Track Field History (Object-level, not per field) | see object step |
+
+Values — enter **Value** and **Display Value** separately:
+
+| Value (API name) | Display Value | Default |
+| --- | --- | --- |
+| `Discord` | Discord |  |
+| `Zoom` | Zoom |  |
+| `Teams` | Teams |  |
+| `External` | External |  |
+| `Präsenz` | Präsenz |  |
+
+#### 11. `MeetingLink__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | URL |
+| Field Label | Meeting Link |
+| Length |  |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Link zum Online-Meeting |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 12. `Notes__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Text Area (Long) |
+| Field Label | Notizen |
+| Length | 32768 |
+| Lines to display | 4 |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Freie Notizen zur Planzeile |
+
+#### 13. `Order__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Number |
+| Field Label | Reihenfolge |
+| Length (total digits) | 3 |
+| Decimal Places | 0 |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Reihenfolge innerhalb des Tages |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 14. `StartTime__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Time |
+| Field Label | Von |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Beginn der Aktivitaet; bei Aufgaben leer |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 15. `TargetType__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Picklist |
+| Field Label | Zielgruppe |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Restrict picklist to the values defined in the value set | checked |
+| Description | Zielgruppe der Planzeile |
+| Track Field History (Object-level, not per field) | see object step |
+
+Values — enter **Value** and **Display Value** separately:
+
+| Value (API name) | Display Value | Default |
+| --- | --- | --- |
+| `Course` | Course | yes |
+| `Group` | Group |  |
+| `Individual` | Individual |  |
+
+#### 16. `Type__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Picklist |
+| Field Label | Typ |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Restrict picklist to the values defined in the value set | checked |
+| Description | Art der Aktivitaet oder Aufgabe |
+| Track Field History (Object-level, not per field) | see object step |
+
+Values — enter **Value** and **Display Value** separately:
+
+| Value (API name) | Display Value | Default |
+| --- | --- | --- |
+| `Einzelcoaching` | Einzelcoaching | yes |
+| `Gruppencoaching` | Gruppencoaching |  |
+| `Feedback` | Feedback |  |
+| `Projekt-Kick-off` | Projekt-Kick-off |  |
+| `Workshop` | Workshop |  |
+| `Selbstlernphase` | Selbstlernphase |  |
+| `Projektarbeit` | Projektarbeit |  |
+| `Sonstiges` | Sonstiges |  |
+
+#### 17. `Coach_Profile__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Coach |
+| Related To | Coach_Profile__c |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Schedule_Entries |
+| What happens when the related record is deleted | Set null |
+| Description | Fachliche Coach-Entitaet. Appointment__c.Coach__c zeigt dagegen auf User |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 18. `ParticipantGroup__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Teilnehmergruppe |
+| Related To | ParticipantGroup__c |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Schedule_Entries |
+| What happens when the related record is deleted | Set null |
+| Description | Nur bei TargetType = Group |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 19. `Participant__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Teilnehmer |
+| Related To | Participant__c |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Schedule_Entries |
+| What happens when the related record is deleted | Restrict |
+| Description | Nur bei TargetType = Individual |
+| Track Field History (Object-level, not per field) | see object step |
+
+> **Set "Restrict delete" now.** It cannot be changed to a weaker setting later — only tightened.
+
+#### 20. `ScheduleTemplate__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Vorlage |
+| Related To | ScheduleTemplate__c |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Schedule_Entries |
+| What happens when the related record is deleted | Restrict |
+| Description | Null = Planzeile. Genau eines von beiden muss gesetzt sein |
+| Track Field History (Object-level, not per field) | see object step |
+
+> **Set "Restrict delete" now.** It cannot be changed to a weaker setting later — only tightened.
+
+#### 21. `SourceTemplateEntry__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Aus Vorlageneintrag |
+| Related To | ScheduleEntry__c |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Source_Entries |
+| What happens when the related record is deleted | Set null |
+| Description | Herkunftsnachweis der kopierten Zeile |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 22. `WeeklySchedule__c`
+
+`Object Manager → Planzeile → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Wochenplan |
+| Related To | WeeklySchedule__c |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Schedule_Entries |
+| What happens when the related record is deleted | Restrict |
+| Description | Null = Vorlagenzeile |
+| Track Field History (Object-level, not per field) | see object step |
+
+> **Set "Restrict delete" now.** It cannot be changed to a weaker setting later — only tightened.
+
+---
+
+## TaskCompletion__c
+
+**Fields:** 5 &nbsp;&nbsp; **Record Name:** AutoNumber
+
+### Step 1 — Create the object
+
+`Setup → Object Manager → Create → Custom Object`
+
+| Setup form field | Enter |
+| --- | --- |
+| Label | Aufgabenerfüllung |
+| Object Name (API) | `TaskCompletion__c` |
+| Plural Label | Aufgabenerfüllungen |
+| Record Name | AutoNumber |
+| Display Format | TC-{0000} |
+| Starting Number | 1 |
+| Description | Erfuellung einer Planzeile durch einen Teilnehmer |
+| Allow Reports | checked |
+| Allow Activities | unchecked |
+| Track Field History | checked |
+| Allow Search | checked |
+| Allow in Chatter Groups | unchecked |
+
+> **Enter the API name exactly as given above.** Salesforce derives it from the Label, and for this object it would derive `Aufgabenerfuellung__c` — not the name this project uses. The API name cannot be changed after saving: a wrong name means deleting the object and creating it again.
+>
+> **Verify:** the repository sets `externalSharingModel` to `Private` on this object. It is not offered in the new-object form in current releases, so treat it as something to confirm afterwards, not something to click now. For the portal this matters: a non-private value would let external users see the object through a sharing rule without one. Check in Object Manager after creating every object in this list that is not a standard object.
+>
+> **Set the org-wide default by hand.** The form above does not set it. The OWD lives in `Setup → Sharing Settings` and is **not** part of the object metadata — neither a deploy nor a retrieve carries it, and it does not survive a sandbox refresh. Set it to **Private** (internal **and** external) unless the object needs broader access, then confirm it in `Setup → Sharing Settings`. Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing about an object that the repository cannot prove.
+
+### Step 2 — Create the tab
+
+`Setup → App Launcher → New → Object`
+
+| Setup form field | Enter |
+| --- | --- |
+| Category | any existing category — the repo defines none |
+| Tab | Aufgabenerfüllung |
+| Tab Style | any |
+| Object | Aufgabenerfüllung (`TaskCompletion__c`) |
+
+> Without a tab the object is invisible in Setup and you cannot reach the field screen. Do this before Step 3.
+>
+> The repository has no tab metadata of its own, so the category is not fixed by it. Whatever category you pick, keep it the same for every object in this list so the tabs end up together.
+
+### Step 3 — Fields (5)
+
+#### 1. `CompletedAt__c`
+
+`Object Manager → Aufgabenerfüllung → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Date/Time |
+| Field Label | Erfüllt am |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Zeitpunkt der Erfuellung |
+| Track Field History (Object-level, not per field) | see object step |
+
+#### 2. `DeviationReason__c`
+
+`Object Manager → Aufgabenerfüllung → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Text Area (Long) |
+| Field Label | Abweichungsbegründung |
+| Length | 32768 |
+| Lines to display | 4 |
+| Required | unchecked |
+| Unique | unchecked |
+| External ID | unchecked |
+| Description | Zum Beispiel: vorher schon erfuellt (Vorkenntnisse) |
+
+#### 3. `Status__c`
+
+`Object Manager → Aufgabenerfüllung → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Picklist |
+| Field Label | Status |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Restrict picklist to the values defined in the value set | checked |
+| Description | Erfuellungsstatus |
+| Track Field History (Object-level, not per field) | see object step |
+
+Values — enter **Value** and **Display Value** separately:
+
+| Value (API name) | Display Value | Default |
+| --- | --- | --- |
+| `Offen` | Offen | yes |
+| `Erfüllt` | Erfüllt |  |
+| `Entfällt` | Entfällt |  |
+
+#### 4. `Participant__c`
+
+`Object Manager → Aufgabenerfüllung → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Teilnehmer |
+| Related To | Participant__c |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Task_Completions |
+| What happens when the related record is deleted | Restrict |
+| Description | Teilnehmer, der die Aufgabe erfuellt hat |
+| Track Field History (Object-level, not per field) | see object step |
+
+> **Set "Restrict delete" now.** It cannot be changed to a weaker setting later — only tightened.
+
+#### 5. `ScheduleEntry__c`
+
+`Object Manager → Aufgabenerfüllung → Fields & Relationships → New`
+
+| Setup form field | Enter |
+| --- | --- |
+| Type | Lookup |
+| Field Label | Planzeile |
+| Related To | ScheduleEntry__c |
+| Required | [x] |
+| Unique | unchecked |
+| External ID | unchecked |
+| Relationship Name | Task_Completions |
+| What happens when the related record is deleted | Restrict |
+| Description | Planzeile, die erfuellt wurde |
+| Track Field History (Object-level, not per field) | see object step |
+
+> **Set "Restrict delete" now.** It cannot be changed to a weaker setting later — only tightened.
+
+---
+
 
 ## Nach der Anlage
 
@@ -2090,7 +3437,7 @@ cd backend
 npm run schema:check
 ```
 
-Exit 0 heisst: alle 95 Felder sind im Runtime-Schema und per SOQL abfragbar. **Achtung:**
+Exit 0 heisst: alle 151 Felder sind im Runtime-Schema und per SOQL abfragbar. **Achtung:**
 `schema-check` prueft nur die *Existenz* der Felder, nicht ihre Attribute. `required`,
 `unique`, Picklist-Werte, Laengen und Descriptions sind damit nicht abgedeckt.
 

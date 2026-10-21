@@ -15,6 +15,7 @@ gemischt) dadurch sichtbar wird. Das ist der Stand im Repository.
 """
 import glob
 import os
+import re
 import time
 import xml.etree.ElementTree as ET
 
@@ -62,6 +63,19 @@ def rows(*pairs):
     for label, value in pairs:
         out.append(f'| {label} | {value} |')
     return out
+
+
+def derived_api_name(label):
+    """Der API-Name, den Salesforce aus dem Label ableiten wuerde.
+
+    Nur ein Hinweis fuer die Anleitung — entscheidend ist der API-Name aus
+    dem Repository, nicht diese Ableitung.
+    """
+    s = (label.replace('ä', 'ae').replace('ö', 'oe')
+          .replace('ü', 'ue').replace('ß', 'ss'))
+    s = ''.join(ch if (ch.isalnum() and ch.isascii()) else '_' for ch in s)
+    s = re.sub(r'_+', '_', s).strip('_')
+    return f'{s}__c'
 
 
 def field_rows(root, name):
@@ -134,6 +148,7 @@ def create_object_block(obj, oroot, rn_type, rn_format):
     out.append('')
     pairs = [
         ('Label', txt(oroot, 'label')),
+        ('Object Name (API)', f'`{obj}`'),
         ('Plural Label', txt(oroot, 'pluralLabel')),
         ('Record Name', rn_type or 'Text'),
     ]
@@ -150,9 +165,16 @@ def create_object_block(obj, oroot, rn_type, rn_format):
     ]
     out += rows(*pairs)
     out.append('')
-    out.append('> The API name is generated from the Label. After saving, Object Manager must '
-               f'show the API name `{obj}`. If it differs, the object cannot be renamed — '
-               'delete it and redo.')
+    label = txt(oroot, 'label') or obj
+    derived = derived_api_name(label)
+    if derived != obj:
+        out.append(f'> **Enter the API name exactly as given above.** Salesforce derives it from '
+                   f'the Label, and for this object it would derive `{derived}` — not the name '
+                   f'this project uses. The API name cannot be changed after saving: a wrong '
+                   f'name means deleting the object and creating it again.')
+    else:
+        out.append('> **Enter the API name exactly as given above.** It cannot be changed '
+                   'after saving.')
     out.append('>')
     out.append(f'> **Verify:** the repository sets `externalSharingModel` to '
                f'`{txt(oroot, "externalSharingModel") or "not set"}` on this object. It is not '
@@ -161,6 +183,14 @@ def create_object_block(obj, oroot, rn_type, rn_format):
                'a non-private value would let external users see the object through a sharing '
                'rule without one. Check in Object Manager after creating every object '
                'in this list that is not a standard object.')
+    out.append('>')
+    out.append('> **Set the org-wide default by hand.** The form above does not set it. The '
+               'OWD lives in `Setup → Sharing Settings` and is **not** part of the object '
+               'metadata — neither a deploy nor a retrieve carries it, and it does not survive '
+               'a sandbox refresh. Set it to **Private** (internal **and** external) unless the '
+               'object needs broader access, then confirm it in `Setup → Sharing Settings`. '
+               'Record the step in `backend/docs/g1-manual-checklist.md` — it is the one thing '
+               'about an object that the repository cannot prove.')
     out.append('')
 
     out.append('### Step 2 — Create the tab')
@@ -178,8 +208,8 @@ def create_object_block(obj, oroot, rn_type, rn_format):
                'field screen. Do this before Step 3.')
     out.append('>')
     out.append('> The repository has no tab metadata of its own, so the category is not '
-               'fixed by it. Whatever category you pick, keep it the same for all ten '
-               'objects so the tabs end up together.')
+               'fixed by it. Whatever category you pick, keep it the same for every object '
+               'in this list so the tabs end up together.')
     out.append('')
     return out
 
