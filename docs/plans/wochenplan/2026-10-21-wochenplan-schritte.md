@@ -6,8 +6,9 @@
 > **Änderungen:** Fachliche oder technische Abweichungen müssen in diesem Dokument und gegebenenfalls in einer ADR dokumentiert werden.
 > **Bearbeitungsstand:** Spur 0 (S0.1–S0.5) ist erledigt — Commit `43d3a8b` vom 2026-10-21.
 > Spur A ist in Vorbereitung: Feldvertrag am 2026-10-21 gegen die Org geprüft (Abschnitt 0 dort),
-> Feldanzahlen korrigiert, F1 = ja entschieden, Metadaten und Setup-Worklist erstellt. **Die manuelle
-> Anlage in Classic Setup steht aus.** Die Spuren B, C, D und E stehen aus.
+> Feldanzahlen korrigiert, F1 = ja entschieden, Prüfungen als Text in Vertrag §14 festgehalten,
+> Metadaten und Setup-Worklist erstellt. **Die manuelle Anlage in Classic Setup steht aus.**
+> Die Spuren B, C, D und E stehen aus.
 
 **Datum:** 2026-10-21
 **Bezug:** `2026-10-21-wochenplan-feature.md` (Phasen 0–8), `2026-10-21-wochenplan-feldvertrag.md` (Setup-Spec)
@@ -156,6 +157,9 @@ Zum Schluss: S27 → S28 → S29 → S30 → S31 → S32   (Spur E)
 - **F1 (Gruppen) entschieden: ja** (2026-10-21) → S1.6 läuft, die `ParticipantGroup__c`-Felder in S1.2/S1.4
   und die Gruppenauswahl in S8 sind Teil des Umfangs. Kippt die Entscheidung, entfallen genau diese
   drei Bausteine; alles andere bleibt gültig.
+- **F16–F19** (Gruppenmitgliedschaft, Zeitvertrag/Mitternacht, Begründungspflicht, Löschvertrag) →
+  **offen, aber nicht anlagerelevant**: sie betreffen die Servicelogik (S14–S18), nicht die
+  Feldstruktur. Die Objekte werden unabhängig von der Antwort angelegt.
 - **F13 (Erledigt-Semantik) = nein** → S1.5 und S18 entfallen; S11 zeigt keinen Erledigt-Status.
   **Empfehlung: anlegen** (späteres Nachrüsten eines neuen Objekts ist teurer).
 - **F14 (Wochen- vs. Kursvorlage)** → beide Bindungen sind in S1.3 angelegt; die Entscheidung fällt erst

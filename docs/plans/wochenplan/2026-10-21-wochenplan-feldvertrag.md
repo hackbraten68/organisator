@@ -30,7 +30,7 @@ der Org-Wahrheit wurden dabei gefunden und entschieden. **Diese Entscheidungen s
 |---|---|---|---|
 | K1 | Sharing-Referenz (§1) | `Appointment__c` ist `sharingModel=ReadWrite`, `externalSharingModel=Private` — **nicht** „Private/Private (wie `Appointment__c`)" | Die neuen Objekte spiegeln den Bestand: `sharingModel=ReadWrite`, `externalSharingModel=Private`. `sharingModel` steuert den Zugriff über Standard-Lookups; alle Repo-Objekte nutzen ReadWrite. **Das org-weite Default (OWD) ist davon unberührt** und bleibt Handarbeit in Setup (siehe unten) |
 | K2 | Feldzahlen | §3–§8 dieser Tabellen sind maßgeblich: 5 / 13 / 5 / 22 / 5 / 3 / 3 | Der Schrittkatalog nannte „6" (§5) und „24" (§6) — korrigiert. Jedes Objekt hat zusätzlich ein Name-Feld (Text bzw. AutoNumber) |
-| K3 | `Appointment__c.Type__c` (§9) | Org-Werte: `Coaching`, `CheckIn`, `Feedback`, `Behörde`, `Praktikum`, `Sonstiges` | Der Werteliste in §9 fehlte dieser Abgleich: `Feedback` und `Sonstiges` **existieren bereits**, ein „Ergänzen" scheitert an `restricted = true`. §9 ist präzisiert. Offen bleibt das Mapping `ScheduleEntry__c.Type__c` → `Appointment__c.Type__c` (F19) |
+| K3 | `Appointment__c.Type__c` (§9) | Org-Werte: `Coaching`, `CheckIn`, `Feedback`, `Behörde`, `Praktikum`, `Sonstiges` | Der Werteliste in §9 fehlte dieser Abgleich: `Feedback` und `Sonstiges` **existieren bereits**, ein „Ergänzen" scheitert an `restricted = true`. §9 ist präzisiert. Offen bleibt das Mapping `ScheduleEntry__c.Type__c` → `Appointment__c.Type__c` (F9) |
 | K4 | `DayOfWeek__c` (§6) | `AvailabilitySlot__c.DayOfWeek__c` kennt **nur** Monday–Friday | „Identisch zum Muster" meint den Namensstil (API-Name = Label, englische Wochentage), nicht die Wertemenge. `ScheduleEntry__c.DayOfWeek__c` hat **7** Werte (Monday–Sunday) |
 
 **Relationship-Namen — geprüft, nicht beanstandet.** Der Vertrag nennt sie nur für
@@ -93,7 +93,7 @@ verschiedenen Elternobjekten vorkommen — so wie `Learning_Path__c` es tut.
 |---|---|---|
 | API-Namen | Custom Objects `X__c`, Custom Fields `Field__c` | CamelCase wie `AvailabilitySlot__c`/`AuditEvent__c` (die jüngeren Objekte) — **nicht** `Learning_Path__c`-Schreibweise |
 | Labels | deutsch, z. B. `Status__c` = „Status", `Type__c` = „Typ" | deutsche Labels |
-| Picklist-Werte | **API-Name = Label, keine Übersetzung** (belegt: `Appointment__c.Type__c` = `Behörde`, `Praktikum`; `Status__c` = `Draft`…; `AuditEvent__c.Domain__c` = `workbook`, `absence`…) | **keine deutschen Picklist-Labels** — die UI-Übersetzung kommt ins Frontend-Mapping (`src/types/schedule.ts`) |
+| Picklist-Werte | **API-Name = Label, keine Übersetzung** (belegt: `Appointment__c.Type__c` = `Behörde`, `Praktikum`; `Status__c` = `Draft`…; `AuditEvent__c.Domain__c` = `workbook`, `absence`…) | **deutsche API-Werte**, wie die Objekt-Tabellen §3–§8 sie festlegen — so auch im Bestand (`Behörde`, `Praktikum`); entschieden 2026-10-21. Das Frontend-Mapping `src/types/schedule.ts` bleibt der Ort für Anzeigetext, Reihenfolge und Begriffe |
 | Picklist `restricted` | `true` (Status, Type, Domain, Action) | `true` |
 | Beziehungen | **ausnahmslos Lookup** (0 Master-Detail im gesamten Modell) | Lookup, `deleteConstraint` = `Restrict` bei Kind-Beziehungen, `SetNull` bei optionalen |
 | Name-Feld | Text für Inhaltsobjekte (`Program__c`, `Module__c`, `Participant__c`), AutoNumber für Vorgänge (`Appointment__c` `TERM-{0000}`, `AvailabilitySlot__c` `SLOT-{0000}`, `Learning_Path__c` `LP-{0000}`) | Text für `ProgramWeek__c`/`WeeklySchedule__c`/`ScheduleTemplate__c`/`ScheduleEntry__c`/`ParticipantGroup__c`; AutoNumber für `TaskCompletion__c`/`ParticipantGroupMember__c` |
@@ -286,7 +286,7 @@ Baustein, der parallel zum Wochenplan entstehen kann und erst für die Rechtepr�
 |---|---|---|---|
 | `Appointment__c` | `ScheduleEntry__c` | Lookup → `ScheduleEntry__c` | optional, `SetNull`, Label „Planzeile", relationshipName `Appointments` — additive Verknüpfung Termin → Planzeile |
 | `Learning_Path__c` | `Module__c` | Lookup → `Module__c` | optional, `SetNull`, Label „Modul", relationshipName `Learning_Paths` (K6) — beseitigt die Inkonsistenz zwischen `docs/DATA_MODEL.md` / `backend/docs/AGENTS.md` (dort ist die Kante gezeichnet) und dem Metadatum |
-| `Appointment__c` | `Type__c` | Picklist (restricted) | **Werte ergänzen**, bestehende behalten. Org-Stand: `Coaching`, `CheckIn`, `Feedback`, `Behörde`, `Praktikum`, `Sonstiges` — `Feedback` und `Sonstiges` existieren bereits und dürfen **nicht** erneut angelegt werden (`restricted = true`, K3). Neu anzulegen: `Einzelcoaching`, `Gruppencoaching`, `Projekt-Kick-off`, `Workshop`, `Selbstlernphase`, `Projektarbeit`. Offen: das Mapping `ScheduleEntry__c.Type__c` → `Appointment__c.Type__c` (F19) — späterer Block |
+| `Appointment__c` | `Type__c` | Picklist (restricted) | **Werte ergänzen**, bestehende behalten. Org-Stand: `Coaching`, `CheckIn`, `Feedback`, `Behörde`, `Praktikum`, `Sonstiges` — `Feedback` und `Sonstiges` existieren bereits und dürfen **nicht** erneut angelegt werden (`restricted = true`, K3). Neu anzulegen: `Einzelcoaching`, `Gruppencoaching`, `Projekt-Kick-off`, `Workshop`, `Selbstlernphase`, `Projektarbeit`. Offen: das Mapping `ScheduleEntry__c.Type__c` → `Appointment__c.Type__c` (F9) — späterer Block |
 | `AuditEvent__c` | `Domain__c` | Picklist (restricted) | **Wert ergänzen**: `schedule` (die bestehenden Werte sind kleingeschrieben: `appointment`, `learning_path`, `availability` …) |
 
 > `Appointment__c.Type__c` und `AuditEvent__c.Domain__c` sind **Feldänderungen** an gesunden Feldern und
@@ -350,8 +350,8 @@ was in Setup steht (so der Nachweis in AGENTS.md Z. 1012–1014).
 
 | Frage | Empfehlung | Wirkung auf den Vertrag |
 |---|---|---|
-| **F1** Gruppen/Kohorten | **anlegen** | Ohne sie fehlen Zieltyp `Group`, Gruppentermine und die `Group`-Filterung. Sind sie nicht vorgesehen, fallen Objekt 6+7 und die `ParticipantGroup__c`-Felder in 4, 6, 7 weg. |
-| **F13** Erledigt-Semantik in v1? | **anlegen** (`TaskCompletion__c`) | „Lernzeile schon als erfüllt" (fachliche Seite) ist sonst nicht abbildbar; ein späteres Nachrüsten eines neuen Objekts ist teurer als jetzt. |
+| **F1** Gruppen/Kohorten | **anlegen** — entschieden 2026-10-21 | Ohne sie fehlen Zieltyp `Group`, Gruppentermine und die `Group`-Filterung. Sind sie nicht vorgesehen, fallen Objekt 6+7 und die `ParticipantGroup__c`-Felder in 4, 6, 7 weg. |
+| **F13** Erledigt-Semantik in v1? | **anlegen** (`TaskCompletion__c`) — entschieden 2026-10-21 | „Lernzeile schon als erfüllt" (fachliche Seite) ist sonst nicht abbildbar; ein späteres Nachrüsten eines neuen Objekts ist teurer als jetzt. |
 | **F14** Wochen- vs. Kursvorlage | **beide Bindungen anlegen** | Die Debatte wird nicht vorweggenommen; `ProgramWeek__c` + `Program__c` sind je ein Feld. |
 | **F5** Publish-Semantik | **`Status__c` Draft/Published** auf `WeeklySchedule__c` | Wie in 4 spez'd. Ob Änderungen nach Veröffentlichung sofort oder erst nach erneuter Freigabe sichtbar sind, ist eine Produktentscheidung (im Code abbildbar, ohne Schemaänderung). |
 | **F3** Durchlauf-Ebene | **nicht anlegen** | `WeeklySchedule__c.StartDate__c` trägt die Kalenderwoche je Instanz; eine eigene Durchlauf-Entität erst, wenn Durchläufe auch Teilnehmerlisten tragen. |
@@ -372,3 +372,96 @@ Verbraucherseite (Apex-Services, `src/api/schedule/*`, `src/types/schedule.ts`, 
 - Keine `ProgramCoach__c` → F7, eigener Baustein.
 - Keine Termin-Materialisierung → Phase 2 (`ScheduleEntryMaterialisationService`) und dort die noch
   offene Frage F8 (Verschieben eines bestätigten Termins).
+
+## 14. Prüfungen und Regeln (Text, nicht im Repo)
+
+`CustomValidationRule` existiert **nicht** in der `@salesforce/cli`-Registry — nachgemessen am
+2026-10-21: `INVALID_TYPE: Unknown type:CustomValidationRule`. XML-Dateien dafür im Repo brechen
+**jeden** Deploy (`unable to find matching parent xml file for ValidationRule`,
+`backend/docs/AGENTS.md`). Die Regeln stehen deshalb hier als **Text**; die Umsetzung liegt in
+den Services und im Trigger (S14–S18).
+
+Werden sie zusätzlich in Classic Setup angelegt, entstehen zwei Implementierungen derselben
+Wahrheit: die Setup-Regel greift beim UI-Schreibvorgang und meldet einen anderen Fehler als der
+vertraglich vereinbarte Fehlercode des Apex-Pfads. Deshalb: **eine** Stelle je Prüfung.
+
+### 14.1 Prüfungen mit Umsetzungsort
+
+| Prüfung | Regel | Umsetzung |
+|---|---|---|
+| Wochenindex ≥ 1 | `Number__c < 1` → „Die Wochennummer muss mindestens 1 sein." | S14 |
+| Kurswoche je Program eindeutig | `Program__c` + `Number__c`, serverseitig — **kein** `externalId`, dessen Eindeutigkeit ist orgweit (§3) | S14 |
+| Gruppenmitgliedschaft eindeutig | `ParticipantGroup__c` + `Participant__c`, serverseitig (F16 offen) | S14 |
+| Scope ↔ Zielgruppe | 14.2 | S14 |
+| `EndDate__c` ≥ `StartDate__c` | `AND(NOT(ISBLANK(EndDate__c)), EndDate__c < StartDate__c)` → „Das Ende der Woche darf nicht vor dem Startdatum liegen." | S14 |
+| Genau eine Elternzuordnung | 14.3 | S15 |
+| `TargetType__c` ↔ Zielgruppe | 14.2 (mit den Feldnamen des Eintrags) | S15 |
+| `Date__c` berechnet | `StartDate__c` der Instanz + Offset aus `DayOfWeek__c` (Montag=0 … Sonntag=6); in Vorlagenzeilen leer | S15 |
+| Zeitangaben | 14.4 | S15 |
+| Veröffentlichungsvertrag | `Status__c = Published` ⇒ `PublishedAt__c` und `PublishedBy__c` gesetzt; bei `Draft` leer. Beide Felder werden ausschließlich vom Service gepflegt | S17 |
+| Planzeile × Teilnehmer eindeutig | `ScheduleEntry__c` + `Participant__c`, serverseitig | S18 |
+| `TaskCompletion__c` nur für Aufgaben | `ScheduleEntry__c.EntryKind__c = Aufgabe` | S18 |
+| `Erfüllt` ⇒ `CompletedAt__c` | `AND(ISPICKVAL(Status__c, "Erfüllt"), ISBLANK(CompletedAt__c))` → „Bei erfüllten Aufgaben muss „Erfüllt am" gesetzt sein." | S18 |
+
+### 14.2 Scope- und Zielgruppenprüfung
+
+| `ScopeType__c` / `TargetType__c` | Erforderlich | Muss leer bleiben |
+|---|---|---|
+| `Course` | – | `ParticipantGroup__c`, `Participant__c` |
+| `Group` | `ParticipantGroup__c` | `Participant__c` |
+| `Individual` | `Participant__c` | `ParticipantGroup__c` |
+
+```text
+OR(
+    AND(
+        ISPICKVAL(ScopeType__c, "Course"),
+        OR(NOT(ISBLANK(ParticipantGroup__c)), NOT(ISBLANK(Participant__c)))
+    ),
+    AND(
+        ISPICKVAL(ScopeType__c, "Group"),
+        OR(ISBLANK(ParticipantGroup__c), NOT(ISBLANK(Participant__c)))
+    ),
+    AND(
+        ISPICKVAL(ScopeType__c, "Individual"),
+        OR(ISBLANK(Participant__c), NOT(ISBLANK(ParticipantGroup__c)))
+    )
+)
+```
+
+Meldung: „Der Geltungsbereich passt nicht zur ausgewählten Teilnehmergruppe beziehungsweise zum
+ausgewählten Teilnehmer."
+
+### 14.3 Genau eine Elternzuordnung
+
+```text
+OR(
+    AND(ISBLANK(WeeklySchedule__c), ISBLANK(ScheduleTemplate__c)),
+    AND(NOT(ISBLANK(WeeklySchedule__c)), NOT(ISBLANK(ScheduleTemplate__c)))
+)
+```
+
+Meldung: „Eine Planzeile muss entweder einem Wochenplan oder einer Vorlage zugeordnet sein."
+
+### 14.4 Zeitangaben
+
+```text
+OR(
+    AND(ISBLANK(StartTime__c), NOT(ISBLANK(EndTime__c))),
+    AND(NOT(ISBLANK(StartTime__c)), NOT(ISBLANK(EndTime__c)), EndTime__c <= StartTime__c),
+    DurationMinutes__c < 1
+)
+```
+
+Meldung: „Die Zeitangaben sind ungültig. Die Endzeit muss nach der Startzeit liegen und die Dauer
+muss positiv sein."
+
+### 14.5 Bewusst nicht umgesetzt (mit Begründung)
+
+| Vorschlag | Entscheidung | Warum |
+|---|---|---|
+| Technische Schlüsselfelder `MembershipKey__c`, `ProgramWeekKey__c`, `CompletionKey__c` (Text, Unique, External ID) | **nein** | §3 entscheidet die Eindeutigkeit serverseitig, weil die Eindeutigkeit eines `externalId` **orgweit** ist. Drei zusätzliche Felder wären eine zweite Wahrheit und nur vom Service setzbar |
+| `EndDate__c` als Formelfeld `StartDate__c + 6` | **nein** | Ein Formelfeld ist nicht überschreibbar — die UI (S9) könnte es nicht setzen. Der Vertrag führt es als normales optionales Datum (verkürzte Woche zulässig); die Kopplung prüft S14 |
+| „Genau eine Bindung" bei `ScheduleTemplate__c` (`ProgramWeek__c` xor `Program__c` xor `Module__c`) | **nein** | F14/F6 sind entschieden: **beide** Bindungen werden angelegt, die Präzedenz fällt erst in der UI (S9/S16). Eine Regel würde die offene Debatte vorwegnehmen |
+| Dieselben Regeln zusätzlich in Classic Setup anlegen | **nein** | Zwei Implementierungen derselben Wahrheit mit unterschiedlichen Fehlermeldungen (Einleitung) |
+| `PublishedAt__c`/`PublishedBy__c` frei editierbar | **nein** | Beide werden ausschließlich vom Publishing-Service gepflegt (S17) |
+| `DeviationReason__c` verpflichtend bei `IsCustomized__c`/`Entfällt` | **nein, in v1 optional** | F18 — die Pflicht lässt sich später ohne Schemaänderung erzwingen |

@@ -808,7 +808,7 @@ Suite (AGENTS.md Z. 1112–1115).
 
 | # | Frage | Empfehlung / Blockiert |
 |---|---|---|
-| **F1** | **Gibt es Gruppen/Kohorten?** Woher kommen sie, wer pflegt sie, wie werden Teilnehmer zugeordnet? | **Größte Lücke.** Ohne Antwort kein Zieltyp „Gruppe" und keine Teilnehmerfilterung. Vorschlag: `ParticipantGroup__c` + `ParticipantGroupMember__c`, programmbezogen. |
+| **F1** | **Gibt es Gruppen/Kohorten?** Woher kommen sie, wer pflegt sie, wie werden Teilnehmer zugeordnet? | **Entschieden 2026-10-21: ja.** `ParticipantGroup__c` + `ParticipantGroupMember__c` werden angelegt; das Objektpaar ist Teil des Feldvertrags. Offen bleibt nur F16 (Mitgliedschaft in mehreren Gruppen). |
 | **F2** | ~~Was ist eine „Kurswoche" genau?~~ **Aus dem Fachgespräch geklärt (K1):** `ProgramWeek__c` = AZAV-Themenebene, Kalenderdatum an der Plan-Instanz. Offen bleibt nur: | Teilnehmer→Woche über `Learning_Path__c` (K6, Empfehlung) oder rein über `Participant__c.Program__c` + Datum? |
 | **F3** | Gibt es mehrere Durchläufe desselben Programms (Kohorten mit je eigenem Startdatum)? | Offen. Der Entwurf trägt es bereits: je Durchlauf eine `WeeklySchedule__c` mit eigenem `StartDate__c` (K1) — eine eigene Durchlauf-Entität ist erst nötig, wenn Durchläufe auch Teilnehmer-/Gruppenlisten tragen. |
 | **F4** | Sollen Kurs-/Gruppeneinträge je Teilnehmer materialisiert werden (N Termine)? | **Empfehlung: nein** — Planaktivität ohne Termin (sonst N-Fan-out und `Participant__c` required). |
@@ -823,6 +823,10 @@ Suite (AGENTS.md Z. 1112–1115).
 | **F13** | **Aufgaben-Erledigung:** Ist `TaskCompletion__c` (K5) v1 oder v2? Und sind „Todos und Tasks" wirklich ohne Termin? | Empfehlung **v1**: „Lernzeile schon als erfüllt" (fachliche Seite) ist sonst nicht abbildbar, und die Entität nachträglich zu ergänzen ist teurer. `EntryKind__c` trennt Aufgabe vs. Termin. |
 | **F14** | **Vorlagenumfang:** Wochen-Template (pro AZAV-Woche) oder Kurs-Template (gesamte Dauer)? | Empfehlung in 0b: Wochen-Templates als Regel + optionales Kurs-Template für wiederkehrende Gruppentermine. **Fachliche Bestätigung nötig.** |
 | **F15** | **Export/Baseline** (Sam: „Export-Funktion im Plan berücksichtigt", „Baseline finden") | Das Datenmodell trägt sie (K3/K4 + `AuditEvent__c.Changes__c`). Soll der Export **in v1** mitgeliefert werden oder erst v2? |
+| **F16** | Darf ein Teilnehmer **mehreren Gruppen desselben Programms** angehören? | Der Eindeutigkeitsschlüssel `ParticipantGroup__c + Participant__c` (serverseitig, S14) verhindert nur ein Duplikat **innerhalb** derselben Gruppe. Ohne Festlegung bleibt die Mitgliedschaft in mehreren Gruppen desselben Kurses offen. |
+| **F17** | **Zeitvertrag:** Start + Ende oder Start + Dauer? Und: dürfen Einträge über Mitternacht laufen? | Empfehlung: `StartTime__c` + `EndTime__c` sind maßgeblich, `DurationMinutes__c` ist die Alternative (S15). Reine `TIME`-Felder können Mitternacht nicht abbilden — Einträge über Mitternacht bleiben ausgeschlossen. |
+| **F18** | **Begründungspflicht:** Ist `DeviationReason__c` verpflichtend, wenn `IsCustomized__c = true`? Und bei `TaskCompletion__c.Status__c = Entfällt`? | Beide Felder sind im Vertrag optional. Empfehlung: in v1 **optional** (S15/S18); die Pflicht lässt sich später ohne Schemaänderung erzwingen. |
+| **F19** | **Löschvertrag:** Dürfen veröffentlichte Wochenpläne und bereits verwendete Vorlagen gelöscht werden? | `Restrict` an den Kind-Beziehungen deckt das Löschen der **Kinder** ab, nicht das Löschen veröffentlichter Eltern. Empfehlung: Löschen veröffentlichter Wochenpläne serverseitig sperren (S14/S17). |
 
 ---
 
@@ -842,8 +846,10 @@ Suite (AGENTS.md Z. 1112–1115).
 - Abschnitt 4 (Stand nach 0b) ist der **Feldvertrag**: Feldnamen, Typen, required, Picklist-Werte,
   `deleteConstraint`. Die Objekte werden in Classic Setup angelegt (**kein Deploy**, AGENTS.md Z. 1016) und
   retrievet sie; ich baue die Verbraucherseite (Apex, UI, Tests) gegen diesen Vertrag.
-- Vor dem Anlegen abstimmen: F13 (Erledigt-Semantik in v1?), F14 (Vorlagenumfang), F5 (Publish),
-  F1 (Gruppen), F6 (Vorlagenbindung an `ProgramWeek__c`).
+- Vor dem Anlegen abgestimmt (2026-10-21): **F1 = ja** (Gruppen), F13 (Erledigt-Semantik → `TaskCompletion__c`
+  anlegen), F14/F6 (beide Bindungen anlegen, Präzedenz erst in der UI), F5 (`Status__c` Draft/Published).
+  Offen und **nicht** anlagerelevant: F16–F19 — sie betreffen die Servicelogik (S14–S18), nicht die
+  Feldstruktur.
 - Die Infra liefert den ersten lauffähigen Stand; danach erst die UI- und Testarbeit aufsetzen, um
   Namensdrift zwischen Setup und Code zu vermeiden.
 
@@ -933,6 +939,8 @@ Suite (AGENTS.md Z. 1112–1115).
 6. **Berechtigungen:** `backend_Coach` (CRUD) + `Participant_Portal_Access` (read, kein
    `viewAllRecords`); serverseitige Coach-Zuordnungsprüfung (erfordert **persistente**
    Coach↔Programm-Zuordnung) und serverseitige Zielgruppenfilterung im Portal-Endpunkt.
-7. **Offene Fragen:** F1–F15, davon F1 (Gruppen), F5 (Publish), F7 (Coach-Zuordnung) und F13
-   (Erledigt-Semantik in v1?) als Blocker für Phase 1; F2 ist durch das Fachgespräch geklärt (K1).
+7. **Offene Fragen:** F1–F19. F1 (Gruppen) ist entschieden (ja), F5, F13, F14/F6 sind als
+   Feldstruktur entschieden; F7 (Coach-Zuordnung) bleibt der harte Blocker für Phase 1. F16–F19
+   sind fachlich und betreffen nur die Servicelogik (S14–S18). F2 ist durch das Fachgespräch
+   geklärt (K1).
 8. **Plan:** Phasen 0, 0b, 1–8 in Abschnitt 13, mit Testmatrix in Abschnitt 11.

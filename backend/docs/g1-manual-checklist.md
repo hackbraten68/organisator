@@ -341,6 +341,57 @@ trotz eine Zeile, damit es nicht stillschweigend übersprungen wird.
 
 ---
 
+## Teil E — Wochenplan-Objekte (2026-10-21)
+
+Der Feldvertrag `docs/plans/wochenplan/2026-10-21-wochenplan-feldvertrag.md` legt sieben neue
+Custom Objects fest. Sie werden **von Hand in Classic Setup** angelegt (kein Deploy — E1) und
+danach per Retrieve ins Repo geholt.
+
+### E1 · Objekte anlegen
+
+Sieben Objekte, 56 Custom-Felder. Feldnamen, Typen, Labels, Picklist-Werte und Defaults stehen im
+Feldvertrag §§3–§8; die abtippbare Formularliste erzeugt `backend/scripts/gen-setup-worklist.py`
+→ `backend/docs/portal/setup-worklist.md`.
+
+| # | Objekt (Label) | API-Name **explizit eintragen** | Name-Feld | Tab |
+|---|---|---|---|---|
+| 1 | Teilnehmergruppe | `ParticipantGroup__c` | Text | anlegen |
+| 2 | Gruppenzuordnung | `ParticipantGroupMember__c` | AutoNumber `PGM-{0000}` | anlegen |
+| 3 | Kurswoche | `ProgramWeek__c` | Text | anlegen |
+| 4 | Wochenplan-Vorlage | `ScheduleTemplate__c` | Text | anlegen |
+| 5 | Wochenplan | `WeeklySchedule__c` | Text | anlegen |
+| 6 | Planzeile | `ScheduleEntry__c` | Text | anlegen |
+| 7 | Aufgabenerfüllung | `TaskCompletion__c` | AutoNumber `TC-{0000}` | anlegen |
+
+> **Der API-Name wird aus dem Label abgeleitet** — „Aufgabenerfüllung" ergäbe
+> `Aufgabenerfullung__c`. Der API-Name ist nach dem Speichern unveränderlich; ein falscher Name
+> heißt: Objekt löschen und neu anlegen. Ohne Tab kommt man nicht ans Feld-Formular.
+
+Nach jedem Objekt prüfen, nicht nur das grüne Setup-Fenster:
+
+```bash
+cd backend && sf sobject describe --sobject WeeklySchedule__c --target-org hubSandbox
+```
+
+### E2 · Org-weites Default (OWD) je Objekt — von Hand, nicht im Metadatum
+
+Für jedes der sieben Objekte in **Setup → Sharing Settings**: OWD **Private**, intern **und**
+extern. Das ist kein Metadatum: weder Deploy noch Retrieve tragen es, und es überlebt kein
+Sandbox-Refresh. `sharingModel` und `externalSharingModel` im Objekt-Metadatum sind etwas
+anderes (Standard-Lookup-Zugriff bzw. externer Zugriff) — die Einstellung in Sharing Settings ist
+die, die zählt.
+
+### E3 · Validierungsregeln — bewusst nicht anlegen
+
+Die fachlichen Prüfungen (Scope/Zielgruppe, genau eine Elternzuordnung, Zeitangaben,
+Eindeutigkeiten, Veröffentlichungsvertrag) stehen als **Text** im Feldvertrag §14 und werden in
+S14–S18 im Apex umgesetzt. `CustomValidationRule` ist kein Typ der CLI
+(`INVALID_TYPE: Unknown type:CustomValidationRule`); XML im Repo brechen jeden Deploy. Zusätzliche
+Setup-Regeln ergäben eine zweite Wahrheit mit anderer Fehlermeldung. **Also: keine
+Validierungsregeln in Setup anlegen.**
+
+---
+
 ## Checkliste zum Abhaken
 
 | # | Punkt | Wo | Erwartung |
@@ -355,6 +406,9 @@ trotz eine Zeile, damit es nicht stillschweigend übersprungen wird.
 | C2 | Fremde Sharing Rules | Sharing Settings | vermutlich keine |
 | C3 | Report-Export-Richtlinie aktiv? | Setup | `block=false` heißt: nur Step-Up |
 | C4 | `sf apex run test` | CLI | 100 % oder dokumentierte Ausnahmen |
+| E1 | Sieben Wochenplan-Objekte mit 56 Feldern in Setup anlegen | Classic Setup | `sobject describe` zeigt jedes Feld |
+| E2 | OWD der sieben Objekte auf Private (intern + extern) | Sharing Settings | Beschreibung in E2, alle sieben auf Private |
+| E3 | Validierungsregeln für die Wochenplan-Objekte | — | bewusst **nicht** anlegen, siehe E3 |
 
 ## Was ich danach im Repo machen kann
 
