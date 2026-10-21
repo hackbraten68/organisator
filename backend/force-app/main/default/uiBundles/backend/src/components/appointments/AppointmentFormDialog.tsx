@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,10 +27,24 @@ interface AppointmentFormDialogProps {
   participantId: string;
   /** Shown instead of the raw id; falls back to the id when unknown. */
   participantName?: string;
-  initialData?: Partial<AppointmentInput>;
+  initialData?: Partial<AppointmentInput> & { coachName?: string };
   isLoading?: boolean;
   title?: string;
   availableCoaches?: { id: string; name: string }[];
+  /**
+   * "create" oder "edit" — und der Unterschied ist mehr als eine Beschriftung.
+   *
+   * Im Bearbeitungsmodus bedeutet ein leeres Feld "leeren", im Anlegen
+   * "nicht setzen". Serverseitig sind das zwei verschiedene Aussagen: die
+   * Whitelist des Einstiegspunkts liest `null` als "nicht mitschicken" und `""`
+   * als "leeren". Ohne diese Unterscheidung koennte der Bearbeitungsdialog eine
+   * Notiz nie entfernen.
+   *
+   * Ausserdem ist der Coach im Bearbeitungsmodus nicht Pflicht: `Coach__c` ist
+   * in der Org kein Pflichtfeld, und ein Dialog, der beim Bearbeiten einen
+   * Coach verlangt, schreibt einen Coach, den der Aufrufer gar nicht wollte.
+   */
+  mode?: "create" | "edit";
 }
 
 export function AppointmentFormDialog({
@@ -43,7 +57,9 @@ export function AppointmentFormDialog({
   isLoading = false,
   title = "Termin erstellen",
   availableCoaches = [],
+  mode = "create",
 }: AppointmentFormDialogProps) {
+  const isEdit = mode === "edit";
   const [type, setType] = useState<AppointmentType>(initialData?.type || "Coaching");
   const [startTime, setStartTime] = useState(initialData?.startTime || "");
   const [endTime, setEndTime] = useState(initialData?.endTime || "");
@@ -66,6 +82,35 @@ export function AppointmentFormDialog({
     || initialData.participantId === participantId;
   const resolvedParticipantName = belongsToPageParticipant ? participantName : undefined;
 
+  /**
+   * Die Coach-Auswahl, ergaenzt um den Coach des Termins.
+   *
+   * `listAssignableUsers()` liefert die aktiven Benutzer. Gehoert der Coach
+   * eines Termins nicht dazu (inaktiv, gefiltert), wuerde das Select den Wert
+   * anzeigen, aber ohne Namen — und der Aufrufer glaubte, der Termin haette
+   * gar keinen Coach.
+   */
+  const coachOptions = useMemo(() => {
+    const options = [...availableCoaches];
+    const currentId = initialData?.coachId;
+    if (currentId && !options.some((c) => c.id === currentId)) {
+      options.push({ id: currentId, name: initialData?.coachName || currentId });
+    }
+    return options;
+  }, [availableCoaches, initialData]);
+
+  /**
+   * Ein leeres Feld bedeutet im Bearbeitungsmodus "leeren" und im Anlegen
+   * "nicht setzen".
+   *
+   * Serverseitig sind das zwei verschiedene Aussagen: die Whitelist des
+   * Einstiegspunkts liest ein fehlendes Feld als "unberuehrt" und `""` als
+   * "leeren". Ohne die Unterscheidung koennte der Bearbeitungsdialog eine
+   * Notiz nie entfernen — das Leeren waere im Anlegen nie noetig, dort ist ein
+   * leeres Feld schlicht ein leeres Feld.
+   */
+  const optional = (value: string) => (isEdit ? value.trim() : value.trim() || undefined);
+
   async function copyParticipantId() {
     try {
       await navigator.clipboard.writeText(resolvedParticipantId);
@@ -85,7 +130,7 @@ export function AppointmentFormDialog({
     if (startTime && endTime && parseISO(startTime) >= parseISO(endTime)) {
       newErrors.endTime = "Endzeit muss nach Startzeit liegen";
     }
-    if (!coachId) newErrors.coachId = "Coach ist erforderlich";
+    if (!coachId && !isEdit) newErrors.coachId = "Coach ist erforderlich";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -113,9 +158,13 @@ export function AppointmentFormDialog({
         type,
         startTime: startTimeIso,
         endTime: endTimeIso,
+        // Der Ort laesst sich im Dialog nicht leeren: das Select hat keinen
+        // leeren Eintrag, und Radix reserviert den Leerstring fuer den
+        // Platzhalter. "Nicht mitschicken" heisst hier also "unberuehrt
+        // lassen" — der Server kann den Ort loeschen, die Oberflaeche nicht.
         location: location || undefined,
-        meetingLink: meetingLink.trim() || undefined,
-        notes: notes.trim() || undefined,
+        meetingLink: optional(meetingLink),
+        notes: optional(notes),
       });
     } catch (err) {
       // Der Aufrufer hat den Fehler bereits gemeldet (Toast). Der Dialog
@@ -127,11 +176,39 @@ export function AppointmentFormDialog({
     onClose();
   };
 
-  // initialData kommt als ISO-Zeit; das Input kennt keine Zeitzone.
+  /**
+   * Das Formular an den Datensatz anpassen — beim Oeffnen und wenn sich der
+   * Datensatz aendert.
+   *
+   * Der Schluessel ist der *Inhalt* von `initialData`, nicht die Identitaet des
+   * Objekts: ein Elternteil, das die Daten bei jedem Rendern neu baut, soll das
+   * Formular nicht zuruecksetzen, solange sich nichts geaendert hat. Sonst
+   * waere jede Eingabe weg, sobald irgendetwas anderes einen Render ausloest.
+   * Das `isOpen` gehoert mit in den Schluessel, damit ein Abbrechen die
+   * Eingaben verwirft: derselbe Termin, danach wieder geoeffnet, zeigt sonst
+   * noch die Eingaben des ersten Versuchs.
+   *
+   * Vorher stand hier nur die Zeit im Effekt. Der Rest (Typ, Ort, Link, Notiz,
+   * Coach) blieb im Initialzustand — beim zweiten Bearbeiten eines Termins
+   * zeigte das Formular die Werte des *ersten* Bearbeitens.
+   */
+  const lastSignature = useRef<string | null>(null);
+
   useEffect(() => {
-    if (initialData?.startTime) setStartTime(toDateTimeLocalValue(initialData.startTime));
-    if (initialData?.endTime) setEndTime(toDateTimeLocalValue(initialData.endTime));
-  }, [initialData]);
+    const signature = `${isOpen ? "open" : "closed"}|${JSON.stringify(initialData ?? null)}`;
+    if (lastSignature.current === signature) return;
+    lastSignature.current = signature;
+
+    // initialData kommt als ISO-Zeit; das Input kennt keine Zeitzone.
+    setType(initialData?.type || "Coaching");
+    setStartTime(initialData?.startTime ? toDateTimeLocalValue(initialData.startTime) : "");
+    setEndTime(initialData?.endTime ? toDateTimeLocalValue(initialData.endTime) : "");
+    setLocation(initialData?.location || "");
+    setMeetingLink(initialData?.meetingLink || "");
+    setNotes(initialData?.notes || "");
+    setCoachId(initialData?.coachId || "");
+    setErrors({});
+  }, [initialData, isOpen]);
 
   const appointmentTypes: AppointmentType[] = [...APPOINTMENT_TYPES];
   const appointmentLocations: AppointmentLocation[] = [...APPOINTMENT_LOCATIONS];
@@ -141,7 +218,11 @@ export function AppointmentFormDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-4">
           <DialogTitle className="text-h2">{title}</DialogTitle>
-          <p className="text-small text-muted-foreground">Erstellen Sie einen neuen Termin für den Teilnehmer.</p>
+          <p className="text-small text-muted-foreground">
+            {isEdit
+              ? "Ändern Sie die Angaben des Termins. Der Termin bleibt im Status Entwurf."
+              : "Erstellen Sie einen neuen Termin für den Teilnehmer."}
+          </p>
         </DialogHeader>
         <form id="appointment-form" onSubmit={handleSubmit} className="space-y-6">
           <fieldset className="space-y-4">
@@ -173,18 +254,18 @@ export function AppointmentFormDialog({
                 {errors.participantId && <p className="text-caption text-destructive" role="alert">{errors.participantId}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="coachId">Coach *</Label>
+                <Label htmlFor="coachId">Coach{isEdit ? "" : " *"}</Label>
                 <Select value={coachId} onValueChange={(v) => setCoachId(v)}>
                   <SelectTrigger id="coachId">
                     <SelectValue placeholder="Coach wählen" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableCoaches.length === 0 && (
+                    {coachOptions.length === 0 && (
                       <SelectItem value="__none" disabled>
                         Keine Coaches verfügbar
                       </SelectItem>
                     )}
-                    {availableCoaches.map((c) => (
+                    {coachOptions.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name}
                       </SelectItem>

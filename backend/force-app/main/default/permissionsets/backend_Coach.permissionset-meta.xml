@@ -38,9 +38,18 @@
         asking. Apex REST needs an explicit class grant; without it a coach gets
         403 on /services/apexrest/staff-identity/me and sees the actor picker on
         every new tab instead.
+
+        AppointmentEditService is the named server-side entry point for editing
+        an appointment (ADR-014). It enforces the Draft gate and the field
+        whitelist server-side, so it needs the same explicit grant: without it
+        the route answers 403 and a coach cannot edit a draft appointment.
     -->
     <classAccesses>
         <apexClass>StaffIdentity</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>AppointmentEditService</apexClass>
         <enabled>true</enabled>
     </classAccesses>
 

@@ -1,5 +1,5 @@
 import { executeGraphQL } from "@/api/graphqlClient";
-import type { Appointment, AppointmentInput, AppointmentPatch, AppointmentFilters } from "@/types/appointment";
+import type { Appointment, AppointmentInput, AppointmentFilters } from "@/types/appointment";
 import type { AvailabilitySlot, AvailabilitySlotInput, AvailabilitySlotPatch, AvailabilitySlotFilters } from "@/types/availabilitySlot";
 import { getAuditActor } from "@/api/audit/actorContext";
 import {
@@ -22,7 +22,11 @@ import GET_APPOINTMENT_RAW from "@/api/appointment/query/GetAppointment.graphql?
 import LIST_APPOINTMENTS_RAW from "@/api/appointment/query/ListAppointments.graphql?raw";
 import GET_APPOINTMENTS_BY_PARTICIPANT_RAW from "@/api/appointment/query/GetAppointmentsByParticipant.graphql?raw";
 import CREATE_APPOINTMENT_RAW from "@/api/appointment/query/CreateAppointment.graphql?raw";
-import UPDATE_APPOINTMENT_RAW from "@/api/appointment/query/UpdateAppointment.graphql?raw";
+// Es gibt bewusst keine `UpdateAppointment.graphql` mehr. Der allgemeine
+// Bearbeitungspfad laeuft ueber `appointmentEditService` (Apex
+// `AppointmentEditService`) — der Weg mit dem Draft-Gate und der Feld-Whitelist
+// serverseitig. Die UI-API-Mutation waere ein zweiter Schreibpfad fuer
+// dieselbe Handlung, und sie kennt das Draft-Gate nicht.
 import CONFIRM_APPOINTMENT_RAW from "@/api/appointment/query/ConfirmAppointment.graphql?raw";
 import COMPLETE_APPOINTMENT_RAW from "@/api/appointment/query/CompleteAppointment.graphql?raw";
 import RESCHEDULE_APPOINTMENT_RAW from "@/api/appointment/query/RescheduleAppointment.graphql?raw";
@@ -281,33 +285,6 @@ export async function createAppointment(input: AppointmentInput): Promise<string
     });
   }
   return id;
-}
-
-export async function updateAppointment(id: string, patch: AppointmentPatch): Promise<void> {
-  const vars: Record<string, any> = { id };
-  if (patch.coachId !== undefined) vars.coachId = patch.coachId;
-  if (patch.type !== undefined) vars.type = patch.type;
-  if (patch.startTime !== undefined) vars.startTime = patch.startTime;
-  if (patch.endTime !== undefined) vars.endTime = patch.endTime;
-  if (patch.location !== undefined) vars.location = patch.location;
-  if (patch.meetingLink !== undefined) vars.meetingLink = patch.meetingLink;
-  if (patch.notes !== undefined) vars.notes = patch.notes;
-  if (patch.cancellationReason !== undefined) vars.cancellationReason = patch.cancellationReason;
-  if (patch.correlationId !== undefined) vars.correlationId = patch.correlationId;
-  // status / confirmedAt / completedAt werden bewusst nicht mehr durchgereicht.
-  // Der allgemeine Patch aendert Termindaten, nicht den fachlichen Zustand.
-
-  const existing = await getAppointment(id);
-
-  await executeGraphQL<MutationResponse, Record<string, any>>(UPDATE_APPOINTMENT_RAW, vars);
-
-  // Kein Statuswechsel-Audit mehr an dieser Stelle. Der allgemeine Patch kann
-  // den Status nicht mehr aendern — `if (patch.status !== undefined)` waere
-  // toter Zweig, und ein Statuswechsel wird von der jeweiligen Lifecycle-
-  // Mutation protokolliert (confirmAppointment, completeAppointment,
-  // cancelAppointment, updateAppointmentAttendance). Dort gehoert der Hinweis
-  // auch hin: er steht in der Naehe der Aktion, die ihn ausloest.
-  void existing;
 }
 
 export async function confirmAppointment(id: string): Promise<void> {

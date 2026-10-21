@@ -8,6 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { format, startOfWeek, endOfWeek, addWeeks } from "date-fns";
 import { de } from "date-fns/locale";
 import { listAppointments, createAppointment, confirmAppointment, completeAppointment, rescheduleAppointment, cancelAppointment, updateAppointmentAttendance, getAvailabilitySlots } from "@/api/appointment/appointmentService";
+import { editAppointment, AppointmentEditError } from "@/api/appointment/appointmentEditService";
 import { listAssignableUsers } from "@/api/user/userService";
 import type { AssignableUser } from "@/types/user";
 import type { Appointment, AppointmentInput, AppointmentFilters } from "@/types/appointment";
@@ -35,6 +36,7 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
   const [filterType, setFilterType] = useState<Appointment["type"] | "all">("all");
   const [weekOffset, setWeekOffset] = useState(0);
   const [showForm, setShowForm] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [proposeSlotsFor, setProposeSlotsFor] = useState<Appointment | null>(null);
   const [availableCoaches, setAvailableCoaches] = useState<AssignableUser[]>([]);
   const [availableSlots, setAvailableSlots] = useState<import("@/types/availabilitySlot").AvailabilitySlot[]>([]);
@@ -110,6 +112,62 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
     }
   };
 
+  /**
+   * Den Bearbeitungsdialog oeffnen.
+   *
+   * Der Dialog bekommt den Termin aus der Liste, nicht einen neu geladenen:
+   * ein zweiter Lesevorgang wuerde den Zustand zeigen, den der Aufrufer
+   * gerade sieht, nicht den, den er bearbeitet.
+   */
+  const handleEdit = (id: string) => {
+    const appointment = appointments.find((a) => a.id === id);
+    if (!appointment) return;
+    setEditingAppointment(appointment);
+  };
+
+  /**
+   * Die Aenderung an den Server schicken.
+   *
+   * Der Einstiegspunkt entscheidet, ob ueberhaupt etwas geaendert werden darf:
+   * ein Termin, der nicht im Status Draft ist, wird mit 409 abgelehnt. Der
+   * Dialog bleibt dann offen, damit die Eingabe nicht verloren geht.
+   *
+   * Das Audit-Event schreibt der Server, in derselben Transaktion wie die
+   * Aenderung. Hier wird kein zweites geschrieben.
+   */
+  const handleEditSubmit = async (data: AppointmentInput) => {
+    if (!editingAppointment) return;
+    try {
+      await editAppointment(editingAppointment.id, {
+        coachId: data.coachId,
+        type: data.type,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        location: data.location,
+        meetingLink: data.meetingLink ?? "",
+        notes: data.notes ?? "",
+      });
+      toast.success("Termin bearbeitet");
+      setEditingAppointment(null);
+      await fetchAppointments();
+    } catch (err) {
+      console.error("Failed to edit appointment", err);
+      // Die Meldung des Servers nennt den konkreten Grund ("nur im Status
+      // Draft bearbeitbar", "Startzeit muss vor der Endzeit liegen") und
+      // verraet weder Feldnamen noch Ids.
+      toast.error(
+        err instanceof AppointmentEditError ? err.message : "Termin konnte nicht bearbeitet werden"
+      );
+      // Der Fehler muss weiterlaufen: AppointmentFormDialog schliesst nur bei
+      // erfolgreichem Speichern und haelt sich sonst offen, damit die
+      // Eingabe nicht verloren geht (vertraglich festgeschrieben in
+      // AppointmentFormDialog.test.tsx). Wird der Fehler hier geschluckt,
+      // glaubt der Dialog, das Speichern sei gelungen, und die Eingabe
+      // verschwindet mit dem Fenster — genau das, was der 409 verhindern soll.
+      throw err;
+    }
+  };
+
   const handleConfirm = async (id: string) => {
     await confirmAppointment(id);
     toast.success("Termin bestätigt");
@@ -150,6 +208,30 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
   };
 
   const appointmentTypes = APPOINTMENT_TYPES;
+
+  /**
+   * Die Vorbelegung des Bearbeitungsdialogs.
+   *
+   * `useMemo` ist hier mehr als Optimierung: der Dialog setzt seine Felder
+   * zurueck, wenn sich der Inhalt dieser Daten aendert. Ein neues Objekt mit
+   * demselben Inhalt wuerde zwar nichts zuruecksetzen (der Dialog vergleicht
+   * den Inhalt), aber es waere trotzdem eine zweite Quelle fuer "der Termin
+   * hat sich geaendert".
+   */
+  const editInitialData = useMemo(() => {
+    if (!editingAppointment) return undefined;
+    return {
+      participantId: editingAppointment.participantId,
+      coachId: editingAppointment.coachId,
+      coachName: editingAppointment.coachName,
+      type: editingAppointment.type,
+      startTime: editingAppointment.startTime,
+      endTime: editingAppointment.endTime,
+      location: editingAppointment.location,
+      meetingLink: editingAppointment.meetingLink,
+      notes: editingAppointment.notes,
+    };
+  }, [editingAppointment]);
 
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const adjustedStart = addWeeks(weekStart, weekOffset);
@@ -296,6 +378,7 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
                 <AppointmentListCard
                   key={appointment.id}
                   appointment={appointment}
+                  onEdit={canManage ? handleEdit : undefined}
                   onReschedule={canManage ? handleReschedule : undefined}
                   onCancel={canManage ? handleCancel : undefined}
                   onConfirm={canManage ? handleConfirm : undefined}
@@ -333,7 +416,8 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
                         <AppointmentListCard
                           key={appointment.id}
                           appointment={appointment}
-                          showActions={false}
+                          onEdit={canManage ? handleEdit : undefined}
+                          showActions={canManage}
                           highlightCorrelation={true}
                         />
                       ))}
@@ -352,14 +436,17 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
         )}
       </Tabs>
 
-      {/* Create/Edit Dialog — AppointmentFormDialog rendert selbst ein volles
+      {/* Zwei Dialoge, nicht einer: Anlegen und Bearbeiten haben verschiedene
+          Vorbelegungen, verschiedene Beschriftungen und verschiedene Regeln
+          (im Bearbeitungsmodus ist ein leeres Feld "leeren", im Anlegen
+          "nicht setzen"). AppointmentFormDialog rendert selbst ein volles
           Dialog. Ein umschliessendes Dialog wuerde ein zweites Portal, einen
           zweiten Header und eine zweite Fokusfalle erzeugen; der aeussere
           Dialog bliebe sichtbar, aber nicht bedienbar.
 
-          Das Bearbeiten ist bewusst nicht verdrahtet: setEditingAppointment
-          wurde nirgends aufgerufen, "Termin bearbeiten" war unerreichbar.
-          Ob Terminbearbeitung kommt, ist eine Produktentscheidung. */}
+          Beide Instanzen sind dauerhaft gemountet, aber nur die offene rendert
+          Inhalt — Radix mountet den DialogContent nicht, solange er zu ist.
+          Das haelt die Zahl der Dialog-Overlays bei einer. */}
       <AppointmentFormDialog
         isOpen={showForm}
         onClose={() => setShowForm(false)}
@@ -368,6 +455,25 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
         participantName={participantName}
         availableCoaches={availableCoaches}
         title="Termin anlegen"
+        mode="create"
+      />
+
+      {/*
+        Bearbeiten. Nur Entwuerfe sind hier bearbeitbar — der Server entscheidet
+        das verbindlich (409), das Dropdown filtert nur nach clientseitiger
+        Bequemlichkeit. Die Vorbelegung kommt aus dem Termin, den der Aufrufer
+        ausgewahlt hat.
+      */}
+      <AppointmentFormDialog
+        isOpen={!!editingAppointment}
+        onClose={() => setEditingAppointment(null)}
+        onSubmit={handleEditSubmit}
+        participantId={participantId}
+        participantName={participantName}
+        initialData={editInitialData}
+        availableCoaches={availableCoaches}
+        title="Termin bearbeiten"
+        mode="edit"
       />
 
       {/* Propose Slots Dialog (Coach) */}

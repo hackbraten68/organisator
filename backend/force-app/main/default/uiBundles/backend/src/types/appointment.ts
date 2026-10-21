@@ -71,18 +71,15 @@ export interface AppointmentInput {
   correlationId?: string;
 }
 
-export interface AppointmentPatch {
-  coachId?: string;
-  type?: AppointmentType;
-  startTime?: string;
-  endTime?: string;
-  location?: AppointmentLocation;
-  meetingLink?: string;
-  notes?: string;
-  cancellationReason?: string;
-  correlationId?: string;
-}
-
+/**
+ * Kein `AppointmentPatch` mehr.
+ *
+ * Der allgemeine Bearbeitungspfad hat eine eigene Form: `AppointmentEditInput`
+ * in `api/appointment/appointmentEditService.ts`. Der Unterschied ist nicht
+ * kosmetisch — die alte Form konnte `cancellationReason` und `correlationId`
+ * mitschicken, der Server kennt beide Felder nicht. Eine Form, die mehr
+ * anbietet als der Server akzeptiert, ist eine Form, die man falsch benutzt.
+ */
 export interface AppointmentFilters {
   participantId?: string;
   coachId?: string;

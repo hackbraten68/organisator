@@ -838,6 +838,48 @@ Erstellungsdatum als solchen zu setzen wäre geraten. Diese beiden Sätze gehör
 - `appointmentPicklist.test.ts` hält die Bundle-Liste gegen das Deploy-Metadatum, in beide
   Richtungen — ein einseitiger Eingriff wäre dort aufgefallen
 
+### Folgepunkt (2026-10-21): Einheitlicher Fehlervertrag für Create und Edit
+
+**Status:** offen — Umsetzung zusammen mit dem Kollisionsschutz (D2), bewusst nicht im
+Montagspaket vom 2026-10-21
+
+`ParticipantAppointmentsTab.handleCreate` verschluckt Fehler derzeit, während
+`handleEditSubmit` Fehler nach dem Toast erneut wirft. Dadurch kann der Anlegen-Dialog trotz
+fehlgeschlagenem Speichern schließen und die Eingabe verlieren.
+
+Der Vertrag des Dialogs ist bereits festgeschrieben und getestet: `AppointmentFormDialog`
+schließt nur bei erfolgreichem Speichern und hält sich sonst offen
+(`AppointmentFormDialog.test.tsx`: „onClose wird erst nach erfolgreichem Speichern
+aufgerufen"). `handleEditSubmit` erfüllte diesen Vertrag nicht — es schluckte den Fehler, der
+Dialog glaubte, das Speichern sei gelungen, und schloss; die Eingabe des Nutzers war weg.
+Das ist am 2026-10-21 korrigiert: der Fehler wird nach dem Toast weitergereicht, der Dialog
+bleibt offen. `handleCreate` verhält sich weiterhin anders und schließt den Dialog bei einem
+Fehler.
+
+Das wird relevant, sobald der Kollisionsschutz (D2) auch beim Anlegen einen `409 Conflict`
+zurückgeben kann: dann wäre der Dialog nach einem abgelehnten Anlegen zu, die Eingabe weg,
+und sichtbar wäre nur der Toast.
+
+**Umsetzung (D2):**
+
+- `handleCreate` darf einen fehlgeschlagenen Schreibvorgang nicht als Erfolg abschließen.
+- Nach Toast und Logging muss der Fehler an `AppointmentFormDialog` weitergereicht werden.
+- Der Dialog bleibt bei Fehlern offen.
+- Die eingegebenen Werte bleiben erhalten.
+- Bei erfolgreichem Anlegen schließt der Dialog weiterhin.
+- Create und Edit verwenden denselben Fehlervertrag.
+- `409 Conflict` wird verständlich angezeigt und führt nicht zu einem zweiten oder
+  teilweise gespeicherten Termin.
+
+**Tests (D2):**
+
+1. Erfolgreiches Anlegen schließt den Dialog.
+2. Allgemeiner API-Fehler lässt den Dialog geöffnet.
+3. `409 Conflict` lässt den Dialog geöffnet.
+4. Formulareingaben bleiben nach dem Fehler erhalten.
+5. Es wird kein Erfolgszustand und kein erfolgreicher Refresh ausgelöst.
+6. Edit und Create verhalten sich bei Schreibfehlern konsistent.
+
 ## ADR-015 — Ein benannter Weg für Altbestand, der die Invarianten verletzt
 
 **Status:** Mechanismus entschieden und deployed (2026-10-15). Datenreparatur an

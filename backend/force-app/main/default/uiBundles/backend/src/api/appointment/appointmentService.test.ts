@@ -13,7 +13,6 @@ import {
   deleteAvailabilitySlot,
   getAppointment,
   listAppointments,
-  updateAppointment,
 } from "./appointmentService";
 
 vi.mock("../graphqlClient", () => ({
@@ -223,40 +222,6 @@ describe("updateAppointmentAttendance – der Status ist fest verdrahtet", () =>
     expect(variables).not.toHaveProperty("status");
     expect(document).toContain('Status__c: "NoShow"');
     expect(document).not.toMatch(/\$status\s*:/);
-  });
-});
-
-describe("updateAppointment – keine Staff-Variable", () => {
-  it("ignoriert eine uebergebene staffId und sendet sie nicht", async () => {
-    mockedExecute
-      .mockResolvedValueOnce({
-        uiapi: { query: { Appointment__c: { edges: [{ node: { Id: "a0C9b0000Kx5LFtEQM", Participant__c: { value: "p-1" } } }] } } },
-      })
-      .mockResolvedValueOnce({ uiapi: { Appointment__cUpdate: { Record: { Id: "a0C9b0000Kx5LFtEQM" } } } });
-
-    await updateAppointment("a0C9b0000Kx5LFtEQM", {
-      staffId: "0059b00000gUfkFAAS",
-      status: "Confirmed",
-      confirmedAt: "2026-09-30T09:00:00.000Z",
-      completedAt: "2026-09-30T11:00:00.000Z",
-    } as never);
-
-    const [document, variables] = mockedExecute.mock.calls[1] as [string, Record<string, unknown>];
-
-    // staffId wie bisher. Neu: auch status/confirmedAt/completedAt kommen nicht
-    // durch. Der allgemeine Patch aendert Termindaten, nicht den fachlichen
-    // Zustand — sonst koennte ein spaeter verdrahteter Bearbeitungsdialog die
-    // Luecke wieder oeffnen, die die benannten Mutationen geschlossen haben.
-    expect(variables).not.toHaveProperty("staffId");
-    expect(document).not.toContain("Staff__c");
-    expect(variables).not.toHaveProperty("status");
-    expect(variables).not.toHaveProperty("confirmedAt");
-    expect(variables).not.toHaveProperty("completedAt");
-    // Wieder die ausfuehrbare Form: die Kommentare in der Mutation nennen die
-    // Felder, die dort bewusst fehlen.
-    expect(document).not.toMatch(/Status__c\s*:/);
-    expect(document).not.toMatch(/ConfirmedAt__c\s*:/);
-    expect(document).not.toMatch(/CompletedAt__c\s*:/);
   });
 });
 

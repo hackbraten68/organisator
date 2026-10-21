@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   createAppointment,
-  updateAppointment,
   confirmAppointment,
   completeAppointment,
   rescheduleAppointment,
@@ -91,28 +90,27 @@ describe("appointmentService audit integration", () => {
     });
   });
 
-  describe("updateAppointment", () => {
-    it("cannot record a status change at all — the patch has no status", async () => {
-      // Umgekehrter Test. Frueher stand hier `status: "Confirmed"` und es wurde
-      // ein appointment.status_changed erwartet. Genau das ist jetzt ausgeschlossen:
-      // AppointmentPatch traegt kein status mehr, und ein Aufrufer, der es trotzdem
-      // mitschickt, erreicht damit weder die Mutation noch das Audit. Der
-      // Statuswechsel gehoert in confirmAppointment/completeAppointment/
-      // cancelAppointment/updateAppointmentAttendance.
-      route();
+  describe("der allgemeine Bearbeitungspfad", () => {
+    it("liegt nicht mehr in diesem Modul", async () => {
+      // Der Weg ist nach `appointmentEditService` umgezogen (Apex
+      // `AppointmentEditService`): Draft-Gate, Feld-Whitelist und Audit
+      // passieren dort serverseitig, im selben Schritt wie die Aenderung.
+      // Hier duerfte kein zweiter Schreibpfad fuer dieselbe Handlung liegen —
+      // und ohne `updateAppointment` gibt es auch keine UI-API-Mutation
+      // `UpdateAppointment.graphql` mehr, die er aufrufen koennte.
+      const service = (await import("./appointmentService")) as Record<string, unknown>;
 
-      await updateAppointment("apt-1", { status: "Confirmed" } as never);
-
-      expect(auditService.record).not.toHaveBeenCalled();
+      expect(service.updateAppointment).toBeUndefined();
     });
 
-    it("does not record an audit event for a plain data change", async () => {
-      route();
-
-      await updateAppointment("apt-1", { location: "Discord" });
-
-      expect(auditService.record).not.toHaveBeenCalled();
-    });
+    // Entfallen: dieser Test pruefte, dass updateAppointment eine
+    // Statusaenderung mit der fachlichen Correlation-Id protokolliert. Genau
+    // dieser Weg existiert nicht mehr — der allgemeine Patch kann den Status
+    // nicht aendern (siehe der Test weiter oben) und protokolliert deshalb
+    // gar nichts. Die Aussage "eine reine Datenaenderung erzeugt kein Audit"
+    // steht jetzt dort. Was hier frueher stand, hat keine Entsprechung mehr
+    // und wurde nicht auf eine andere Funktion umgehaengt, weil das eine
+    // andere Behauptung waere.
   });
 
   describe("confirmAppointment", () => {

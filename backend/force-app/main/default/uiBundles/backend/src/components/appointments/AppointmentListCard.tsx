@@ -35,6 +35,11 @@ const LOCATION_ICON_FALLBACK = <MapPin className="size-3.5" />;
 
 interface AppointmentListCardProps {
   appointment: Appointment;
+  /** Bearbeiten. Wird nur bei `Draft` angeboten — serverseitig ist Draft der
+   *  einzige bearbeitbare Zustand (Entscheidung D1). Der Client blendet den
+   *  Eintrag nur aus Bequemlichkeit aus; die eigentliche Sperre steht im
+   *  Einstiegspunkt und antwortet mit 409. */
+  onEdit?: (id: string) => void;
   onReschedule?: (id: string) => void;
   onCancel?: (id: string) => void;
   onConfirm?: (id: string) => void;
@@ -48,6 +53,7 @@ interface AppointmentListCardProps {
 
 export function AppointmentListCard({
   appointment,
+  onEdit,
   onReschedule,
   onCancel,
   onConfirm,
@@ -83,8 +89,10 @@ export function AppointmentListCard({
   const canComplete = isConfirmed && onComplete;
   const canNoShow = isConfirmed && onNoShow;
   const canCancel = (isDraft || isPending || isConfirmed) && onCancel;
-
-  const hasActions = canConfirm || canReschedule || canComplete || canNoShow || canCancel || onViewDetails;
+  // Bearbeiten gibt es nur fuer Entwuerfe. Das ist die clientseitige Seite
+  // von D1; verbindlich ist die Pruefung im Einstiegspunkt.
+  const canEdit = isDraft && onEdit;
+  const hasActions = canEdit || canConfirm || canReschedule || canComplete || canNoShow || canCancel || onViewDetails;
 
   return (
     <Card>
@@ -165,6 +173,11 @@ export function AppointmentListCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {canEdit && (
+                  <DropdownMenuItem onSelect={() => onEdit?.(appointment.id)}>
+                    Bearbeiten
+                  </DropdownMenuItem>
+                )}
                 {canConfirm && (
                   <DropdownMenuItem onSelect={() => onConfirm?.(appointment.id)}>
                     Bestätigen

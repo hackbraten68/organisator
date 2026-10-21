@@ -12,9 +12,17 @@
         REST needs an explicit class grant: without this entry a limited internal
         profile gets 403 on /services/apexrest/staff-identity/me and the backoffice
         falls back to the actor picker.
+
+        AppointmentEditService is the named server-side entry point for editing an
+        appointment (ADR-014). Same rule: without this entry the route answers
+        403 and nobody can edit a draft appointment.
     -->
     <classAccesses>
         <apexClass>StaffIdentity</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>AppointmentEditService</apexClass>
         <enabled>true</enabled>
     </classAccesses>
 </PermissionSet>
