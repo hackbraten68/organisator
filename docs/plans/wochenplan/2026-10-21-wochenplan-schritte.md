@@ -5,7 +5,9 @@
 > **Gültigkeit:** Verbindlich für Feldvertrag, Abhängigkeiten und Umsetzungsreihenfolge  
 > **Änderungen:** Fachliche oder technische Abweichungen müssen in diesem Dokument und gegebenenfalls in einer ADR dokumentiert werden.
 > **Bearbeitungsstand:** Spur 0 (S0.1–S0.5) ist erledigt — Commit `43d3a8b` vom 2026-10-21.
-> Die Spuren A, B, C, D und E stehen aus.
+> Spur A ist in Vorbereitung: Feldvertrag am 2026-10-21 gegen die Org geprüft (Abschnitt 0 dort),
+> Feldanzahlen korrigiert, F1 = ja entschieden, Metadaten und Setup-Worklist erstellt. **Die manuelle
+> Anlage in Classic Setup steht aus.** Die Spuren B, C, D und E stehen aus.
 
 **Datum:** 2026-10-21
 **Bezug:** `2026-10-21-wochenplan-feature.md` (Phasen 0–8), `2026-10-21-wochenplan-feldvertrag.md` (Setup-Spec)
@@ -53,11 +55,11 @@ Quelle: `2026-10-21-wochenplan-feldvertrag.md`. **Kein Deploy für Anlage oder F
 |---|---|---|---|
 | S1.1 | `ProgramWeek__c` | Setup: Label „Kurswoche", Name Text(255), Felder `Program__c` (Lookup, Restrict), `Module__c` (Lookup, Restrict), `Number__c` (Number 2,0, required), `Description__c`, `Status__c` (Draft/Active/Completed) | `sobject describe` zeigt alle 5 Felder |
 | S1.2 | `WeeklySchedule__c` | Setup: 13 Felder laut Vertrag §4, davon `ScopeType__c` (Course/Group/Individual), `StartDate__c` required, `DeviationReason__c` | describe vollständig |
-| S1.3 | `ScheduleTemplate__c` | Setup: 6 Felder laut Vertrag §5 | describe vollständig |
-| S1.4 | `ScheduleEntry__c` | Setup: 24 Felder laut Vertrag §6 (`EntryKind__c`, `DayOfWeek__c` Monday…Sunday, `Date__c` berechnet, `TargetType__c`, `SourceTemplateEntry__c`, `IsCustomized__c`, `DeviationReason__c`) | describe vollständig |
+| S1.3 | `ScheduleTemplate__c` | Setup: 5 Felder laut Vertrag §5 (+ Name-Feld) | describe vollständig |
+| S1.4 | `ScheduleEntry__c` | Setup: 22 Felder laut Vertrag §6 (+ Name-Feld) (`EntryKind__c`, `DayOfWeek__c` Monday…Sunday, `Date__c` berechnet, `TargetType__c`, `SourceTemplateEntry__c`, `IsCustomized__c`, `DeviationReason__c`) | describe vollständig |
 | S1.5 | `TaskCompletion__c` | Setup: 5 Felder laut Vertrag §7 | describe vollständig |
-| S1.6 | `ParticipantGroup__c` + `ParticipantGroupMember__c` | **nur wenn F1 = ja** | describe vollständig |
-| S1.7 | Bestand erweitern | `Appointment__c.ScheduleEntry__c` (Lookup, SetNull), `Learning_Path__c.Module__c` (Lookup, SetNull) | beide in `sobject describe` sichtbar |
+| S1.6 | `ParticipantGroup__c` + `ParticipantGroupMember__c` | **F1 = ja** (entschieden 2026-10-21) | describe vollständig |
+| S1.7 | Bestand erweitern | `Appointment__c.ScheduleEntry__c` (Lookup, SetNull), `Learning_Path__c.Module__c` (Lookup, SetNull) — **erst nach dem D2-Commit**: Feldänderungen an gesunden Feldern sind org-level Eingriffe und ziehen nach AGENTS.md Regel 15 einen vollen Testlauf nach sich | beide in `sobject describe` sichtbar |
 | S1.8 | Retrieve | `sf project retrieve start --metadata CustomObject:…` (Befehl im Vertrag §11) | XML liegt unter `backend/force-app/main/default/objects/`, **byte-identisch** zu Setup |
 | S1.9 | Metadaten committen | nur `objects/…`-Änderungen | `git status` zeigt **keine** unbeabsichtigten Feldänderungen an bestehenden Objekten |
 
@@ -151,8 +153,9 @@ Zum Schluss: S27 → S28 → S29 → S30 → S31 → S32   (Spur E)
 
 ## Abbruch- und Klärungsregeln
 
-- **F1 (Gruppen) offen** → S1.6, `ParticipantGroup__c`-Felder in S1.2/S1.4 und die Gruppenauswahl in S8
-  entfallen; S20 filtert ohne Gruppenebene. Alles andere bleibt gültig.
+- **F1 (Gruppen) entschieden: ja** (2026-10-21) → S1.6 läuft, die `ParticipantGroup__c`-Felder in S1.2/S1.4
+  und die Gruppenauswahl in S8 sind Teil des Umfangs. Kippt die Entscheidung, entfallen genau diese
+  drei Bausteine; alles andere bleibt gültig.
 - **F13 (Erledigt-Semantik) = nein** → S1.5 und S18 entfallen; S11 zeigt keinen Erledigt-Status.
   **Empfehlung: anlegen** (späteres Nachrüsten eines neuen Objekts ist teurer).
 - **F14 (Wochen- vs. Kursvorlage)** → beide Bindungen sind in S1.3 angelegt; die Entscheidung fällt erst

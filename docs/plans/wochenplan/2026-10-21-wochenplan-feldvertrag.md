@@ -4,6 +4,7 @@
 > **Stand:** 2026-10-21  
 > **Gültigkeit:** Verbindlich für Feldvertrag, Abhängigkeiten und Umsetzungsreihenfolge  
 > **Änderungen:** Fachliche oder technische Abweichungen müssen in diesem Dokument und gegebenenfalls in einer ADR dokumentiert werden.
+> **Bearbeitungsstand:** 2026-10-21 — Abschnitt 0 (K1–K4) aus der Org-Prüfung ergänzt; F1 = ja entschieden; Feldanzahlen korrigiert; Setup-Eingabe steht aus.
 
 **Datum:** 2026-10-21
 **Zweck:** Ausführbarer Vertrag für das Anlegen der neuen Objekte in **Classic Setup**.
@@ -19,6 +20,73 @@
 
 ---
 
+## 0. Korrekturen aus der Org-Prüfung (2026-10-21)
+
+Vor dem Anlegen in Setup wurde das Repository gegen `hubSandbox` geprüft (Tooling API,
+`sobject describe`, Objekt-Metadaten im Bestand). Vier Abweichungen zwischen diesem Vertrag und
+der Org-Wahrheit wurden dabei gefunden und entschieden. **Diese Entscheidungen sind verbindlich.**
+
+| # | Fund | Org-Wahrheit | Entscheidung |
+|---|---|---|---|
+| K1 | Sharing-Referenz (§1) | `Appointment__c` ist `sharingModel=ReadWrite`, `externalSharingModel=Private` — **nicht** „Private/Private (wie `Appointment__c`)" | Die neuen Objekte spiegeln den Bestand: `sharingModel=ReadWrite`, `externalSharingModel=Private`. `sharingModel` steuert den Zugriff über Standard-Lookups; alle Repo-Objekte nutzen ReadWrite. **Das org-weite Default (OWD) ist davon unberührt** und bleibt Handarbeit in Setup (siehe unten) |
+| K2 | Feldzahlen | §3–§8 dieser Tabellen sind maßgeblich: 5 / 13 / 5 / 22 / 5 / 3 / 3 | Der Schrittkatalog nannte „6" (§5) und „24" (§6) — korrigiert. Jedes Objekt hat zusätzlich ein Name-Feld (Text bzw. AutoNumber) |
+| K3 | `Appointment__c.Type__c` (§9) | Org-Werte: `Coaching`, `CheckIn`, `Feedback`, `Behörde`, `Praktikum`, `Sonstiges` | Der Werteliste in §9 fehlte dieser Abgleich: `Feedback` und `Sonstiges` **existieren bereits**, ein „Ergänzen" scheitert an `restricted = true`. §9 ist präzisiert. Offen bleibt das Mapping `ScheduleEntry__c.Type__c` → `Appointment__c.Type__c` (F19) |
+| K4 | `DayOfWeek__c` (§6) | `AvailabilitySlot__c.DayOfWeek__c` kennt **nur** Monday–Friday | „Identisch zum Muster" meint den Namensstil (API-Name = Label, englische Wochentage), nicht die Wertemenge. `ScheduleEntry__c.DayOfWeek__c` hat **7** Werte (Monday–Sunday) |
+
+**Relationship-Namen — geprüft, nicht beanstandet.** Der Vertrag nennt sie nur für
+`ProgramWeek__c.Program__c`/`.Module__c`, `WeeklySchedule__c.ProgramWeek__c`,
+`Appointment__c.ScheduleEntry__c` und `Learning_Path__c.Module__c`. Der Bestand belegt, dass
+derselbe Relationship-Name auf demselben Kindobjekt zweimal vergeben werden darf:
+`Learning_Path__c` nutzt `Learning_Paths` **sowohl** für `Participant__c` **als auch** für
+`Program__c` — im Org deployed und funktionsfähig. Für die übrigen Lookups ergänzt dieser Vertrag
+die Namen systematisch (§0a) statt sie wegzulassen: kein Objekt im Bestand verzichtet auf einen
+Relationship-Namen.
+
+**Defaults, die der Vertrag nicht festlegt.** Drei Required-Picklists brauchen in Setup zwingend
+einen Default-Wert, der Vertrag nennt ihn nicht. Vorgeschlagen und in den Metadaten so gesetzt,
+bis der Fachentscheid vorliegt: `ScheduleEntry__c.EntryKind__c` = `Aktivität`,
+`ScheduleEntry__c.Type__c` = `Einzelcoaching`, `ScheduleEntry__c.DayOfWeek__c` = `Monday`.
+
+**Von Hand in Setup, nicht im Metadatum:** das org-weite Default (OWD) je Objekt
+(Setup → Sharing Settings → „Private", intern **und** extern). Das ist kein Metadatum
+(`backend/docs/AGENTS.md`, Sicherheitsregel 1), überlebt kein Sandbox-Refresh und wird in
+`backend/docs/g1-manual-checklist.md` vermerkt.
+
+## 0a. Relationship-Namen der neuen Objekte
+
+Regel: der Relationship-Name benennt die **Kinder** auf dem Elternobjekt (Plural des Objekts, das
+den Lookup deklariert). Der Namensraum liegt je Elternobjekt, deshalb darf derselbe Name auf
+verschiedenen Elternobjekten vorkommen — so wie `Learning_Path__c` es tut.
+
+| Kindobjekt | Lookup | Relationship-Name | Elternobjekt |
+|---|---|---|---|
+| `ProgramWeek__c` | `Program__c` | `Program_Weeks` | `Program__c` |
+| `ProgramWeek__c` | `Module__c` | `Program_Weeks` | `Module__c` |
+| `WeeklySchedule__c` | `ProgramWeek__c` | `Weekly_Schedules` | `ProgramWeek__c` |
+| `WeeklySchedule__c` | `ParticipantGroup__c` | `Weekly_Schedules` | `ParticipantGroup__c` |
+| `WeeklySchedule__c` | `Participant__c` | `Weekly_Schedules` | `Participant__c` |
+| `WeeklySchedule__c` | `PublishedBy__c` | `Weekly_Schedules` | `User` |
+| `WeeklySchedule__c` | `AppliedTemplate__c` | `Weekly_Schedules` | `ScheduleTemplate__c` |
+| `ScheduleTemplate__c` | `ProgramWeek__c` | `Schedule_Templates` | `ProgramWeek__c` |
+| `ScheduleTemplate__c` | `Program__c` | `Schedule_Templates` | `Program__c` |
+| `ScheduleTemplate__c` | `Module__c` | `Schedule_Templates` | `Module__c` |
+| `ScheduleEntry__c` | `WeeklySchedule__c` | `Schedule_Entries` | `WeeklySchedule__c` |
+| `ScheduleEntry__c` | `ScheduleTemplate__c` | `Schedule_Entries` | `ScheduleTemplate__c` |
+| `ScheduleEntry__c` | `ParticipantGroup__c` | `Schedule_Entries` | `ParticipantGroup__c` |
+| `ScheduleEntry__c` | `Participant__c` | `Schedule_Entries` | `Participant__c` |
+| `ScheduleEntry__c` | `Coach_Profile__c` | `Schedule_Entries` | `Coach_Profile__c` |
+| `ScheduleEntry__c` | `SourceTemplateEntry__c` | `Source_Entries` | `ScheduleEntry__c` |
+| `TaskCompletion__c` | `ScheduleEntry__c` | `Task_Completions` | `ScheduleEntry__c` |
+| `TaskCompletion__c` | `Participant__c` | `Task_Completions` | `Participant__c` |
+| `ParticipantGroup__c` | `Program__c` | `Participant_Groups` | `Program__c` |
+| `ParticipantGroup__c` | `Coach_Profile__c` | `Participant_Groups` | `Coach_Profile__c` |
+| `ParticipantGroupMember__c` | `ParticipantGroup__c` | `Participant_Group_Members` | `ParticipantGroup__c` |
+| `ParticipantGroupMember__c` | `Participant__c` | `Participant_Group_Members` | `Participant__c` |
+
+> **Einzige Abweichung von der Regel:** `Source_Entries` statt `Schedule_Entries` für den
+> Selbstbezug. Auf `ScheduleEntry__c` trügen beide Namen sonst fremde Kinder; `Source_Entries`
+> benennt die Herkunft, `Schedule_Entries` die Planzeilen unter einem Plan.
+
 ## 1. Konventionen (aus dem Bestand abgeleitet, nicht erfunden)
 
 | Thema | Konvention im Repo | Für die neuen Objekte |
@@ -30,7 +98,8 @@
 | Beziehungen | **ausnahmslos Lookup** (0 Master-Detail im gesamten Modell) | Lookup, `deleteConstraint` = `Restrict` bei Kind-Beziehungen, `SetNull` bei optionalen |
 | Name-Feld | Text für Inhaltsobjekte (`Program__c`, `Module__c`, `Participant__c`), AutoNumber für Vorgänge (`Appointment__c` `TERM-{0000}`, `AvailabilitySlot__c` `SLOT-{0000}`, `Learning_Path__c` `LP-{0000}`) | Text für `ProgramWeek__c`/`WeeklySchedule__c`/`ScheduleTemplate__c`/`ScheduleEntry__c`/`ParticipantGroup__c`; AutoNumber für `TaskCompletion__c`/`ParticipantGroupMember__c` |
 | `enableHistory` | true bei `Appointment__c`, `Absence__c`, `AvailabilitySlot__c` | true für die Planobjekte (Planhistorie ist fachlich relevant) |
-| Sharing | `sharingModel` Private, `externalSharingModel` Private (wie `Appointment__c`) | Private / Private |
+| `trackHistory` (feldweise) | operativen Feldern true, Langtexten false (`Appointment__c.Notes__c` false) | true für Status, Zeiten, Daten, Ziel, Flags, Zahlen und Lookups; false für `Description__c`, `Notes__c`, `DeviationReason__c` |
+| Sharing | `sharingModel` **ReadWrite**, `externalSharingModel` Private — Bestand: `Appointment__c`, `AvailabilitySlot__c` (K1) | ReadWrite / Private |
 
 **Präzisierung gegenüber Plan-Abschnitt 4.1** (hier gilt die genauere Fassung):
 
@@ -140,15 +209,15 @@ Baustein, der parallel zum Wochenplan entstehen kann und erst für die Rechtepr�
 | `WeeklySchedule__c` | Wochenplan | Lookup → `WeeklySchedule__c` | optional, `Restrict` — null = Vorlagenzeile |
 | `ScheduleTemplate__c` | Vorlage | Lookup → `ScheduleTemplate__c` | optional, `Restrict` — null = Planzeile. **Genau eines** von beiden muss gesetzt sein (Prüfung im Trigger) |
 | `Description__c` | Beschreibung | Long Text Area (32768, 4) | optional — trägt die Standard-Aufgabenbeschreibung (editierbar) |
-| `EntryKind__c` | Art | Picklist (restricted) | erforderlich: `Aktivität`, `Aufgabe` (K2) |
-| `Type__c` | Typ | Picklist (restricted) | erforderlich: `Einzelcoaching`, `Gruppencoaching`, `Feedback`, `Projekt-Kick-off`, `Workshop`, `Selbstlernphase`, `Projektarbeit`, `Sonstiges` |
+| `EntryKind__c` | Art | Picklist (restricted) | erforderlich: `Aktivität`, `Aufgabe` (K2) — Default `Aktivität` (Vorschlag, §0) |
+| `Type__c` | Typ | Picklist (restricted) | erforderlich: `Einzelcoaching`, `Gruppencoaching`, `Feedback`, `Projekt-Kick-off`, `Workshop`, `Selbstlernphase`, `Projektarbeit`, `Sonstiges` — Default `Einzelcoaching` (Vorschlag, §0) |
 | `IsRequired__c` | Pflicht | Checkbox | Default `false` — Pflichtbestandteil des AZAV-Standards (K2) |
-| `DayOfWeek__c` | Wochentag | Picklist (restricted) | erforderlich: `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` — **identisch zum Muster von `AvailabilitySlot__c.DayOfWeek__c`** |
+| `DayOfWeek__c` | Wochentag | Picklist (restricted) | erforderlich: `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, `Sunday` — **7 Werte**; Namensstil wie `AvailabilitySlot__c.DayOfWeek__c`, dessen Wertemenge nur Monday–Friday umfasst (K4) — Default `Monday` (Vorschlag, §0) |
 | `Date__c` | Datum | Date | optional — in Vorlagenzeilen leer, in Planzeilen serverseitig aus `WeeklySchedule__c.StartDate__c` + Wochentag berechnet |
 | `StartTime__c` | Von | Time | optional — bei Aufgaben leer |
 | `EndTime__c` | Bis | Time | optional — bei Aufgaben leer |
 | `DurationMinutes__c` | Dauer (Minuten) | Number (4,0) | optional — Alternative zu `EndTime__c` |
-| `TargetType__c` | Zielgruppe | Picklist (restricted) | erforderlich: `Course`, `Group`, `Individual` |
+| `TargetType__c` | Zielgruppe | Picklist (restricted) | erforderlich: `Course`, `Group`, `Individual` — Default `Course` |
 | `ParticipantGroup__c` | Teilnehmergruppe | Lookup → `ParticipantGroup__c` | optional, `SetNull` — nur bei `TargetType = Group` |
 | `Participant__c` | Teilnehmer | Lookup → `Participant__c` | optional, `Restrict` — nur bei `TargetType = Individual` |
 | `Coach_Profile__c` | Coach | Lookup → `Coach_Profile__c` | optional, `SetNull` — **fachliche** Coach-Entität (nicht `User`; `Appointment__c.Coach__c` zeigt auf `User`) |
@@ -217,7 +286,7 @@ Baustein, der parallel zum Wochenplan entstehen kann und erst für die Rechtepr�
 |---|---|---|---|
 | `Appointment__c` | `ScheduleEntry__c` | Lookup → `ScheduleEntry__c` | optional, `SetNull`, Label „Planzeile", relationshipName `Appointments` — additive Verknüpfung Termin → Planzeile |
 | `Learning_Path__c` | `Module__c` | Lookup → `Module__c` | optional, `SetNull`, Label „Modul", relationshipName `Learning_Paths` (K6) — beseitigt die Inkonsistenz zwischen `docs/DATA_MODEL.md` / `backend/docs/AGENTS.md` (dort ist die Kante gezeichnet) und dem Metadatum |
-| `Appointment__c` | `Type__c` | Picklist (restricted) | **Werte ergänzen**, bestehende behalten: `Einzelcoaching`, `Gruppencoaching`, `Projekt-Kick-off`, `Workshop`, `Selbstlernphase`, `Projektarbeit` |
+| `Appointment__c` | `Type__c` | Picklist (restricted) | **Werte ergänzen**, bestehende behalten. Org-Stand: `Coaching`, `CheckIn`, `Feedback`, `Behörde`, `Praktikum`, `Sonstiges` — `Feedback` und `Sonstiges` existieren bereits und dürfen **nicht** erneut angelegt werden (`restricted = true`, K3). Neu anzulegen: `Einzelcoaching`, `Gruppencoaching`, `Projekt-Kick-off`, `Workshop`, `Selbstlernphase`, `Projektarbeit`. Offen: das Mapping `ScheduleEntry__c.Type__c` → `Appointment__c.Type__c` (F19) — späterer Block |
 | `AuditEvent__c` | `Domain__c` | Picklist (restricted) | **Wert ergänzen**: `schedule` (die bestehenden Werte sind kleingeschrieben: `appointment`, `learning_path`, `availability` …) |
 
 > `Appointment__c.Type__c` und `AuditEvent__c.Domain__c` sind **Feldänderungen** an gesunden Feldern und
@@ -250,11 +319,12 @@ sf project retrieve start --metadata CustomObject:ProgramWeek__c \
   --metadata CustomObject:TaskCompletion__c \
   --metadata CustomObject:ParticipantGroup__c \
   --metadata CustomObject:ParticipantGroupMember__c \
-  --metadata CustomObject:Appointment__c \
-  --metadata CustomObject:Learning_Path__c \
-  --metadata CustomObject:AuditEvent__c \
   --output-dir . --force
 ```
+
+> **Nur die sieben neuen Objekte.** `Appointment__c`, `Learning_Path__c` und `AuditEvent__c` sind
+> **nicht** Teil dieses Abrufs: sie gehören in den späteren Block (S1.7, nach dem D2-Commit) und
+> würden beim Abruf Fremdänderungen an bestehenden Feldern mitziehen (Regel in S1.9).
 
 Das Ergebnis landet unter `backend/force-app/main/default/objects/…` und ist **byte-identisch** mit dem,
 was in Setup steht (so der Nachweis in AGENTS.md Z. 1012–1014).
@@ -266,7 +336,13 @@ was in Setup steht (so der Nachweis in AGENTS.md Z. 1012–1014).
    bestehenden Feldern (besonders `AuditEvent__c` und `Appointment__c`).
 3. Picklist-Werte: API-Name = Label, `restricted = true`, Default-Wert wie oben.
 4. `deleteConstraint`: `Restrict` an allen Kind-Beziehungen, `SetNull` an optionalen.
-5. Commit: `chore(salesforce): Wochenplan-Objekte aus Setup retrieved` — **ohne** Deploy-Anspruch.
+5. `scripts/schema-check.apex` führt eine **feste Objektliste**. Die sieben neuen Objekte kommen
+   **nach** dem Anlegen dort hinein — erst dann prüft `npm run schema:check` sie mit. Vorher
+   bleibt der Check grün und für diese Objekte blind; die fehlenden Objekte würden als
+   `NEWOBJ|…|FAIL|object not present in the runtime schema` gemeldet, was bis zum Anlegen ein
+   dauerhaft roter Check wäre (AGENTS.md: ein dauerhaft roter Check wird nicht mehr gelesen).
+   Der Tooling-API-Nachweis (`FieldDefinition` je Objekt) deckt die Lücke bis dahin ab.
+6. Commit: `chore(salesforce): Wochenplan-Objekte aus Setup retrieved` — **ohne** Deploy-Anspruch.
 
 ---
 
