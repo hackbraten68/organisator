@@ -65,6 +65,11 @@
                 <default>false</default>
                 <label>availability</label>
             </value>
+            <value>
+                <fullName>schedule</fullName>
+                <default>false</default>
+                <label>schedule</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>
