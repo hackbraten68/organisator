@@ -7,8 +7,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ParticipantAppointmentsTab } from "./ParticipantAppointmentsTab";
-import { listAppointments } from "@/api/appointment/appointmentService";
+import { listAppointments, createAppointment } from "@/api/appointment/appointmentService";
 import { editAppointment } from "@/api/appointment/appointmentEditService";
+import { AppointmentConflictError } from "@/api/appointment/appointmentConflict";
 import { listAssignableUsers } from "@/api/user/userService";
 import { toast } from "sonner";
 import type { Appointment } from "@/types/appointment";
@@ -73,6 +74,7 @@ vi.mock("./AvailabilitySlots", () => ({
 const mockedList = vi.mocked(listAppointments);
 const mockedUsers = vi.mocked(listAssignableUsers);
 const mockedEdit = vi.mocked(editAppointment);
+const mockedCreate = vi.mocked(createAppointment);
 
 /** Ein Termin in der Zukunft — die Liste trennt anstehend und vergangen. */
 function inDays(days: number, hours = 0): string {
@@ -108,6 +110,12 @@ beforeEach(() => {
     name: DRAFT_APPOINTMENT.name,
     status: "Draft",
   });
+  mockedCreate.mockReset().mockResolvedValue("a0C9b0000Kx5LFtEQM");
+  // Der Toast-Mock ist ein Modul-Mock und sammelt sonst die Aufrufe aller
+  // Tests der Datei. Ohne Leeren kann ein Test die Meldung eines anderen
+  // Tests fuer seine eigene halten.
+  vi.mocked(toast.error).mockClear();
+  vi.mocked(toast.success).mockClear();
 });
 
 describe("ParticipantAppointmentsTab – Verfügbarkeit-Tab", () => {
@@ -283,5 +291,174 @@ describe("ParticipantAppointmentsTab – Termin bearbeiten", () => {
     );
     // Der Dialog bleibt offen: die Eingabe soll nicht verloren gehen.
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+});
+
+/**
+ * Der Fehlervertrag von Anlegen und Bearbeiten (ADR-014-Folgepunkt, ADR-016).
+ *
+ * Beide Wege benutzen denselben Vertrag: ein fehlgeschlagener Schreibvorgang
+ * schliesst den Dialog nicht, die Eingaben bleiben erhalten, und die Meldung
+ * des Servers wird angezeigt statt einer generischen. Der Unterschied ist
+ * sichtbar — ein Dialog, der den Nutzer zurueckschickt, und einer, der ihm
+ * die Arbeit wegnimmt.
+ */
+describe("ParticipantAppointmentsTab – Fehlervertrag beim Speichern", () => {
+  const ZEITFELDER = 'input[type="datetime-local"]';
+
+  async function openCreateDialog() {
+    mockedUsers.mockResolvedValue([{ id: "0059b00000gUfkFAAS", name: "Coachin" }]);
+    const view = render(
+      <ParticipantAppointmentsTab
+        participantId="a059b00000gdNKkAAM"
+        participantName="Test"
+        canManage={true}
+      />
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /Termin anlegen/i }));
+    await screen.findByRole("dialog");
+    return view;
+  }
+
+  async function openEditDialog() {
+    mockedList.mockResolvedValue({ appointments: [DRAFT_APPOINTMENT], hasNextPage: false });
+    const view = render(
+      <ParticipantAppointmentsTab
+        participantId="a059b00000gdNKkAAM"
+        participantName="Test"
+        canManage={true}
+      />
+    );
+    await screen.findByText("TERM-0042");
+    await userEvent.click(screen.getByRole("button", { name: /Aktionen für Termin/i }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Bearbeiten" }));
+    await screen.findByRole("dialog");
+    return view;
+  }
+
+  async function fillTimes() {
+    const [start, end] = Array.from(
+      document.querySelectorAll<HTMLInputElement>(ZEITFELDER)
+    );
+    if (!start || !end) throw new Error("zeitfelder nicht gefunden");
+    await userEvent.type(start, "2026-11-20T10:00");
+    await userEvent.type(end, "2026-11-20T11:00");
+  }
+
+  async function submitCreate() {
+    // Der Coach ist im Anlegen-Modus Pflicht. Die Option wird ueber ihre
+    // Rolle angesprochen: Radix rendert den Text auch im Auswahlfeld, eine
+    // Textsuche waere daher mehrdeutig.
+    await userEvent.click(screen.getByLabelText(/Coach/i));
+    await userEvent.click(await screen.findByRole("option", { name: "Coachin" }));
+    await fillTimes();
+    await userEvent.click(screen.getByRole("button", { name: /Speichern/i }));
+  }
+
+  async function submitEdit() {
+    await userEvent.click(screen.getByRole("button", { name: /Speichern/i }));
+  }
+
+  it("ein erfolgreiches Anlegen schliesst den Dialog", async () => {
+    await openCreateDialog();
+    await submitCreate();
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(mockedCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("ein allgemeiner Fehler laesst den Anlegen-Dialog geoeffnet", async () => {
+    mockedCreate.mockRejectedValue(new Error("Netzwerkfehler"));
+    await openCreateDialog();
+    await submitCreate();
+
+    await waitFor(() =>
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith("Termin konnte nicht angelegt werden")
+    );
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("ein 409 laesst den Anlegen-Dialog geoeffnet und erhaelt die Eingaben", async () => {
+    mockedCreate.mockRejectedValue(
+      new AppointmentConflictError(
+        "APPOINTMENT_TIME_CONFLICT",
+        "Der Zeitraum ist beim Coach bereits belegt.",
+        409
+      )
+    );
+    await openCreateDialog();
+    await submitCreate();
+
+    await waitFor(() =>
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith("Der Zeitraum ist beim Coach bereits belegt.")
+    );
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    const [start, end] = Array.from(document.querySelectorAll<HTMLInputElement>(ZEITFELDER));
+    expect(start?.value).toBe("2026-11-20T10:00");
+    expect(end?.value).toBe("2026-11-20T11:00");
+  });
+
+  it("nach fehlgeschlagenem Anlegen erfolgt kein erfolgreicher Refresh", async () => {
+    mockedCreate.mockRejectedValue(new Error("Netzwerkfehler"));
+    await openCreateDialog();
+    const loadsBefore = mockedList.mock.calls.length;
+    await submitCreate();
+
+    await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalled());
+    // Kein Neu laden nach dem Fehlschlag: der Bestand ist unveraendert, und
+    // ein Refresh wuerde dem Nutzer die Eingabe aus dem Dialog nehmen.
+    expect(mockedList.mock.calls.length).toBe(loadsBefore);
+  });
+
+  it("ein erfolgreiches Bearbeiten schliesst den Dialog", async () => {
+    await openEditDialog();
+    await submitEdit();
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(mockedEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it("ein 409 laesst den Bearbeitungsdialog geoeffnet und erhaelt die Eingaben", async () => {
+    mockedEdit.mockRejectedValue(
+      new AppointmentConflictError(
+        "APPOINTMENT_TIME_CONFLICT",
+        "Der Zeitraum ist beim Coach bereits belegt.",
+        409
+      )
+    );
+    await openEditDialog();
+    await submitEdit();
+
+    await waitFor(() =>
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith("Der Zeitraum ist beim Coach bereits belegt.")
+    );
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    const notes = document.querySelector<HTMLTextAreaElement>("#notes");
+    expect(notes?.value).toBe("Erster Termin");
+  });
+
+  it("Anlegen und Bearbeiten zeigen denselben Konflikt gleich an", async () => {
+    const konflikt = () =>
+      new AppointmentConflictError(
+        "APPOINTMENT_TIME_CONFLICT",
+        "Der Zeitraum ist beim Coach bereits belegt.",
+        409
+      );
+
+    mockedCreate.mockRejectedValue(konflikt());
+    const createView = await openCreateDialog();
+    await submitCreate();
+    await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalledTimes(1));
+    const createMessage = vi.mocked(toast.error).mock.calls[0][0];
+    createView.unmount();
+
+    vi.mocked(toast.error).mockClear();
+    mockedEdit.mockRejectedValue(konflikt());
+    await openEditDialog();
+    await submitEdit();
+    await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalledTimes(1));
+    const editMessage = vi.mocked(toast.error).mock.calls[0][0];
+
+    expect(createMessage).toBe(editMessage);
   });
 });

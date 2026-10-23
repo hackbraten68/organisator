@@ -8,7 +8,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { format, startOfWeek, endOfWeek, addWeeks } from "date-fns";
 import { de } from "date-fns/locale";
 import { listAppointments, createAppointment, confirmAppointment, completeAppointment, rescheduleAppointment, cancelAppointment, updateAppointmentAttendance, getAvailabilitySlots } from "@/api/appointment/appointmentService";
-import { editAppointment, AppointmentEditError } from "@/api/appointment/appointmentEditService";
+import { editAppointment } from "@/api/appointment/appointmentEditService";
+import { isServerWriteError } from "@/api/appointment/appointmentConflict";
 import { listAssignableUsers } from "@/api/user/userService";
 import type { AssignableUser } from "@/types/user";
 import type { Appointment, AppointmentInput, AppointmentFilters } from "@/types/appointment";
@@ -98,8 +99,9 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
     try {
       const id = await createAppointment(data);
       if (!id) {
-        toast.error("Termin konnte nicht angelegt werden");
-        return;
+        // Kein Erfolg: der Dialog bleibt offen, sonst verliert der Nutzer die
+        // Eingabe zu einem Termin, den es nicht gibt.
+        throw new Error("Der Termin wurde nicht angelegt.");
       }
       toast.success("Termin erstellt");
       await fetchAppointments();
@@ -108,7 +110,15 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
       // passierte sichtbar nichts: der Fehler landete nur als unbehandelte
       // Rejection in der Konsole.
       console.error("Failed to create appointment", err);
-      toast.error("Termin konnte nicht angelegt werden");
+      // Die Meldung des Servers nennt den konkreten Grund ("Der Zeitraum ist
+      // beim Coach bereits belegt") und verraet weder Feldnamen noch Ids.
+      toast.error(
+        isServerWriteError(err) ? err.message : "Termin konnte nicht angelegt werden"
+      );
+      // Der Fehler muss weiterlaufen: AppointmentFormDialog schliesst nur bei
+      // erfolgreichem Speichern und haelt sich sonst offen, damit die Eingabe
+      // nicht verloren geht. Create und Edit benutzen denselben Vertrag.
+      throw err;
     }
   };
 
@@ -156,7 +166,7 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
       // Draft bearbeitbar", "Startzeit muss vor der Endzeit liegen") und
       // verraet weder Feldnamen noch Ids.
       toast.error(
-        err instanceof AppointmentEditError ? err.message : "Termin konnte nicht bearbeitet werden"
+        isServerWriteError(err) ? err.message : "Termin konnte nicht bearbeitet werden"
       );
       // Der Fehler muss weiterlaufen: AppointmentFormDialog schliesst nur bei
       // erfolgreichem Speichern und haelt sich sonst offen, damit die
@@ -195,10 +205,19 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
 
   const handleProposeSlot = async (slot: { startTime: string; endTime: string }) => {
     if (!proposeSlotsFor) return;
-    await rescheduleAppointment(proposeSlotsFor.id, slot.startTime, slot.endTime, proposeSlotsFor.correlationId);
-    toast.success("Termin vorgeschlagen");
-    fetchAppointments();
-    setProposeSlotsFor(null);
+    try {
+      await rescheduleAppointment(proposeSlotsFor.id, slot.startTime, slot.endTime, proposeSlotsFor.correlationId);
+      toast.success("Termin vorgeschlagen");
+      fetchAppointments();
+      setProposeSlotsFor(null);
+    } catch (err) {
+      // Der Kollisionsschutz kann einen Verschieben ablehnen. Der Dialog
+      // bleibt offen: der Vorschlag ist damit nicht verloren.
+      console.error("Failed to reschedule appointment", err);
+      toast.error(
+        isServerWriteError(err) ? err.message : "Termin konnte nicht verschoben werden"
+      );
+    }
   };
 
   const handleCancel = async (id: string) => {

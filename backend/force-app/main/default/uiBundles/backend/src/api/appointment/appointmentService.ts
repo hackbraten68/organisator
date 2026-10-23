@@ -1,4 +1,5 @@
 import { executeGraphQL } from "@/api/graphqlClient";
+import { translateAppointmentWriteError } from "@/api/appointment/appointmentConflict";
 import type { Appointment, AppointmentInput, AppointmentFilters } from "@/types/appointment";
 import type { AvailabilitySlot, AvailabilitySlotInput, AvailabilitySlotPatch, AvailabilitySlotFilters } from "@/types/availabilitySlot";
 import { getAuditActor } from "@/api/audit/actorContext";
@@ -228,6 +229,10 @@ export async function getAppointmentsByParticipant(participantId: string, first 
 }
 
 export async function createAppointment(input: AppointmentInput): Promise<string> {
+  // Der Kollisionsschutz sitzt in der Datenbank und kann jeden Schreibweg
+  // ablehnen. Der UI-API-Pfad liefert die Ablehnung als GraphQL-Fehler; die
+  // Uebersetzung in einen typisierten Fehler passiert hier, damit die
+  // Oberflaeche nicht die Serverform kennen muss.
   const response = await executeGraphQL<MutationResponse, {
     participantId: string;
     coachId?: string;
@@ -248,6 +253,8 @@ export async function createAppointment(input: AppointmentInput): Promise<string
     meetingLink: input.meetingLink,
     notes: input.notes,
     correlationId: input.correlationId,
+  }).catch((error: unknown) => {
+    throw translateAppointmentWriteError(error);
   });
   const id = response?.uiapi?.Appointment__cCreate?.Record?.Id ?? "";
   if (id) {
@@ -362,10 +369,14 @@ export async function rescheduleAppointment(
   correlationId?: string
 ): Promise<void> {
   const existing = await getAppointment(id);
+  // Ein Verschieben kann am Kollisionsschutz scheitern — dieselbe
+  // Uebersetzung wie beim Anlegen.
   await executeGraphQL<MutationResponse, { id: string; startTime: string; endTime: string; correlationId?: string }>(
     RESCHEDULE_APPOINTMENT_RAW,
     { id, startTime, endTime, correlationId }
-  );
+  ).catch((error: unknown) => {
+    throw translateAppointmentWriteError(error);
+  });
   const actor = getAuditActor();
   await recordAppointmentRescheduled({
     appointment: {

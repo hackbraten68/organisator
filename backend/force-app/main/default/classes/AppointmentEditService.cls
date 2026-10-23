@@ -72,10 +72,12 @@ global with sharing class AppointmentEditService {
     public static final String CODE_BAD_REQUEST = 'BAD_REQUEST';
     public static final String CODE_NOT_FOUND = 'APPOINTMENT_NOT_FOUND';
     public static final String CODE_NOT_EDITABLE = 'APPOINTMENT_NOT_EDITABLE';
-    public static final String CODE_INVALID_INTERVAL = 'INVALID_INTERVAL';
+    public static final String CODE_INVALID_INTERVAL = AppointmentConflictException.CODE_INVALID_INTERVAL;
     public static final String CODE_INVALID_TYPE = 'INVALID_TYPE';
     public static final String CODE_INVALID_LOCATION = 'INVALID_LOCATION';
     public static final String CODE_UPDATE_FAILED = 'UPDATE_FAILED';
+    /** Der Kollisionsschutz sitzt im Trigger; hier laeuft nur seine Meldung ein. */
+    public static final String CODE_TIME_CONFLICT = AppointmentConflictException.CODE_TIME_CONFLICT;
     public static final String CODE_AUDIT_FAILED = 'AUDIT_FAILED';
     public static final String CODE_INTERNAL = 'INTERNAL_ERROR';
 
@@ -527,10 +529,31 @@ global with sharing class AppointmentEditService {
         Database.SaveResult updateResult = Database.update(change, false);
         if (!updateResult.isSuccess()) {
             Database.rollback(sp);
+            String detail = errorText(updateResult.getErrors());
+            // Der Kollisionsschutz sitzt im Trigger auf `Appointment__c` und
+            // wirft dort. Ein Trigger-Fehler kommt hier als DML-Fehler an,
+            // nicht als Exception dieses Einstiegs — ohne diese Zuordnung
+            // kaeme ein abgelehnter Termin als 500 heraus statt als 409, und
+            // der Aufrufer koennte einen Konflikt nicht von einem
+            // Serverfehler unterscheiden.
+            if (detail.contains(AppointmentConflictException.CODE_TIME_CONFLICT)) {
+                throw new AppointmentEditException(
+                    409,
+                    CODE_TIME_CONFLICT,
+                    'Der Zeitraum ist beim Coach bereits belegt.'
+                );
+            }
+            if (detail.contains(AppointmentConflictException.CODE_INVALID_INTERVAL)) {
+                throw new AppointmentEditException(
+                    400,
+                    CODE_INVALID_INTERVAL,
+                    'Die Startzeit muss vor der Endzeit liegen.'
+                );
+            }
             throw new AppointmentEditException(
                 500,
                 CODE_UPDATE_FAILED,
-                'Der Termin konnte nicht gespeichert werden: ' + errorText(updateResult.getErrors())
+                'Der Termin konnte nicht gespeichert werden: ' + detail
             );
         }
 

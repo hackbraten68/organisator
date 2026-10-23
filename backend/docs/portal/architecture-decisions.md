@@ -1087,7 +1087,9 @@ potenziell falsche fachliche Korrektur.
 
 ## ADR-016 — Terminüberschneidungen zentral beim Schreiben verhindern
 
-**Status:** Regel entschieden (2026-10-21), Umsetzung steht aus (D2, Woche „Terminbearbeitung")
+**Status:** Regel entschieden (2026-10-21), Implementierung liegt vor (D2, Woche „Terminbearbeitung"),
+**nicht deployed**. Ohne Deploy gilt die Regel nicht — der Code ist die Vorbereitung, nicht der
+Schutz.
 **Abgrenzung:** ADR-014 bleibt das übergeordnete Prinzip („genau ein Weg in jeden fachlichen
 Zustand"). Diese ADR konkretisiert es für Zeitüberschneidungen; der Create-Fehlervertrag aus dem
 Folgepunkt in ADR-014 gehört zu derselben Regel.
@@ -1139,6 +1141,42 @@ Semantik bleibt sauber.
 Meldung, derselbe Dialog — offen, mit erhaltenen Eingaben. Der Create-Pfad ist dabei
 nachzuziehen (siehe „Folgepunkt" in ADR-014).
 
+### Die kollisionsrelevanten Felder
+
+Nur diese vier Felder können eine neue Überschneidung erzeugen. Jede andere Änderung — eine Notiz,
+die Terminart, der Ort, der Meeting-Link — darf **nicht** daran scheitern, dass ein historischer
+Datensatz Teil einer Überschneidung ist.
+
+| Feld | Warum relevant |
+|---|---|
+| `Coach__c` | ein anderer Coach ist ein anderer Kalender |
+| `StartTime__c` | eine andere Startzeit ist ein anderer Slot |
+| `EndTime__c` | eine andere Endzeit ist ein anderer Slot |
+| `Status__c` | nur der Wechsel **in oder aus** einem blockierenden Status: zwischen zwei blockierenden Status war der Slot vorher und nachher belegt |
+
+`Participant__c` steht **nicht** in der Liste: derselbe Coach zur selben Zeit für zwei
+Teilnehmende ist genau die Überschneidung, die dieser Wächter finden soll. Ein Wechsel des
+Teilnehmenden verschiebt den Coach-Kalender nicht.
+
+Beim Update wird deshalb nur geprüft, wenn eines dieser Felder betroffen ist. Beim Insert wird
+immer geprüft.
+
+### Zeit ohne Coach
+
+`Appointment__c.Coach__c` ist **optional** (Lookup auf `User`). Ein Termin ohne Coach belegt
+keinen Coach-Slot und wird deshalb **nicht** geprüft. Das ist bewusst entschieden und nicht
+stillschweigend: der Konfliktvertrag lautet „pro Coach-Slot", und ohne Coach gibt es keinen Slot.
+Ein Termin ohne Coach ist im Anlegen-Modus ohnehin nicht möglich (der Coach ist dort Pflicht) und
+im Bearbeitungsmodus eine bewusste Entscheidung der Oberfläche.
+
+### Das Intervall
+
+`start < end` ist zwingend — und wird dort geprüft, wo Zeiten **geschrieben** werden: beim
+Anlegen und bei einer Änderung von Start oder Ende. Ein historischer Termin mit ungültigem
+Intervall bleibt, wie er ist; eine sachfremde Änderung an ihm darf nicht daran scheitern. Die
+Prüfung schlägt mit demselben Code fehl wie beim benannten Einstiegspunkt (`INVALID_INTERVAL`),
+sodass beide Wege dieselbe Aussage machen.
+
 ### Zeitwerte
 
 Vor dem Vergleich werden die Zeitwerte **konsistent normalisiert**: Salesforce-DateTime
@@ -1152,12 +1190,37 @@ Der Trigger läuft **vor** dem Schreiben (`Before`). Ein Konflikt ist damit ein 
 Schreibversuch, kein nachträglich reparierter Datensatz: der Termin bleibt unverändert, es
 entsteht kein Teilzustand.
 
+### Der Weg einer Ablehnung bis zur Oberfläche
+
+Der Wächter wirft im Trigger. Ein Trigger-Fehler kommt beim benannten Einstiegspunkt als
+DML-Fehler an, nicht als Exception des Einstiegs — ohne Übersetzung wäre ein abgelehnter Termin
+ein 500 statt eines 409. `AppointmentEditService` erkennt deshalb den Code des Wächters im
+DML-Fehlertext und antwortet mit **409** und dem Code `APPOINTMENT_TIME_CONFLICT`. Die
+UI-API reicht die Apex-Meldung unverändert durch; der Client übersetzt den Code im Text in
+denselben typisierten Fehler. Beide Wege kommen damit in der Oberfläche als derselbe Fehler an.
+
+Die Meldung selbst ist **datensparsam**: sie nennt keinen Teilnehmer, keinen Coach, keine
+Termin-Id. Die Einzelheiten stehen im Server-Log.
+
 ### Audit und Transaktion
 
 Die fachliche Änderung und ihr Audit-Event bleiben **transaktional konsistent**: gelingt das
 Audit nicht, wird die fachliche Änderung zurückgerollt. `AppointmentEditService` macht das
 bereits über Savepoint und `Database.rollback`; dieselbe Disziplin gilt für jeden weiteren
 Schreibpfad.
+
+Ein **abgelehnter** Vorgang schreibt kein Audit-Event: es wurde nichts geändert, und ein
+Audit-Event in derselben Transaktion würde mit dem Vorgang zurückgerollt. Die Ablehnung steht
+im Server-Log. Ob abgelehnte Schreibversuche später einen eigenen, getrennten Audit-Eintrag
+brauchen (etwa über die Outbox), ist offen.
+
+### Auswirkung auf die Reparaturroute
+
+`AppointmentIntegrityService.repair()` setzt einen Altbestand auf `Draft` zurück. `Draft` ist
+blockierend, ein Wechsel **in** einen blockierenden Status wird geprüft. Ein Altbestand, der sich
+bereits mit einem anderen Termin desselben Coachs überschneidet, lässt sich deshalb unter dem
+Wächter nicht mehr reparieren. Das ist die Konsequenz eines fail-closed Starts und gehört im
+Reparaturlauf ausdrücklich berücksichtigt.
 
 ### Abgrenzung zur Wochenplan-Materialisation
 
@@ -1173,14 +1236,24 @@ Ausnahme**. Solche Fälle brauchen einen **ausdrücklich benannten Administratio
 eigener Begründungspflicht — kein stiller Schalter am Wächter. Der Pfad ist noch nicht
 entworfen; das ist ein offener Punkt, kein Detail.
 
+Der Wächter hat deshalb **keinen** Bypass: keinen globalen Schalter, kein Custom-Metadata-Flag,
+kein allgemeines Custom Permission, keinen UI-Schalter und keine transaktionsweite
+Boolean-Variable. Ein kontrollierter Importweg für bewusst gewollte historische Überschneidungen
+ist ein **eigener** ADR- und Implementierungsblock mit eigener Berechtigung, eigener
+Begründungspflicht, eigenem Audit-Eintrag und eigener Freigabe je Datensatz.
+
 ### Offene Punkte
 
-- Administrationspfad für bewusst gewollte historische Überschneidungen
+- Administrationspfad für bewusst gewollte historische Überschneidungen (eigener Block)
 - Zeitanzeige in Coach- und Teilnehmer-Zeitzone gegen den in UTC verglichenen Werten: die
   Grenzfälle (Termin über Mitternacht, Sommer-/Winterzeit) sind zu belegen, bevor der
   Wächter freigeschaltet wird
 - `Finding` (Terminfindung) belegt den Slot wie `Confirmed` — die fachliche Bestätigung dafür
   steht unter den Statuswerten in der Tabelle oben
+- Ob abgelehnte Schreibversuche einen eigenen Audit-Eintrag bekommen (siehe „Audit und
+  Transaktion")
+- `AppointmentIntegrityService.repair()` an Altbestand mit Überschneidungen (siehe „Auswirkung
+  auf die Reparaturroute")
 
 ### Tests
 
@@ -1188,6 +1261,13 @@ Die Testmatrix steht in der Wochenplan-Planung, Abschnitt 4.3, einschließlich d
 und 16. Für den Wächter selbst gilt: die Matrix muss **beide Richtungen** prüfen — eine
 Regel, die auch gültige Speicherungen blockiert, wäre schlimmer als gar keine. Dieselbe
 Erfahrung wie bei den Validation Rules in ADR-015.
+
+Die Matrix des Wächters liegt in `AppointmentCollisionGuardTest`. Eine Grenze ist dort
+ausdrücklich vermerkt: ein Zustand mit **zwei blockierenden, überschneidenden** Terminen lässt
+sich im Test nicht herstellen, weil der Wächter genau das verhindert. Der Fall „sachfremde
+Änderung an einem überschneidenden Termin" wird deshalb zweimal belegt — einmal an der Regel
+(`AppointmentCollisionService`) und einmal als Schreibvorgang gegen einen Termin, der nur einen
+stornierten Nachbarn überschneidet.
 
 ## Umgebungsbefund — `@TestSetup` und statische Variablen
 
