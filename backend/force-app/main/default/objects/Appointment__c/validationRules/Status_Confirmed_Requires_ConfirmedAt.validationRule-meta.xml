@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Status_Confirmed_Requires_ConfirmedAt</fullName>
+    <active>true</active>
+    <description>Setzt ConfirmAppointment den Zeitpunkt immer mit. Diese Regel ist die Absicherung für alle anderen Wege — manuelle Änderung, Data Loader, Import.</description>
+    <errorConditionFormula>AND(ISPICKVAL(Status__c, &quot;Confirmed&quot;), ISBLANK(ConfirmedAt__c))</errorConditionFormula>
+    <errorMessage>Bestätigter Termin ohne Bestätigungszeitpunkt. Bitte ConfirmedAt__c füllen.</errorMessage>
+</ValidationRule>
