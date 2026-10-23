@@ -25,4 +25,21 @@
         <apexClass>AppointmentEditService</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+
+    <classAccesses>
+        <apexClass>ScheduleService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ScheduleTemplateService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>SchedulePublishService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ScheduleEntryMaterialisationService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
 </PermissionSet>
