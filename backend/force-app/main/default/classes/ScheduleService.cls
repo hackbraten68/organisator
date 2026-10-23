@@ -29,6 +29,7 @@ global with sharing class ScheduleService {
     public static final String ACTION_DELETED = 'deleted';
 
     public static final String EVENT_SCHEDULE_CREATED = 'schedule.created';
+    public static final String EVENT_SCHEDULE_UPDATED = 'schedule.updated';
     public static final String EVENT_ENTRY_CREATED = 'schedule.entry_created';
     public static final String EVENT_ENTRY_UPDATED = 'schedule.entry_updated';
     public static final String EVENT_ENTRY_DELETED = 'schedule.entry_deleted';
@@ -169,7 +170,7 @@ global with sharing class ScheduleService {
 
             AuditEvent__c audit = buildAudit(
                 String.isBlank(request.id) ? ACTION_CREATED : ACTION_UPDATED,
-                String.isBlank(request.id) ? EVENT_SCHEDULE_CREATED : EVENT_ENTRY_UPDATED,
+                String.isBlank(request.id) ? EVENT_SCHEDULE_CREATED : EVENT_SCHEDULE_UPDATED,
                 'WeeklySchedule__c',
                 record.Id,
                 null
