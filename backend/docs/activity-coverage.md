@@ -16,12 +16,13 @@
 | Absence | 6 | 6 | 0 |
 | Appointment | 5 | 5 | 0 |
 | Availability | 3 | 3 | 0 |
+| Schedule | 7 | 7 | 0 |
 | Workbook | 5 | 0 | 5 |
 | Classbook | 4 | 0 | 4 |
 | Daily Check-in | 4 | 0 | 4 |
 | Time Entry | 7 | 0 | 7 |
 | System | 1 | 0 | 1 |
-| **Gesamt** | **55** | **30** | **25** |
+| **Gesamt** | **62** | **37** | **25** |
 
 Portal Access ist für Phase 3 des Portalplans eingeplant, nicht implementiert
 (`docs/portal/portal-access-plan.md`).
@@ -125,6 +126,20 @@ den organisationsweiten Audit-Explorer, der noch nicht existiert.
 | `availability.slot_added` | ✅ | staff | ❌ | ✅ | ❌ |
 | `availability.slot_updated` | ✅ | staff | ❌ | ✅ | ❌ |
 | `availability.slot_deleted` | ✅ | staff | ❌ | ✅ | ❌ |
+
+### Schedule (7/7 ✅)
+
+| Event-Typ | Status | Audience | Technical | Correlation | Deep-Link |
+|-----------|--------|----------|-----------|-------------|-----------|
+| `schedule.created` | ✅ | staff | ❌ | ✅ | ✅ |
+| `schedule.updated` | ✅ | staff | ❌ | ✅ | ✅ |
+| `schedule.template_applied` | ✅ | staff | ❌ | ✅ | ✅ |
+| `schedule.entry_created` | ✅ | staff | ❌ | ✅ | ✅ |
+| `schedule.entry_updated` | ✅ | staff | ❌ | ✅ | ✅ |
+| `schedule.entry_deleted` | ✅ | staff | ❌ | ✅ | ✅ |
+| `schedule.published` | ✅ | staff | ❌ | ✅ | ✅ |
+
+---
 
 ### Workbook (0/5 ❌)
 
