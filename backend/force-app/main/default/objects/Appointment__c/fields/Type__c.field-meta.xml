@@ -41,6 +41,36 @@
                 <default>false</default>
                 <label>Sonstiges</label>
             </value>
+        <value>
+                <fullName>Einzelcoaching</fullName>
+                <default>false</default>
+                <label>Einzelcoaching</label>
+            </value>
+            <value>
+                <fullName>Gruppencoaching</fullName>
+                <default>false</default>
+                <label>Gruppencoaching</label>
+            </value>
+            <value>
+                <fullName>Projekt-Kick-off</fullName>
+                <default>false</default>
+                <label>Projekt-Kick-off</label>
+            </value>
+            <value>
+                <fullName>Workshop</fullName>
+                <default>false</default>
+                <label>Workshop</label>
+            </value>
+            <value>
+                <fullName>Selbstlernphase</fullName>
+                <default>false</default>
+                <label>Selbstlernphase</label>
+            </value>
+            <value>
+                <fullName>Projektarbeit</fullName>
+                <default>false</default>
+                <label>Projektarbeit</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>
