@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Coach_Profile__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Fachliche Coach-Entitaet. Appointment__c.Coach__c zeigt dagegen auf User</description>
+    <label>Coach</label>
+    <referenceTo>Coach_Profile__c</referenceTo>
+    <relationshipLabel>Planzeilen</relationshipLabel>
+    <relationshipName>Schedule_Entries</relationshipName>
+    <required>false</required>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

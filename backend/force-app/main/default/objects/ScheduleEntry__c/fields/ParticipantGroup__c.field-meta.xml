@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>ParticipantGroup__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Nur bei TargetType = Group</description>
+    <label>Teilnehmergruppe</label>
+    <referenceTo>ParticipantGroup__c</referenceTo>
+    <relationshipLabel>Planzeilen</relationshipLabel>
+    <relationshipName>Schedule_Entries</relationshipName>
+    <required>false</required>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

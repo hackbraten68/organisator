@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>EntryKind__c</fullName>
+    <description>Aktivitaet = Termin mit Uhrzeit, Aufgabe = Arbeit ohne festen Zeitpunkt</description>
+    <label>Art</label>
+    <required>true</required>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Aktivität</fullName>
+                <default>true</default>
+                <label>Aktivität</label>
+            </value>
+            <value>
+                <fullName>Aufgabe</fullName>
+                <default>false</default>
+                <label>Aufgabe</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

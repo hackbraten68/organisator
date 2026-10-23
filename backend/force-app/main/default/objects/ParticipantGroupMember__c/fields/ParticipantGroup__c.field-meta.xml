@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>ParticipantGroup__c</fullName>
+    <deleteConstraint>Restrict</deleteConstraint>
+    <description>Gruppe, der der Teilnehmer angehoert</description>
+    <label>Teilnehmergruppe</label>
+    <referenceTo>ParticipantGroup__c</referenceTo>
+    <relationshipLabel>Gruppenzuordnungen</relationshipLabel>
+    <relationshipName>Participant_Group_Members</relationshipName>
+    <required>true</required>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

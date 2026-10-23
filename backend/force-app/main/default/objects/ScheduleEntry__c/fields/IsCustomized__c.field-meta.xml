@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>IsCustomized__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Nach dem Anwenden einer Vorlage nachtraeglich geaendert</description>
+    <label>Angepasst</label>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

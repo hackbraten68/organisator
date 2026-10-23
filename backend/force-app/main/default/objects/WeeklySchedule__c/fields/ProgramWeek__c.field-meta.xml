@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>ProgramWeek__c</fullName>
+    <deleteConstraint>Restrict</deleteConstraint>
+    <description>Kurswoche, die dieser Plan abbildet</description>
+    <label>Kurswoche</label>
+    <referenceTo>ProgramWeek__c</referenceTo>
+    <relationshipLabel>Wochenpläne</relationshipLabel>
+    <relationshipName>Weekly_Schedules</relationshipName>
+    <required>true</required>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>
