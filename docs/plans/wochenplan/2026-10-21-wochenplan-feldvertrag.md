@@ -221,7 +221,7 @@ Baustein, der parallel zum Wochenplan entstehen kann und erst für die Rechtepr�
 | `ParticipantGroup__c` | Teilnehmergruppe | Lookup → `ParticipantGroup__c` | optional, `SetNull` — nur bei `TargetType = Group` |
 | `Participant__c` | Teilnehmer | Lookup → `Participant__c` | optional, `Restrict` — nur bei `TargetType = Individual` |
 | `Coach_Profile__c` | Coach | Lookup → `Coach_Profile__c` | optional, `SetNull` — **fachliche** Coach-Entität (nicht `User`; `Appointment__c.Coach__c` zeigt auf `User`) |
-| `Location__c` | Ort | Picklist (restricted) | optional: `Discord`, `Zoom`, `Teams`, `External`, `Präsenz` |
+| `Location__c` | Ort | Picklist (restricted) | optional: `Discord`, `Zoom`, `Teams`, `External` — **kein `Präsenz`**: es gibt keine Präsenzkurse (Entscheidung 2026-10-23, deckt sich mit dem Feature-Plan) |
 | `MeetingLink__c` | Meeting Link | URL | optional |
 | `SourceTemplateEntry__c` | Aus Vorlageneintrag | Lookup → `ScheduleEntry__c` | optional, `SetNull` — Herkunftsnachweis der Kopie |
 | `IsCustomized__c` | Angepasst | Checkbox | Default `false` — nachträglich geändert |

@@ -1,6 +1,6 @@
 # Setup Worklist — Academy data model in `hubSandbox`
 
-**Stand:** 2026-10-21
+**Stand:** 2026-10-23
 **Zweck:** anleitung zum Anlegen aller Objekte und Felder von Hand in Salesforce Setup.
 
 ## Warum von Hand
@@ -3068,7 +3068,6 @@ Values — enter **Value** and **Display Value** separately:
 | `Zoom` | Zoom |  |
 | `Teams` | Teams |  |
 | `External` | External |  |
-| `Präsenz` | Präsenz |  |
 
 #### 11. `MeetingLink__c`
 

@@ -48,7 +48,15 @@ List<String> OBJECT_NAMES = new List<String>{
   'Absence__c',
   'AuditEvent__c',
   'AvailabilitySlot__c',
-  'AuditOutbox__c'
+  'AuditOutbox__c',
+  // Wochenplan (in Setup angelegt, nicht deployt)
+  'ParticipantGroup__c',
+  'ParticipantGroupMember__c',
+  'ProgramWeek__c',
+  'ScheduleTemplate__c',
+  'WeeklySchedule__c',
+  'ScheduleEntry__c',
+  'TaskCompletion__c'
 };
 
 String report = '';
