@@ -62,7 +62,7 @@ public class ParticipantPortalWeeklyScheduleTest {
         Date mon = Date.newInstance(2026, 10, 26);
         System.assertEquals(mon, ParticipantPortalWeeklySchedule.isoMonday(mon));
         System.assertEquals(mon, ParticipantPortalWeeklySchedule.isoMonday(Date.newInstance(2026, 10, 28))); // Wednesday
-        System.assertEquals(mon, ParticipantPortalWeeklySchedule.isoMonday(Date.newInstance(2026, 10, 25))); // Sunday
+        System.assertEquals(Date.newInstance(2026, 10, 19), ParticipantPortalWeeklySchedule.isoMonday(Date.newInstance(2026, 10, 25))); // Sunday -> previous Monday (ISO week)
     }
 
     @IsTest

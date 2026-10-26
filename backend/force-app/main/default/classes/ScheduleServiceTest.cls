@@ -63,6 +63,7 @@ public class ScheduleServiceTest {
     @IsTest
     static void upsertWeeklyScheduleScopeGroupOhneGruppeWirdAbgelehnt() {
         ScheduleService.WeeklyScheduleRequest request = new ScheduleService.WeeklyScheduleRequest();
+        request.name = 'Test Group';
         request.programWeekId = programWeekId();
         request.scopeType = 'Group';
         request.startDate = '2027-03-01';
@@ -95,7 +96,7 @@ public class ScheduleServiceTest {
         System.assertEquals('Aktivität', entry.EntryKind__c, 'Default EntryKind');
         System.assertEquals('Einzelcoaching', entry.Type__c, 'Default Type');
         System.assertEquals('Course', entry.TargetType__c, 'Default TargetType');
-        System.assertEquals('Monday', entry.DayOfWeek__c, 'Default DayOfWeek');
+        System.assertEquals('Friday', entry.DayOfWeek__c, 'DayOfWeek aus Request');
 
         List<AuditEvent__c> audits = [SELECT Id, EventType__c FROM AuditEvent__c WHERE SubjectId__c = :String.valueOf(entry.Id)];
         System.assertEquals(1, audits.size(), 'genau ein Audit-Event');
