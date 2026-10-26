@@ -17,6 +17,8 @@ const ProgramsPage = lazy(() => import('./pages/programs/ProgramsPage'));
 const ProgramDetailPage = lazy(
   () => import('./pages/programs/ProgramDetailPage')
 );
+const ScheduleListPage = lazy(() => import('./pages/schedule/ScheduleListPage'));
+const ScheduleEditorPage = lazy(() => import('./pages/schedule/ScheduleEditorPage'));
 
 function PageFallback() {
   return (
@@ -122,6 +124,32 @@ export const routes: RouteObject[] = [
             element: (
               <Suspense fallback={<PageFallback />}>
                 <ProgramDetailPage />
+              </Suspense>
+            ),
+          },
+        ],
+      },
+      {
+        path: 'wochenplan',
+        children: [
+          {
+            index: true,
+            element: (
+              <Suspense fallback={<PageFallback />}>
+                <ScheduleListPage />
+              </Suspense>
+            ),
+            handle: {
+              showInNavigation: true,
+              label: 'Wochenplan',
+              icon: 'calendar',
+            } satisfies NavigationHandle,
+          },
+          {
+            path: ':planId',
+            element: (
+              <Suspense fallback={<PageFallback />}>
+                <ScheduleEditorPage />
               </Suspense>
             ),
           },

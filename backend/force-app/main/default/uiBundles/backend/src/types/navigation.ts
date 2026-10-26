@@ -22,7 +22,8 @@ export type NavigationIcon =
   | 'book'
   | 'coach'
   | 'reports'
-  | 'settings';
+  | 'settings'
+  | 'calendar';
 
 export interface NavigationHandle {
   label?: string;
