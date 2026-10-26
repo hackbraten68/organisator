@@ -2,6 +2,7 @@ import type { RouteObject } from 'react-router';
 import Dashboard from './pages/Dashboard';
 import LearningPath from './pages/LearningPath';
 import Appointments from './pages/Appointments';
+import WeeklySchedule from './pages/WeeklySchedule';
 import MeinKonto from './pages/MeinKonto';
 import NotFound from './pages/NotFound';
 import Login from "./features/authentication/pages/Login";
@@ -44,6 +45,11 @@ export const routes: RouteObject[] = [
             path: "termine",
             element: <Appointments />,
             handle: { showInNavigation: true, label: "Meine Termine", icon: "calendar" }
+          },
+          {
+            path: "wochenplan",
+            element: <WeeklySchedule />,
+            handle: { showInNavigation: true, label: "Mein Wochenplan", icon: "calendar" }
           },
           {
             path: "mein-konto",
