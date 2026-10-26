@@ -59,6 +59,17 @@ global with sharing class ScheduleTemplateService {
             throw notFound('Die Kurswoche existiert nicht.');
         }
 
+        if (template.Status__c != 'Active') {
+            throw badRequest('Die Vorlage ist nicht aktiv.');
+        }
+        if (template.ProgramWeek__c != null && template.ProgramWeek__c != request.programWeekId) {
+            throw badRequest('Die Vorlage passt nicht zur ausgewaehlten Kurswoche.');
+        }
+        if (template.ProgramWeek__c == null && template.Program__c != null
+                && template.Program__c != weeks[0].Program__c) {
+            throw badRequest('Die Vorlage passt nicht zum ausgewaehlten Programm.');
+        }
+
         Date startDate = Date.valueOf(request.startDate);
 
         String scheduleName = String.isBlank(request.name) ? template.Name : request.name;
@@ -114,6 +125,9 @@ global with sharing class ScheduleTemplateService {
                 copies.add(copy);
             }
             if (!copies.isEmpty()) {
+                for (ScheduleEntry__c copy : copies) {
+                    ScheduleService.validateScheduleEntry(copy);
+                }
                 insert copies;
             }
 

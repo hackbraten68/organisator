@@ -42,4 +42,8 @@
         <apexClass>ScheduleEntryMaterialisationService</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>ScheduleEditor</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
 </PermissionSet>

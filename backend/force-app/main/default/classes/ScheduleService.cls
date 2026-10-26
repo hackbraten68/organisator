@@ -18,6 +18,7 @@ global with sharing class ScheduleService {
     public static final String CODE_INVALID_INTERVAL = 'INVALID_INTERVAL';
     public static final String CODE_INVALID_WEEK_START = 'INVALID_WEEK_START';
     public static final String CODE_DUPLICATE_COURSE_SCHEDULE = 'DUPLICATE_COURSE_SCHEDULE';
+    public static final String CODE_DUPLICATE_SLOT = 'DUPLICATE_SLOT';
     public static final String CODE_AUDIT_FAILED = 'AUDIT_FAILED';
     public static final String CODE_INTERNAL = 'INTERNAL_ERROR';
 
@@ -35,6 +36,7 @@ global with sharing class ScheduleService {
     public static final String EVENT_ENTRY_CREATED = 'schedule.entry_created';
     public static final String EVENT_ENTRY_UPDATED = 'schedule.entry_updated';
     public static final String EVENT_ENTRY_DELETED = 'schedule.entry_deleted';
+    public static final String EVENT_SCHEDULE_DELETED = 'schedule.deleted';
 
     public static final Set<String> SCOPE_COURSE = new Set<String>{ 'Course' };
     public static final Set<String> SCOPE_GROUP = new Set<String>{ 'Group' };
@@ -104,6 +106,7 @@ global with sharing class ScheduleService {
         }
 
         WeeklySchedule__c record;
+        Id oldProgramWeekId = null;
         if (String.isNotBlank(request.id)) {
             List<WeeklySchedule__c> existing = [
                 SELECT Id, Name, ProgramWeek__c, ScopeType__c, ParticipantGroup__c, Participant__c,
@@ -117,6 +120,7 @@ global with sharing class ScheduleService {
                 throw notFound('Der Wochenplan existiert nicht.');
             }
             record = existing[0];
+            oldProgramWeekId = record.ProgramWeek__c;
         } else {
             if (String.isBlank(request.programWeekId)) {
                 throw badRequest('programWeekId ist erforderlich.');
@@ -166,6 +170,9 @@ global with sharing class ScheduleService {
 
         validateWeeklySchedule(record);
         Id pwId = String.isNotBlank(request.id) ? record.ProgramWeek__c : (String.isNotBlank(request.programWeekId) ? request.programWeekId : null);
+        if (oldProgramWeekId != null && oldProgramWeekId != pwId) {
+            assertCoachAccess(oldProgramWeekId);
+        }
         assertCoachAccess(pwId);
         assertNoDuplicateCourseSchedule(record);
 
@@ -200,6 +207,7 @@ global with sharing class ScheduleService {
         }
 
         ScheduleEntry__c record;
+        Id oldWeeklyScheduleId = null;
         if (String.isNotBlank(request.id)) {
             List<ScheduleEntry__c> existing = [
                 SELECT Id, Name, WeeklySchedule__c, ScheduleTemplate__c, Description__c,
@@ -216,6 +224,7 @@ global with sharing class ScheduleService {
                 throw notFound('Die Planzeile existiert nicht.');
             }
             record = existing[0];
+            oldWeeklyScheduleId = record.WeeklySchedule__c;
         } else {
             if (String.isBlank(request.title)) {
                 throw badRequest('Titel ist erforderlich.');
@@ -319,12 +328,19 @@ global with sharing class ScheduleService {
 
         computeDateForEntry(record);
         validateScheduleEntry(record);
+        if (String.isNotBlank(oldWeeklyScheduleId) && oldWeeklyScheduleId != record.WeeklySchedule__c) {
+            List<WeeklySchedule__c> oldWs = [SELECT ProgramWeek__c FROM WeeklySchedule__c WHERE Id = :oldWeeklyScheduleId LIMIT 1];
+            if (!oldWs.isEmpty()) {
+                assertCoachAccess(oldWs[0].ProgramWeek__c);
+            }
+        }
         if (String.isNotBlank(record.WeeklySchedule__c)) {
             List<WeeklySchedule__c> ws = [SELECT ProgramWeek__c FROM WeeklySchedule__c WHERE Id = :record.WeeklySchedule__c LIMIT 1];
             if (!ws.isEmpty()) {
                 assertCoachAccess(ws[0].ProgramWeek__c);
             }
         }
+        assertNoDuplicateSlot(record);
 
         Savepoint sp = Database.setSavepoint();
         try {
@@ -376,6 +392,56 @@ global with sharing class ScheduleService {
         }
     }
 
+    public static void deleteWeeklySchedule(String scheduleId) {
+        if (String.isBlank(scheduleId)) {
+            throw badRequest('Wochenplan-ID fehlt.');
+        }
+        List<WeeklySchedule__c> rows = [
+            SELECT Id, Status__c, ProgramWeek__c
+            FROM WeeklySchedule__c
+            WHERE Id = :scheduleId
+            LIMIT 1
+        ];
+        if (rows.isEmpty()) {
+            throw notFound('Der Wochenplan existiert nicht.');
+        }
+        WeeklySchedule__c schedule = rows[0];
+        if (schedule.Status__c != 'Draft') {
+            throw new ScheduleServiceException(409, CODE_BAD_REQUEST, 'Nur Entwuerfe koennen geloescht werden.');
+        }
+        assertCoachAccess(schedule.ProgramWeek__c);
+
+        Set<Id> coachIds = new Set<Id>();
+        for (ScheduleEntry__c entry : [
+            SELECT Coach_Profile__c
+            FROM ScheduleEntry__c
+            WHERE WeeklySchedule__c = :scheduleId
+        ]) {
+            if (entry.Coach_Profile__c != null) {
+                coachIds.add(entry.Coach_Profile__c);
+            }
+        }
+
+        Savepoint sp = Database.setSavepoint();
+        try {
+            delete [SELECT Id FROM ScheduleEntry__c WHERE WeeklySchedule__c = :scheduleId];
+            SchedulePortalSharingService.revokePlan(scheduleId, coachIds);
+            delete schedule;
+
+            AuditEvent__c audit = buildAudit(ACTION_DELETED, EVENT_SCHEDULE_DELETED, 'WeeklySchedule__c', scheduleId, null);
+            Database.SaveResult auditResult = Database.insert(audit, false);
+            if (!auditResult.isSuccess()) {
+                Database.rollback(sp);
+                throw new ScheduleServiceException(500, CODE_AUDIT_FAILED, 'Das Audit-Event konnte nicht geschrieben werden; die Aenderung wurde zurueckgerollt.');
+            }
+        } catch (ScheduleServiceException e) {
+            throw e;
+        } catch (Exception e) {
+            Database.rollback(sp);
+            throw new ScheduleServiceException(500, CODE_INTERNAL, e.getMessage());
+        }
+    }
+
     public static void assertNoDuplicateCourseSchedule(WeeklySchedule__c schedule) {
         if (schedule == null || schedule.ScopeType__c != 'Course' || schedule.Status__c != 'Published') {
             return;
@@ -405,6 +471,26 @@ global with sharing class ScheduleService {
         ];
         if (!duplicates.isEmpty()) {
             throw new ScheduleServiceException(409, CODE_DUPLICATE_COURSE_SCHEDULE, 'Fuer dieses Programm und diese Woche existiert bereits ein veroffentlichter Kurs-Wochenplan.');
+        }
+    }
+
+    public static void assertNoDuplicateSlot(ScheduleEntry__c entry) {
+        if (entry == null || entry.WeeklySchedule__c == null || entry.Order__c == null
+                || String.isBlank(entry.DayOfWeek__c) || String.isBlank(entry.EntryKind__c)) {
+            return;
+        }
+        Integer count = [
+            SELECT COUNT()
+            FROM ScheduleEntry__c
+            WHERE WeeklySchedule__c = :entry.WeeklySchedule__c
+              AND DayOfWeek__c = :entry.DayOfWeek__c
+              AND Order__c = :entry.Order__c
+              AND EntryKind__c = :entry.EntryKind__c
+              AND Id != :entry.Id
+        ];
+        if (count > 0) {
+            throw new ScheduleServiceException(409, CODE_DUPLICATE_SLOT,
+                'Fuer diesen Tag, diese Reihenfolge und diese Art existiert bereits eine Planzeile.');
         }
     }
 

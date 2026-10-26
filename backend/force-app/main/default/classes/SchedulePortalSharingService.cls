@@ -71,8 +71,20 @@ public without sharing class SchedulePortalSharingService {
         if (planId == null) {
             return;
         }
-        SharePlan plan = planFor(planId);
-        write(plan);
+        List<WeeklySchedule__c> plans = [
+            SELECT Id, Status__c, ScopeType__c, Participant__c, ParticipantGroup__c,
+                   ProgramWeek__c, ProgramWeek__r.Program__c
+            FROM WeeklySchedule__c
+            WHERE Id = :planId
+            LIMIT 1
+        ];
+        if (plans.isEmpty()) {
+            return;
+        }
+        WeeklySchedule__c plan = plans[0];
+        SharePlan desired = planFor(planId);
+        prunePlan(plan, desired);
+        write(desired);
     }
 
     /**
@@ -101,18 +113,18 @@ public without sharing class SchedulePortalSharingService {
         if (participants == null || participants.isEmpty()) {
             return;
         }
+        Set<Id> participantIds = new Set<Id>();
         Set<Id> programIds = new Set<Id>();
-        SharePlan plan = new SharePlan();
         for (Participant__c participant : participants) {
-            if (participant.Id == null || participant.Portal_User__c == null) {
+            if (participant.Id == null) {
                 continue;
             }
-            addGroupMembershipShares(plan, participant.Id, participant.Portal_User__c);
+            participantIds.add(participant.Id);
             if (participant.Program__c != null) {
                 programIds.add(participant.Program__c);
             }
         }
-        write(plan);
+        synchroniseGroupMembershipsForParticipants(participantIds);
         for (Id programId : programIds) {
             synchroniseProgram(programId);
         }
@@ -126,24 +138,31 @@ public without sharing class SchedulePortalSharingService {
         if (members == null || members.isEmpty()) {
             return;
         }
-        SharePlan plan = new SharePlan();
+        Set<Id> participantIds = new Set<Id>();
         for (ParticipantGroupMember__c member : members) {
-            if (member.Id == null || member.Participant__c == null || member.ParticipantGroup__c == null) {
-                continue;
+            if (member.Participant__c != null) {
+                participantIds.add(member.Participant__c);
             }
+        }
+        synchroniseGroupMembershipsForParticipants(participantIds);
+    }
+
+    public static void synchroniseGroupMembershipsForParticipants(Set<Id> participantIds) {
+        if (participantIds == null || participantIds.isEmpty()) {
+            return;
+        }
+        for (Id participantId : participantIds) {
             List<Participant__c> participants = [
                 SELECT Id, Portal_User__c
                 FROM Participant__c
-                WHERE Id = :member.Participant__c
+                WHERE Id = :participantId
                 LIMIT 1
             ];
             if (participants.isEmpty() || participants[0].Portal_User__c == null) {
                 continue;
             }
-            Id portalUserId = participants[0].Portal_User__c;
-            addGroupMemberShare(plan, member.Id, member.ParticipantGroup__c, portalUserId);
+            reconcileGroupMemberships(participants[0].Id, participants[0].Portal_User__c);
         }
-        write(plan);
     }
 
     /**
@@ -288,6 +307,224 @@ public without sharing class SchedulePortalSharingService {
         }
 
         return result;
+    }
+
+    private static void prunePlan(WeeklySchedule__c plan, SharePlan desired) {
+        if (plan == null) {
+            return;
+        }
+        Set<Id> audience = audience(plan);
+        deleteStaleShares(plan.Id, 'WeeklySchedule__Share', audience);
+
+        Set<Id> entryIds = new Set<Id>();
+        Set<Id> coachIds = new Set<Id>();
+        for (ScheduleEntry__c entry : [
+            SELECT Id, Coach_Profile__c
+            FROM ScheduleEntry__c
+            WHERE WeeklySchedule__c = :plan.Id
+        ]) {
+            entryIds.add(entry.Id);
+            if (entry.Coach_Profile__c != null) {
+                coachIds.add(entry.Coach_Profile__c);
+            }
+        }
+        for (Id entryId : entryIds) {
+            deleteStaleShares(entryId, 'ScheduleEntry__Share', audience);
+        }
+
+        Set<Id> weekAud = weekAudience(plan.ProgramWeek__c);
+        deleteStaleShares(plan.ProgramWeek__c, 'ProgramWeek__Share', weekAud);
+
+        for (Id coachId : coachIds) {
+            Set<Id> coachAud = coachAudience(coachId);
+            deleteStaleShares(coachId, 'Coach_Profile__Share', coachAud);
+        }
+    }
+
+    private static void deleteStaleShares(Id parentId, String shareObjectName, Set<Id> desiredUsers) {
+        if (parentId == null) {
+            return;
+        }
+        if (desiredUsers == null) {
+            desiredUsers = new Set<Id>();
+        }
+        String soql = 'SELECT Id, UserOrGroupId FROM ' + shareObjectName +
+            ' WHERE ParentId = :parentId AND RowCause = \'' + ROW_CAUSE + '\'' ;
+        List<SObject> shares = Database.query(soql);
+        List<SObject> toDelete = new List<SObject>();
+        for (SObject share : shares) {
+            Id userId = (Id) share.get('UserOrGroupId');
+            if (!desiredUsers.contains(userId)) {
+                toDelete.add(share);
+            }
+        }
+        if (toDelete.isEmpty()) {
+            return;
+        }
+        List<Database.DeleteResult> results = Database.delete(toDelete, false);
+        for (Database.DeleteResult result : results) {
+            if (!result.isSuccess()) {
+                for (Database.Error error : result.getErrors()) {
+                    System.debug(LoggingLevel.ERROR,
+                        'SchedulePortalSharingService prune failed: ' + error.getMessage());
+                }
+            }
+        }
+    }
+
+    private static Set<Id> weekAudience(Id programWeekId) {
+        Set<Id> users = new Set<Id>();
+        if (programWeekId == null) {
+            return users;
+        }
+        for (WeeklySchedule__c plan : [
+            SELECT Id, Status__c, ScopeType__c, Participant__c, ParticipantGroup__c,
+                   ProgramWeek__r.Program__c
+            FROM WeeklySchedule__c
+            WHERE ProgramWeek__c = :programWeekId
+              AND Status__c = 'Published'
+        ]) {
+            users.addAll(audience(plan));
+        }
+        return users;
+    }
+
+    private static Set<Id> coachAudience(Id coachId) {
+        Set<Id> users = new Set<Id>();
+        if (coachId == null) {
+            return users;
+        }
+        Set<Id> planIds = new Set<Id>();
+        for (ScheduleEntry__c entry : [
+            SELECT WeeklySchedule__c
+            FROM ScheduleEntry__c
+            WHERE Coach_Profile__c = :coachId
+        ]) {
+            if (entry.WeeklySchedule__c != null) {
+                planIds.add(entry.WeeklySchedule__c);
+            }
+        }
+        if (planIds.isEmpty()) {
+            return users;
+        }
+        for (WeeklySchedule__c plan : [
+            SELECT Id, Status__c, ScopeType__c, Participant__c, ParticipantGroup__c,
+                   ProgramWeek__r.Program__c
+            FROM WeeklySchedule__c
+            WHERE Id IN :planIds
+              AND Status__c = 'Published'
+        ]) {
+            users.addAll(audience(plan));
+        }
+        return users;
+    }
+
+    private static void reconcileGroupMemberships(Id participantId, Id portalUserId) {
+        if (participantId == null || portalUserId == null) {
+            return;
+        }
+        List<ParticipantGroupMember__c> currentMembers = [
+            SELECT Id, ParticipantGroup__c
+            FROM ParticipantGroupMember__c
+            WHERE Participant__c = :participantId
+        ];
+        Set<Id> currentMemberIds = new Set<Id>();
+        Set<Id> currentGroupIds = new Set<Id>();
+        for (ParticipantGroupMember__c member : currentMembers) {
+            currentMemberIds.add(member.Id);
+            if (member.ParticipantGroup__c != null) {
+                currentGroupIds.add(member.ParticipantGroup__c);
+            }
+        }
+
+        List<ParticipantGroupMember__Share> existingMemberShares = [
+            SELECT Id, ParentId
+            FROM ParticipantGroupMember__Share
+            WHERE UserOrGroupId = :portalUserId
+              AND RowCause = :ROW_CAUSE
+        ];
+        List<ParticipantGroupMember__Share> toDeleteMember = new List<ParticipantGroupMember__Share>();
+        Set<Id> existingMemberParentIds = new Set<Id>();
+        for (ParticipantGroupMember__Share share : existingMemberShares) {
+            existingMemberParentIds.add(share.ParentId);
+            if (!currentMemberIds.contains(share.ParentId)) {
+                toDeleteMember.add(share);
+            }
+        }
+        if (!toDeleteMember.isEmpty()) {
+            Database.delete(toDeleteMember, false);
+        }
+
+        List<ParticipantGroup__Share> existingGroupShares = [
+            SELECT Id, ParentId
+            FROM ParticipantGroup__Share
+            WHERE UserOrGroupId = :portalUserId
+              AND RowCause = :ROW_CAUSE
+        ];
+        List<ParticipantGroup__Share> toDeleteGroup = new List<ParticipantGroup__Share>();
+        Set<Id> existingGroupParentIds = new Set<Id>();
+        for (ParticipantGroup__Share share : existingGroupShares) {
+            existingGroupParentIds.add(share.ParentId);
+            if (!currentGroupIds.contains(share.ParentId)) {
+                toDeleteGroup.add(share);
+            }
+        }
+        if (!toDeleteGroup.isEmpty()) {
+            Database.delete(toDeleteGroup, false);
+        }
+
+        SharePlan plan = new SharePlan();
+        for (ParticipantGroupMember__c member : currentMembers) {
+            if (member.ParticipantGroup__c == null) {
+                continue;
+            }
+            if (!existingMemberParentIds.contains(member.Id)) {
+                plan.groupMembers.add(new ParticipantGroupMember__Share(
+                    ParentId = member.Id,
+                    UserOrGroupId = portalUserId,
+                    AccessLevel = ACCESS_LEVEL,
+                    RowCause = Schema.ParticipantGroupMember__Share.RowCause.Manual
+                ));
+            }
+            if (!existingGroupParentIds.contains(member.ParticipantGroup__c)) {
+                plan.groups.add(new ParticipantGroup__Share(
+                    ParentId = member.ParticipantGroup__c,
+                    UserOrGroupId = portalUserId,
+                    AccessLevel = ACCESS_LEVEL,
+                    RowCause = Schema.ParticipantGroup__Share.RowCause.Manual
+                ));
+            }
+        }
+        write(plan);
+    }
+
+    public static void revokePlan(Id planId) {
+        revokePlan(planId, null);
+    }
+
+    public static void revokePlan(Id planId, Set<Id> coachIds) {
+        if (planId == null) {
+            return;
+        }
+        List<WeeklySchedule__c> plans = [
+            SELECT Id, ProgramWeek__c
+            FROM WeeklySchedule__c
+            WHERE Id = :planId
+            LIMIT 1
+        ];
+        if (plans.isEmpty()) {
+            return;
+        }
+        WeeklySchedule__c plan = plans[0];
+        deleteStaleShares(plan.Id, 'WeeklySchedule__Share', new Set<Id>());
+        Set<Id> weekAud = weekAudience(plan.ProgramWeek__c);
+        deleteStaleShares(plan.ProgramWeek__c, 'ProgramWeek__Share', weekAud);
+        if (coachIds != null) {
+            for (Id coachId : coachIds) {
+                Set<Id> coachAud = coachAudience(coachId);
+                deleteStaleShares(coachId, 'Coach_Profile__Share', coachAud);
+            }
+        }
     }
 
     private static void write(SharePlan plan) {
