@@ -194,6 +194,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
+        <field>ScheduleEntry__c.IsRequired__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>ScheduleEntry__c.WeeklySchedule__c</field>
         <readable>true</readable>
     </fieldPermissions>

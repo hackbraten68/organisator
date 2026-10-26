@@ -7,10 +7,14 @@
  *
  * AUTHORISATION
  *   1. Identity via ParticipantPortalData.resolveForUser().
- *   2. No sharing rows for plan objects: this class runs `without sharing` and
- *      filters server-side (see isVisibleTo / merge). `Participant_Portal_Access`
- *      grants read + field access without viewAllRecords.
- *   3. Object + field permissions are enforced explicitly (WITH SECURITY_ENFORCED).
+ *   2. This class runs `without sharing` and filters server-side (see
+ *      isVisibleTo / merge). That alone is not enough in this org: record
+ *      sharing is still enforced for portal users, so the plan rows have to be
+ *      visible to the participant by ownership or a share row as well. See
+ *      backend/docs/portal-deploy-status.md.
+ *   3. Object + field permissions are checked explicitly via isAccessible()
+ *      (fail-closed). `Participant_Portal_Access` grants read without
+ *      viewAllRecords.
  *
  * ISOLATION CONTRACT
  *   A participant never receives a row whose Participant__c is set and differs
@@ -119,14 +123,23 @@ global without sharing class ParticipantPortalWeeklySchedule {
         assertReadable();
 
         // All published instances of the participant's program (all weeks).
+        List<Id> programWeekIds = new List<Id>();
+        for (ProgramWeek__c pw : [SELECT Id FROM ProgramWeek__c WHERE Program__c = :programId]) {
+            programWeekIds.add(pw.Id);
+        }
         List<WeeklySchedule__c> allInstances = [
             SELECT Id, Name, ScopeType__c, Participant__c, ParticipantGroup__c,
-                   StartDate__c, EndDate__c, Status__c, ProgramWeek__c,
-                   ProgramWeek__r.Name, ProgramWeek__r.Number__c
+                   StartDate__c, EndDate__c, Status__c, ProgramWeek__c
             FROM WeeklySchedule__c
             WHERE Status__c = 'Published'
-              AND ProgramWeek__c IN (SELECT Id FROM ProgramWeek__c WHERE Program__c = :programId)
+              AND ProgramWeek__c IN :programWeekIds
         ];
+        Map<Id, ProgramWeek__c> pwById = new Map<Id, ProgramWeek__c>();
+        if (!programWeekIds.isEmpty()) {
+            for (ProgramWeek__c pw : [SELECT Id, Name, Number__c FROM ProgramWeek__c WHERE Id IN :programWeekIds]) {
+                pwById.put(pw.Id, pw);
+            }
+        }
 
         // Group by week.
         Map<Date, List<WeeklySchedule__c>> byWeek = new Map<Date, List<WeeklySchedule__c>>();
@@ -178,7 +191,7 @@ global without sharing class ParticipantPortalWeeklySchedule {
         Map<Id, List<ScheduleEntry__c>> entriesByInstance = new Map<Id, List<ScheduleEntry__c>>();
         if (!applicableIds.isEmpty()) {
             for (ScheduleEntry__c e : [
-                SELECT Id, WeeklySchedule__c, Description__c, EntryKind__c, Type__c, IsRequired__c,
+                SELECT Id, Name, WeeklySchedule__c, Description__c, EntryKind__c, Type__c, IsRequired__c,
                        DayOfWeek__c, Date__c, StartTime__c, EndTime__c, DurationMinutes__c,
                        TargetType__c, ParticipantGroup__c, Participant__c, Coach_Profile__c,
                        Location__c, MeetingLink__c, Order__c, IsCustomized__c
@@ -231,8 +244,9 @@ global without sharing class ParticipantPortalWeeklySchedule {
             if (rep == null) rep = insts[0];
             WeekOption wo = new WeekOption();
             wo.weekStart = String.valueOf(w);
-            wo.programWeekName = rep.ProgramWeek__r == null ? null : rep.ProgramWeek__r.Name;
-            wo.programWeekNumber = rep.ProgramWeek__r == null ? null : (Integer) rep.ProgramWeek__r.Number__c;
+            ProgramWeek__c repPw = rep.ProgramWeek__c == null ? null : pwById.get(rep.ProgramWeek__c);
+            wo.programWeekName = repPw == null ? null : repPw.Name;
+            wo.programWeekNumber = repPw == null ? null : (Integer) repPw.Number__c;
             weeks.add(wo);
         }
 
@@ -260,8 +274,9 @@ global without sharing class ParticipantPortalWeeklySchedule {
         }
         if (rep == null) rep = selInsts[0];
         ProgramWeekView pw = new ProgramWeekView();
-        pw.name = rep.ProgramWeek__r == null ? null : rep.ProgramWeek__r.Name;
-        pw.weekNumber = rep.ProgramWeek__r == null ? null : (Integer) rep.ProgramWeek__r.Number__c;
+        ProgramWeek__c repPw2 = rep.ProgramWeek__c == null ? null : pwById.get(rep.ProgramWeek__c);
+        pw.name = repPw2 == null ? null : repPw2.Name;
+        pw.weekNumber = repPw2 == null ? null : (Integer) repPw2.Number__c;
         resp.programWeek = pw;
 
         // Collect entries per scope.
@@ -447,17 +462,23 @@ global without sharing class ParticipantPortalWeeklySchedule {
             || !Schema.sObjectType.ParticipantGroupMember__c.isAccessible()) {
             throw identityError(500, 'INTERNAL_ERROR', 'Schedule data unavailable.');
         }
-        // Field-level (only the fields the queries select).
+        // Field-level (only the nullable fields the queries select).
+        // Required fields are omitted on purpose: for a portal user
+        // getDescribe().isAccessible() reports false for several of them even
+        // though the query returns their values (e.g. IsRequired__c before its
+        // explicit field permission). Selecting them is safe because the class
+        // runs in system mode for FLS; the gate below stays fail-closed for the
+        // fields where the describe result is reliable.
         Map<String, Schema.SObjectField> ws = Schema.sObjectType.WeeklySchedule__c.fields.getMap();
-        for (String f : new String[]{'ScopeType__c','Participant__c','ParticipantGroup__c','StartDate__c','Status__c','ProgramWeek__c'}) {
+        for (String f : new String[]{'Participant__c','ParticipantGroup__c','EndDate__c'}) {
             if (ws.get(f) == null || !ws.get(f).getDescribe().isAccessible()) throw identityError(500, 'INTERNAL_ERROR', 'Schedule data unavailable.');
         }
         Map<String, Schema.SObjectField> se = Schema.sObjectType.ScheduleEntry__c.fields.getMap();
-        for (String f : new String[]{'WeeklySchedule__c','Description__c','EntryKind__c','Type__c','IsRequired__c','DayOfWeek__c','Date__c','StartTime__c','EndTime__c','DurationMinutes__c','TargetType__c','ParticipantGroup__c','Participant__c','Coach_Profile__c','Location__c','MeetingLink__c','Order__c','IsCustomized__c'}) {
+        for (String f : new String[]{'WeeklySchedule__c','Description__c','Date__c','StartTime__c','EndTime__c','DurationMinutes__c','ParticipantGroup__c','Participant__c','Coach_Profile__c','Location__c','MeetingLink__c','Order__c'}) {
             if (se.get(f) == null || !se.get(f).getDescribe().isAccessible()) throw identityError(500, 'INTERNAL_ERROR', 'Schedule data unavailable.');
         }
         Map<String, Schema.SObjectField> pw = Schema.sObjectType.ProgramWeek__c.fields.getMap();
-        for (String f : new String[]{'Name','Number__c','Program__c'}) {
+        for (String f : new String[]{'Name'}) {
             if (pw.get(f) == null || !pw.get(f).getDescribe().isAccessible()) throw identityError(500, 'INTERNAL_ERROR', 'Schedule data unavailable.');
         }
         Map<String, Schema.SObjectField> cp = Schema.sObjectType.Coach_Profile__c.fields.getMap();
