@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +26,7 @@ import {
   deleteProgramWeek,
   listModules,
   listProgramWeeks,
+  reorderProgramWeeks,
   updateProgramWeek,
 } from "@/api/program/programService";
 import type { ProgramWeek } from "@/types/program";
@@ -47,7 +48,6 @@ export default function ProgramWeeksTab({ programId }: { programId: string }) {
   const refresh = () => setReload((v) => v + 1);
 
   const [name, setName] = useState("");
-  const [number, setNumber] = useState("");
   const [moduleId, setModuleId] = useState("");
   const [status, setStatus] = useState("Draft");
   const [description, setDescription] = useState("");
@@ -55,7 +55,6 @@ export default function ProgramWeeksTab({ programId }: { programId: string }) {
   function openCreate() {
     setEditing(null);
     setName("");
-    setNumber(String(weekList.length + 1));
     setModuleId(moduleList[0]?.id ?? "");
     setStatus("Draft");
     setDescription("");
@@ -65,7 +64,6 @@ export default function ProgramWeeksTab({ programId }: { programId: string }) {
   function openEdit(week: ProgramWeek) {
     setEditing(week);
     setName(week.name);
-    setNumber(String(week.number));
     setModuleId(week.moduleId);
     setStatus(week.status);
     setDescription(week.description ?? "");
@@ -81,17 +79,11 @@ export default function ProgramWeeksTab({ programId }: { programId: string }) {
       toast.error("Modul ist erforderlich.");
       return;
     }
-    const num = Number(number);
-    if (!Number.isInteger(num) || num < 1) {
-      toast.error("Nummer muss eine positive ganze Zahl sein.");
-      return;
-    }
     setSaving(true);
     try {
       if (editing) {
         await updateProgramWeek(editing.id, {
           name: name.trim(),
-          number: num,
           status,
           description: description.trim() || undefined,
           moduleId,
@@ -101,7 +93,7 @@ export default function ProgramWeeksTab({ programId }: { programId: string }) {
         await createProgramWeek(programId, {
           name: name.trim(),
           moduleId,
-          number: num,
+          number: weekList.length + 1,
           status,
           description: description.trim() || undefined,
         });
@@ -124,6 +116,27 @@ export default function ProgramWeeksTab({ programId }: { programId: string }) {
       refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Fehler beim Löschen.");
+    }
+  }
+
+  async function handleMove(id: string, direction: -1 | 1) {
+    const ordered = [...weekList].sort((a, b) => a.number - b.number);
+    const index = ordered.findIndex((w) => w.id === id);
+    const target = index + direction;
+    if (index === -1 || target < 0 || target >= ordered.length) return;
+
+    const [moved] = ordered.splice(index, 1);
+    ordered.splice(target, 0, moved);
+
+    try {
+      await reorderProgramWeeks(
+        programId,
+        ordered.map((w) => w.id),
+      );
+      refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Reorder failed";
+      toast.error("Reorder failed", { description: message });
     }
   }
 
@@ -170,7 +183,25 @@ export default function ProgramWeeksTab({ programId }: { programId: string }) {
                   Status: {week.status}
                 </span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={`Woche ${week.name} nach oben`}
+                  disabled={weekList.sort((a, b) => a.number - b.number).findIndex((w) => w.id === week.id) === 0}
+                  onClick={() => handleMove(week.id, -1)}
+                >
+                  <ChevronUp className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={`Woche ${week.name} nach unten`}
+                  disabled={weekList.sort((a, b) => a.number - b.number).findIndex((w) => w.id === week.id) === weekList.length - 1}
+                  onClick={() => handleMove(week.id, 1)}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
                 <Button size="sm" variant="ghost" onClick={() => openEdit(week)}>
                   <Pencil className="h-4 w-4" />
                 </Button>
@@ -214,19 +245,8 @@ export default function ProgramWeeksTab({ programId }: { programId: string }) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="week-number">Nummer</Label>
-                <Input
-                  id="week-number"
-                  type="number"
-                  min={1}
-                  value={number}
-                  onChange={(e) => setNumber(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>Status</Label>
+            <div>
+              <Label>Status</Label>
                 <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger>
                     <SelectValue />
@@ -237,7 +257,6 @@ export default function ProgramWeeksTab({ programId }: { programId: string }) {
                     <SelectItem value="Completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
             </div>
             <div>
               <Label htmlFor="week-desc">Beschreibung</Label>

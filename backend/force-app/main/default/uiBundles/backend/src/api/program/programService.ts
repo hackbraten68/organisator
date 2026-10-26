@@ -542,6 +542,19 @@ export async function deleteProgramWeek(id: string): Promise<void> {
   });
 }
 
+export async function reorderProgramWeeks(
+  programId: string,
+  orderedIds: string[],
+): Promise<ProgramWeek[]> {
+  for (const [index, id] of orderedIds.entries()) {
+    await executeGraphQL<
+      MutationResponse,
+      { id: string; number?: number | null }
+    >(UPDATE_PROGRAM_WEEK, { id, number: index + 1 });
+  }
+  return listProgramWeeks(programId);
+}
+
 export async function reorderModules(
   programId: string,
   orderedIds: string[],
