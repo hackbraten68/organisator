@@ -5,6 +5,7 @@ mutation CreateLearningPathItem(
   $order: Double
   $status: Picklist
   $estimatedWeeks: Double
+  $moduleId: IdOrRef
 ) {
   uiapi {
     Learning_Path__cCreate(
@@ -16,6 +17,7 @@ mutation CreateLearningPathItem(
           Order__c: $order
           Status__c: $status
           Estimated_Weeks__c: $estimatedWeeks
+          Module__c: $moduleId
         }
       }
     ) {

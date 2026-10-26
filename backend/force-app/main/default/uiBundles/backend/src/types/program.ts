@@ -96,12 +96,14 @@ export interface LearningPathItem {
   order: number;
   estimatedWeeks?: number;
   status: LearningPathItemStatus;
+  moduleId?: string;
 }
 
 export interface LearningPathItemInput {
   title: string;
   estimatedWeeks?: number;
   status: LearningPathItemStatus;
+  moduleId?: string;
 }
 
 export interface LearningPathProgress {

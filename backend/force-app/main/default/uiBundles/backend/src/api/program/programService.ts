@@ -287,6 +287,7 @@ interface ModuleNode {
   Order__c?: ScalarValue<number>;
   Description__c?: ScalarValue<string>;
   Program__c?: ScalarValue<string>;
+  Module__c?: ScalarValue<string>;
 }
 
 interface ModulesResponse {
@@ -501,6 +502,7 @@ interface LearningPathNode {
   Estimated_Weeks__c?: ScalarValue<number>;
   Participant__c?: ScalarValue<string>;
   Program__c?: ScalarValue<string>;
+  Module__c?: ScalarValue<string>;
 }
 
 interface LearningPathResponse {
@@ -639,6 +641,7 @@ export async function addLearningPathItem(  participantId: string,
       order?: number | null;
       status?: string | null;
       estimatedWeeks?: number | null;
+      moduleId?: string | null;
     }
   >(CREATE_LEARNING_PATH_ITEM, {
     participantId,
@@ -647,6 +650,7 @@ export async function addLearningPathItem(  participantId: string,
     order: maxOrder + 1,
     status: input.status,
     estimatedWeeks: input.estimatedWeeks ?? null,
+    moduleId: input.moduleId ?? null,
   });
   const id = (Object.values(data.uiapi ?? {})[0]?.Record?.Id ?? null) as
     | string
@@ -682,6 +686,7 @@ export async function updateLearningPathItem(
       order?: number | null;
       status?: string | null;
       estimatedWeeks?: number | null;
+      moduleId?: string | null;
     }
   >(UPDATE_LEARNING_PATH_ITEM, {
     id,
@@ -690,6 +695,7 @@ export async function updateLearningPathItem(
       ? { estimatedWeeks: patch.estimatedWeeks }
       : {}),
     ...(patch.status !== undefined ? { status: patch.status } : {}),
+    ...(patch.moduleId !== undefined ? { moduleId: patch.moduleId } : {}),
   });
 
   const saved = await getLearningPathItemById(id);

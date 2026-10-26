@@ -31,6 +31,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useNavigate } from "react-router";
 import LearningPathWeeklyPlanDialog from "@/components/participants/LearningPathWeeklyPlanDialog";
 import {
@@ -39,12 +40,14 @@ import {
   getLearningPathWeeks,
   getProgram,
   listLearningPath,
+  listModules,
   reorderLearningPathItems,
   updateLearningPathItem,
 } from "@/api/program/programService";
 import {
   LEARNING_PATH_STATUSES,
   type LearningPathItemStatus,
+  type ProgramModule,
 } from "@/types/program";
 
 interface ParticipantLearningPathProps {
@@ -70,17 +73,24 @@ export default function ParticipantLearningPath({
   const [adding, setAdding] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [modules, setModules] = useState<ProgramModule[]>([]);
+  const [selectedModuleId, setSelectedModuleId] = useState("");
+  const [assigningModuleId, setAssigningModuleId] = useState<string | null>(null);
   const [weeklyPlanDialogOpen, setWeeklyPlanDialogOpen] = useState(false);
   const [weeklyPlanItemId, setWeeklyPlanItemId] = useState<string | null>(null);
 
   const { data, loading, error } = useAsyncData(async () => {
-    const [items, plannedWeeks, program] = await Promise.all([
+    const [items, plannedWeeks, program, mods] = await Promise.all([
       listLearningPath(participantId),
       getLearningPathWeeks(participantId),
       programId !== undefined
         ? getProgram(programId)
         : Promise.resolve(null),
+      programId !== undefined
+        ? listModules(programId)
+        : Promise.resolve([]),
     ]);
+    setModules(mods);
     return { items, plannedWeeks, durationWeeks: program?.durationWeeks };
   }, [participantId, programId, reload]);
 
@@ -116,6 +126,7 @@ export default function ParticipantLearningPath({
         title: trimmedTitle,
         estimatedWeeks,
         status,
+        moduleId: selectedModuleId || undefined,
       });
       toast.success("Learning path item added", {
         description: trimmedTitle,
@@ -123,6 +134,7 @@ export default function ParticipantLearningPath({
       setTitle("");
       setWeeks("");
       setStatus("Planned");
+      setSelectedModuleId("");
       refresh();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Adding failed";
@@ -359,6 +371,22 @@ export default function ParticipantLearningPath({
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label>Modul</Label>
+                <Select value={selectedModuleId} onValueChange={setSelectedModuleId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Modul wählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Kein Modul</SelectItem>
+                    {modules.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {formError && (
@@ -377,6 +405,50 @@ export default function ParticipantLearningPath({
         )}
       </CardContent>
     </Card>
+    {assigningModuleId && (
+      <Dialog open={!!assigningModuleId} onOpenChange={(o) => !o && setAssigningModuleId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Modul zuordnen</DialogTitle>
+            <DialogDescription>
+              Wähle das Modul für diesen Lernpfadeintrag.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select
+              value=""
+              onValueChange={async (v) => {
+                if (!v || !assigningModuleId) return;
+                try {
+                  await updateLearningPathItem(assigningModuleId, { moduleId: v });
+                  toast.success("Modul zugeordnet.");
+                  setAssigningModuleId(null);
+                  refresh();
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Fehler.");
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Modul wählen" />
+              </SelectTrigger>
+              <SelectContent>
+                {modules.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssigningModuleId(null)}>
+              Abbrechen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
     {weeklyPlanItemId && (
       <LearningPathWeeklyPlanDialog
         open={weeklyPlanDialogOpen}

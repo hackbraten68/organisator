@@ -26,6 +26,9 @@ query LearningPathsByParticipant($participantId: ID!) {
             Program__c @optional {
               value
             }
+            Module__c @optional {
+              value
+            }
           }
         }
       }

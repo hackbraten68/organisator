@@ -23,6 +23,9 @@ query LearningPathById($id: ID!) {
             Program__c @optional {
               value
             }
+            Module__c @optional {
+              value
+            }
           }
         }
       }

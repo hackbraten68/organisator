@@ -4,6 +4,7 @@ mutation UpdateLearningPathItem(
   $order: Double
   $status: Picklist
   $estimatedWeeks: Double
+  $moduleId: IdOrRef
 ) {
   uiapi {
     Learning_Path__cUpdate(
@@ -14,6 +15,7 @@ mutation UpdateLearningPathItem(
           Order__c: $order
           Status__c: $status
           Estimated_Weeks__c: $estimatedWeeks
+          Module__c: $moduleId
         }
       }
     ) {
