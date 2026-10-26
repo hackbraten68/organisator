@@ -69,6 +69,8 @@ export default function ScheduleListPage() {
     return result;
   }, [weeks]);
 
+  const hasActiveFilters = scopeFilter !== "all" || statusFilter !== "all" || timeFilter !== "current" || search.trim() !== "" || coachFilter !== "all";
+
   // Filter plans within each week
   const filteredWeeks = useMemo(() => {
     return weeks.map((week) => {
@@ -89,9 +91,7 @@ export default function ScheduleListPage() {
       });
       return { ...week, plans: filteredPlans };
     }).filter((w) => hasActiveFilters ? w.plans.length > 0 : true);
-  }, [weeks, scopeFilter, statusFilter, timeFilter, search, coachFilter]);
-
-  const hasActiveFilters = scopeFilter !== "all" || statusFilter !== "all" || timeFilter !== "current" || search.trim() !== "" || coachFilter !== "all";
+  }, [weeks, scopeFilter, statusFilter, timeFilter, search, coachFilter, hasActiveFilters]);
 
   const resetFilters = () => {
     setScopeFilter("all");
