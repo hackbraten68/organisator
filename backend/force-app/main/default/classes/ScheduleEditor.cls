@@ -83,6 +83,7 @@ global with sharing class ScheduleEditor {
         global String deviationReason;
         global String publishedAt;
         global String publishedBy;
+        global String coachName;
     }
 
     global class EntryView {
@@ -213,6 +214,9 @@ global with sharing class ScheduleEditor {
             } else if (action == 'options') {
                 String programId = RestContext.request == null ? null : RestContext.request.params.get('programId');
                 getOptions(resp, programId);
+            } else if (action == 'templates') {
+                String programId = RestContext.request == null ? null : RestContext.request.params.get('programId');
+                getTemplates(resp, programId);
             } else if (action == 'learningPathOptions') {
                 String learningPathId = RestContext.request == null ? null : RestContext.request.params.get('learningPathId');
                 getLearningPathOptions(resp, learningPathId);
@@ -366,7 +370,7 @@ global with sharing class ScheduleEditor {
                 SELECT Id, Name, ProgramWeek__c, ScopeType__c, Status__c, StartDate__c, EndDate__c,
                        ParticipantGroup__c, ParticipantGroup__r.Name, Participant__c, Participant__r.Name,
                        AppliedTemplate__c, AppliedTemplate__r.Name, Notes__c, DeviationReason__c,
-                       PublishedAt__c, PublishedBy__c
+                       PublishedAt__c, PublishedBy__c, PublishedBy__r.Name
                 FROM WeeklySchedule__c
                 WHERE ProgramWeek__c IN :weekIds
             ]) {
@@ -416,7 +420,7 @@ global with sharing class ScheduleEditor {
             SELECT Id, Name, ProgramWeek__c, ProgramWeek__r.Program__c, ScopeType__c, Status__c,
                    StartDate__c, EndDate__c, ParticipantGroup__c, ParticipantGroup__r.Name,
                    Participant__c, Participant__r.Name, AppliedTemplate__c, AppliedTemplate__r.Name,
-                   Notes__c, DeviationReason__c, PublishedAt__c, PublishedBy__c
+                   Notes__c, DeviationReason__c, PublishedAt__c, PublishedBy__c, PublishedBy__r.Name
             FROM WeeklySchedule__c
             WHERE Id = :planId
             LIMIT 1
@@ -745,6 +749,41 @@ global with sharing class ScheduleEditor {
         resp.success = true;
     }
 
+    private static void getTemplates(EditorResponse resp, String programId) {
+        if (String.isBlank(programId)) {
+            if (resp.options == null) resp.options = new OptionsView();
+            resp.options.templates = new List<TemplateView>();
+            return;
+        }
+        assertProgramAccess(programId);
+
+        Set<Id> weekIds = new Set<Id>();
+        for (ProgramWeek__c pw : [SELECT Id FROM ProgramWeek__c WHERE Program__c = :programId]) {
+            weekIds.add(pw.Id);
+        }
+
+        List<TemplateView> templates = new List<TemplateView>();
+        for (ScheduleTemplate__c t : [
+            SELECT Id, Name, Program__c, ProgramWeek__c, Status__c
+            FROM ScheduleTemplate__c
+            WHERE Status__c = 'Active'
+              AND (Program__c = :programId OR ProgramWeek__c IN :weekIds)
+            ORDER BY Name
+        ]) {
+            TemplateView tv = new TemplateView();
+            tv.id = t.Id;
+            tv.name = t.Name;
+            tv.programId = t.Program__c;
+            tv.programWeekId = t.ProgramWeek__c;
+            tv.status = t.Status__c;
+            tv.entryCount = [SELECT COUNT() FROM ScheduleEntry__c WHERE ScheduleTemplate__c = :t.Id];
+            templates.add(tv);
+        }
+
+        if (resp.options == null) resp.options = new OptionsView();
+        resp.options.templates = templates;
+    }
+
     private static PlanView mapPlan(WeeklySchedule__c plan, Integer entryCount) {
         PlanView pv = new PlanView();
         pv.id = plan.Id;
@@ -765,6 +804,7 @@ global with sharing class ScheduleEditor {
         pv.deviationReason = plan.DeviationReason__c;
         pv.publishedAt = plan.PublishedAt__c == null ? null : String.valueOf(plan.PublishedAt__c);
         pv.publishedBy = plan.PublishedBy__c;
+        pv.coachName = plan.PublishedBy__r == null ? null : plan.PublishedBy__r.Name;
         return pv;
     }
 

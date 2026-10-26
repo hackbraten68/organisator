@@ -26,6 +26,7 @@ export interface SchedulePlan {
   deviationReason: string | null;
   publishedAt: string | null;
   publishedBy: string | null;
+  coachName: string | null;
 }
 
 export interface ScheduleWeek {

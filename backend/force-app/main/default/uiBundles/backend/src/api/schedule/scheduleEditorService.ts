@@ -4,6 +4,7 @@ import type {
   ScheduleEntry,
   ScheduleListResponse,
   ScheduleOptions,
+  ScheduleTemplate,
   PlanInput,
   EntryInput,
   LearningPathPlanOptions,
@@ -60,6 +61,7 @@ interface RawPlan {
   deviationReason?: string | null;
   publishedAt?: string | null;
   publishedBy?: string | null;
+  coachName?: string | null;
 }
 
 interface RawWeek {
@@ -203,6 +205,7 @@ function toPlan(raw: RawPlan): ScheduleDetailResponse["plan"] {
     deviationReason: raw.deviationReason ?? null,
     publishedAt: raw.publishedAt ?? null,
     publishedBy: raw.publishedBy ?? null,
+    coachName: raw.coachName ?? null,
   };
 }
 
@@ -468,6 +471,27 @@ export async function createIndividualPlanFromLearningPath(input: {
     code: raw.code ?? null,
     message: raw.message ?? null,
   };
+}
+
+export async function listScheduleTemplates(programId?: string): Promise<ScheduleTemplate[]> {
+  const params = new URLSearchParams();
+  params.set("action", "templates");
+  if (programId) params.set("programId", programId);
+  const raw = await request<{ success?: boolean; code?: string; message?: string; options?: { templates?: RawTemplate[] } }>(
+    `${EDIT_PATH}?${params.toString()}`,
+    { method: "GET", headers: { Accept: "application/json" } },
+  );
+  if (!raw.success) {
+    throw new ScheduleEditorError(raw.code ?? "ERROR", raw.message ?? "Fehler", 400);
+  }
+  return (raw.options?.templates ?? []).map((t) => ({
+    id: t.id ?? "",
+    name: t.name ?? "",
+    programId: t.programId ?? null,
+    programWeekId: t.programWeekId ?? null,
+    entryCount: t.entryCount ?? 0,
+    status: t.status ?? null,
+  }));
 }
 
 export async function applyScheduleTemplate(input: {

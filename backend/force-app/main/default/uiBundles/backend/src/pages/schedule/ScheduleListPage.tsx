@@ -1,26 +1,19 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   listScheduleBoard,
   deleteSchedulePlan,
 } from "@/api/schedule/scheduleEditorService";
-import ScheduleStatusBadge from "@/components/schedule/ScheduleStatusBadge";
-import ScheduleScopeBadge from "@/components/schedule/ScheduleScopeBadge";
+import ScheduleFilterBar from "@/components/schedule/ScheduleFilterBar";
 import SchedulePlanDialog from "@/components/schedule/SchedulePlanDialog";
-import type { SchedulePlan, ScheduleWeek } from "@/types/schedule";
+import SchedulePlanTable from "@/components/schedule/SchedulePlanTable";
+import { timeStatus } from "@/components/schedule/ScheduleTimeStatusBadge";
+import type { SchedulePlan } from "@/types/schedule";
 
 export default function ScheduleListPage() {
   const navigate = useNavigate();
@@ -33,6 +26,11 @@ export default function ScheduleListPage() {
   );
 
   const [selectedProgramId, setSelectedProgramId] = useState<string>("");
+  const [scopeFilter, setScopeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [timeFilter, setTimeFilter] = useState("current");
+  const [search, setSearch] = useState("");
+  const [coachFilter, setCoachFilter] = useState("all");
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [planDialogWeekId, setPlanDialogWeekId] = useState<string>("");
   const [planDialogPlan, setPlanDialogPlan] = useState<SchedulePlan | null>(null);
@@ -47,10 +45,70 @@ export default function ScheduleListPage() {
 
   const weeks = programBoard?.weeks ?? [];
 
-  const openPlanDialog = (weekId: string, plan: SchedulePlan | null) => {
-    setPlanDialogWeekId(weekId);
-    setPlanDialogPlan(plan);
-    setPlanDialogOpen(true);
+  // Flatten all plans
+  const allPlans = useMemo(() => {
+    const plans: (SchedulePlan & { weekNumber?: number | null; weekName?: string | null; moduleName?: string | null })[] = [];
+    for (const week of weeks) {
+      for (const plan of week.plans) {
+        plans.push({ ...plan, weekNumber: week.weekNumber, weekName: week.name, moduleName: week.moduleName });
+      }
+    }
+    return plans;
+  }, [weeks]);
+
+  // Collect coaches
+  const coaches = useMemo(() => {
+    const seen = new Set<string>();
+    const result: { id: string; name: string }[] = [];
+    for (const plan of allPlans) {
+      if (plan.coachName && !seen.has(plan.coachName)) {
+        seen.add(plan.coachName);
+        result.push({ id: plan.coachName, name: plan.coachName });
+      }
+    }
+    return result;
+  }, [allPlans]);
+
+  // Filter
+  const filteredPlans = useMemo(() => {
+    let result = allPlans;
+    if (scopeFilter !== "all") {
+      result = result.filter((p) => p.scopeType === scopeFilter);
+    }
+    if (statusFilter !== "all") {
+      result = result.filter((p) => p.status === statusFilter);
+    }
+    if (timeFilter !== "all") {
+      result = result.filter((p) => timeStatus(p) === timeFilter);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((p) =>
+        (p.participantName?.toLowerCase().includes(q) ?? false) ||
+        (p.participantGroupName?.toLowerCase().includes(q) ?? false) ||
+        (p.name.toLowerCase().includes(q))
+      );
+    }
+    if (coachFilter !== "all") {
+      result = result.filter((p) => p.coachName === coachFilter);
+    }
+    // Sort
+    const statusOrder = { current: 0, future: 1, past: 2 };
+    const draftOrder = { Draft: 0, Published: 1 };
+    return [...result].sort((a, b) => {
+      const ta = timeStatus(a), tb = timeStatus(b);
+      if (ta !== tb) return statusOrder[ta] - statusOrder[tb];
+      if (a.status !== b.status) return draftOrder[a.status as keyof typeof draftOrder] - draftOrder[b.status as keyof typeof draftOrder];
+      return (a.startDate ?? '').localeCompare(b.startDate ?? '');
+    });
+  }, [allPlans, scopeFilter, statusFilter, timeFilter, search, coachFilter]);
+
+  const resetFilters = () => {
+    setScopeFilter("all");
+    setStatusFilter("all");
+    setTimeFilter("current");
+    setSearch("");
+    setCoachFilter("all");
   };
 
   const handleDelete = async (plan: SchedulePlan) => {
@@ -79,92 +137,55 @@ export default function ScheduleListPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Wochenplan</h1>
-        <div className="flex items-center gap-3">
-          <Select value={effectiveProgramId} onValueChange={setSelectedProgramId}>
-            <SelectTrigger className="w-64">
-              <SelectValue placeholder="Programm wählen" />
-            </SelectTrigger>
-            <SelectContent>
-              {programs.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <h1 className="text-2xl font-semibold">Wochenpläne</h1>
+        <Button size="sm" variant="outline" onClick={() => navigate("/wochenplan/vorlagen")}>
+          Vorlagen verwalten
+        </Button>
       </div>
 
-      {weeks.map((week: ScheduleWeek) => {
-        return (
-          <Card key={week.programWeekId}>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>
-                  Woche {week.weekNumber ?? "–"} – {week.name ?? "Ohne Name"}
-                  {week.moduleName ? ` (${week.moduleName})` : ""}
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => openPlanDialog(week.programWeekId, null)}
-                >
-                  <Plus className="h-4 w-4 mr-1" /> Plan anlegen
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {week.plans.length === 0 ? (
-                <div className="text-sm text-muted-foreground">Kein Plan vorhanden.</div>
-              ) : (
-                <div className="space-y-2">
-                  {week.plans.map((plan) => (
-                    <div
-                      key={plan.id}
-                      className="flex items-center justify-between border rounded-md p-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <ScheduleStatusBadge status={plan.status} />
-                        <span className="font-medium">{plan.name}</span>
-                        <ScheduleScopeBadge scope={plan.scopeType} />
-                        <span className="text-xs text-muted-foreground">
-                          {plan.scopeType === "Group"
-                            ? plan.participantGroupName ?? "–"
-                            : plan.scopeType === "Individual"
-                              ? plan.participantName ?? "–"
-                              : ""}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          Start: {plan.startDate ?? "–"} · {plan.entryCount} Einträge
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => navigate(`/wochenplan/${plan.id}`)}
-                        >
-                          Öffnen
-                        </Button>
-                        {plan.status === "Draft" && (
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDelete(plan)}
-                          >
-                            Löschen
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        );
-      })}
+      <ScheduleFilterBar
+        programId={effectiveProgramId}
+        programs={programs}
+        onProgramChange={setSelectedProgramId}
+        scopeFilter={scopeFilter}
+        onScopeChange={setScopeFilter}
+        statusFilter={statusFilter}
+        onStatusChange={setStatusFilter}
+        timeFilter={timeFilter}
+        onTimeChange={setTimeFilter}
+        search={search}
+        onSearchChange={setSearch}
+        coachFilter={coachFilter}
+        onCoachChange={setCoachFilter}
+        coaches={coaches}
+        onReset={resetFilters}
+      />
+
+      {filteredPlans.length === 0 ? (
+        <div className="text-sm text-muted-foreground py-8 text-center">
+          {allPlans.length === 0
+            ? "In diesem Programm wurden noch keine Kurswochen angelegt. Kurswoche anlegen unter Programs → Kurswochen."
+            : "Für die gewählten Filter wurden keine Wochenpläne gefunden."}
+        </div>
+      ) : (
+        <SchedulePlanTable plans={filteredPlans} onDelete={handleDelete} />
+      )}
+
+      {/* Plan anlegen: show for each week */}
+      {weeks.length > 0 && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            onClick={() => {
+              setPlanDialogWeekId(weeks[0].programWeekId);
+              setPlanDialogPlan(null);
+              setPlanDialogOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-1" /> Plan anlegen
+          </Button>
+        </div>
+      )}
 
       <SchedulePlanDialog
         open={planDialogOpen}
