@@ -90,7 +90,7 @@ export default function ScheduleListPage() {
         return true;
       });
       return { ...week, plans: filteredPlans };
-    }).filter((w) => hasActiveFilters ? w.plans.length > 0 : true);
+    });
   }, [weeks, scopeFilter, statusFilter, timeFilter, search, coachFilter, hasActiveFilters]);
 
   const resetFilters = () => {
@@ -203,7 +203,6 @@ export default function ScheduleListPage() {
 
       {/* Weeks as cards (original layout) */}
       {filteredWeeks.map((week) => {
-        if (week.plans.length === 0) return null;
         return (
           <Card key={week.programWeekId}>
             <CardHeader>
