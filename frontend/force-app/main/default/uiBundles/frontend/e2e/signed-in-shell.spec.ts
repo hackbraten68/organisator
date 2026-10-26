@@ -143,12 +143,12 @@ test.describe('signed-in portal shell', () => {
     await expect(sidebar.getByRole('link', { name: 'Dashboard' })).toBeVisible();
     await expect(sidebar.getByRole('link', { name: 'Lernpfad' })).toBeVisible();
     await expect(sidebar.getByRole('link', { name: 'Meine Termine' })).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: 'Mein Wochenplan' })).toBeVisible();
     await expect(sidebar.getByRole('link', { name: 'Mein Konto' })).toBeVisible();
 
-    // Exactly four, not "at least these". A fifth route that never reaches the
-    // sidebar would otherwise slip through unnoticed, which is the failure this
-    // list originally had: it asserted presence, never completeness.
-    await expect(sidebar.getByRole('link')).toHaveCount(4);
+    // Exactly five, not "at least these". A sixth route that never reaches the
+    // sidebar would otherwise slip through unnoticed.
+    await expect(sidebar.getByRole('link')).toHaveCount(5);
   });
 
   test('a guest sees neither the route nor its navigation entry', async ({ page }) => {

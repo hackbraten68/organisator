@@ -105,7 +105,6 @@ describe("fetchWeeklySchedule – Erfolgsfall", () => {
 	it("enthaelt keine Salesforce-IDs in der Response", async () => {
 		fetchMock.mockResolvedValue(jsonResponse(schedule()));
 		const result = await fetchWeeklySchedule();
-		const json = JSON.stringify(result);
 		// Keine Salesforce-Record-IDs im Body: kein Feld mit dem Namen
 		// "id" (case-insensitive) auf irgendeiner Ebene.
 		function hasIdKey(value: unknown): boolean {
