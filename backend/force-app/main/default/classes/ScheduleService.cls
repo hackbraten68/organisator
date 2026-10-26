@@ -16,6 +16,8 @@ global with sharing class ScheduleService {
     public static final String CODE_PROGRAM_WEEK_NOT_FOUND = 'PROGRAM_WEEK_NOT_FOUND';
     public static final String CODE_TEMPLATE_NOT_FOUND = 'TEMPLATE_NOT_FOUND';
     public static final String CODE_INVALID_INTERVAL = 'INVALID_INTERVAL';
+    public static final String CODE_INVALID_WEEK_START = 'INVALID_WEEK_START';
+    public static final String CODE_DUPLICATE_COURSE_SCHEDULE = 'DUPLICATE_COURSE_SCHEDULE';
     public static final String CODE_AUDIT_FAILED = 'AUDIT_FAILED';
     public static final String CODE_INTERNAL = 'INTERNAL_ERROR';
 
@@ -163,6 +165,7 @@ global with sharing class ScheduleService {
         }
 
         validateWeeklySchedule(record);
+        assertNoDuplicateCourseSchedule(record);
 
         Savepoint sp = Database.setSavepoint();
         try {
@@ -365,12 +368,47 @@ global with sharing class ScheduleService {
         }
     }
 
+    public static void assertNoDuplicateCourseSchedule(WeeklySchedule__c schedule) {
+        if (schedule == null || schedule.ScopeType__c != 'Course' || schedule.Status__c != 'Published') {
+            return;
+        }
+        if (schedule.ProgramWeek__c == null) {
+            return;
+        }
+        List<ProgramWeek__c> weeks = [
+            SELECT Program__c
+            FROM ProgramWeek__c
+            WHERE Id = :schedule.ProgramWeek__c
+            LIMIT 1
+        ];
+        if (weeks.isEmpty() || weeks[0].Program__c == null) {
+            return;
+        }
+        Id programId = weeks[0].Program__c;
+        List<WeeklySchedule__c> duplicates = [
+            SELECT Id
+            FROM WeeklySchedule__c
+            WHERE Id != :schedule.Id
+              AND Status__c = 'Published'
+              AND ScopeType__c = 'Course'
+              AND StartDate__c = :schedule.StartDate__c
+              AND ProgramWeek__c IN (SELECT Id FROM ProgramWeek__c WHERE Program__c = :programId)
+            LIMIT 1
+        ];
+        if (!duplicates.isEmpty()) {
+            throw new ScheduleServiceException(409, CODE_DUPLICATE_COURSE_SCHEDULE, 'Fuer dieses Programm und diese Woche existiert bereits ein veroffentlichter Kurs-Wochenplan.');
+        }
+    }
+
     public static void validateWeeklySchedule(WeeklySchedule__c schedule) {
         if (schedule == null) {
             throw badRequest('Wochenplan fehlt.');
         }
         if (schedule.StartDate__c == null) {
             throw badRequest('StartDate__c ist erforderlich.');
+        }
+        if (Math.mod(schedule.StartDate__c.daysBetween(Date.newInstance(1900, 1, 1)), 7) != 0) {
+            throw new ScheduleServiceException(400, CODE_INVALID_WEEK_START, 'StartDate__c muss ein Montag sein.');
         }
         if (schedule.EndDate__c != null && schedule.EndDate__c < schedule.StartDate__c) {
             throw badRequest('Das Ende der Woche darf nicht vor dem Startdatum liegen.');

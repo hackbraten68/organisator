@@ -31,6 +31,12 @@ global with sharing class SchedulePublishService {
         }
         WeeklySchedule__c schedule = rows[0];
 
+        if (schedule.ScopeType__c == 'Course') {
+            WeeklySchedule__c probe = schedule.clone(true, false, false, false);
+            probe.Status__c = 'Published';
+            ScheduleService.assertNoDuplicateCourseSchedule(probe);
+        }
+
         Savepoint sp = Database.setSavepoint();
         try {
             schedule.Status__c = 'Published';
