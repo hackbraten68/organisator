@@ -22,6 +22,7 @@ import { toast } from "@/components/ui/sonner";
 import {
   saveSchedulePlan,
   getScheduleOptions,
+  applyScheduleTemplate,
 } from "@/api/schedule/scheduleEditorService";
 import type { ScheduleScope, SchedulePlan, PlanInput } from "@/types/schedule";
 import type { ScheduleOptions } from "@/types/schedule";
@@ -53,6 +54,7 @@ export default function SchedulePlanDialog({
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
   const [deviationReason, setDeviationReason] = useState("");
+  const [templateId, setTemplateId] = useState("");
   const [options, setOptions] = useState<ScheduleOptions | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -76,6 +78,7 @@ export default function SchedulePlanDialog({
       setEndDate(plan.endDate ?? "");
       setNotes(plan.notes ?? "");
       setDeviationReason(plan.deviationReason ?? "");
+      setTemplateId("");
     } else {
       setName("");
       setScopeType("Course");
@@ -85,6 +88,7 @@ export default function SchedulePlanDialog({
       setEndDate("");
       setNotes("");
       setDeviationReason("");
+      setTemplateId("");
     }
   }, [open, plan]);
 
@@ -111,24 +115,33 @@ export default function SchedulePlanDialog({
     }
     setSaving(true);
     try {
-      const input: PlanInput = {
-        name: name.trim(),
-        programWeekId,
-        scopeType,
-        startDate,
-        endDate: endDate || null,
-        notes: notes || null,
-        deviationReason: deviationReason || null,
-      };
-      if (isEdit && plan) {
-        input.id = plan.id;
-        // scope/group/participant are immutable after creation
+      if (!isEdit && templateId) {
+        await applyScheduleTemplate({
+          templateId,
+          programWeekId,
+          startDate,
+          name: name.trim(),
+        });
+        toast.success("Plan aus Vorlage angelegt.");
       } else {
-        input.participantGroupId = scopeType === "Group" ? participantGroupId : null;
-        input.participantId = scopeType === "Individual" ? participantId : null;
+        const input: PlanInput = {
+          name: name.trim(),
+          programWeekId,
+          scopeType,
+          startDate,
+          endDate: endDate || null,
+          notes: notes || null,
+          deviationReason: deviationReason || null,
+        };
+        if (isEdit && plan) {
+          input.id = plan.id;
+        } else {
+          input.participantGroupId = scopeType === "Group" ? participantGroupId : null;
+          input.participantId = scopeType === "Individual" ? participantId : null;
+        }
+        await saveSchedulePlan(input);
+        toast.success(isEdit ? "Plan gespeichert." : "Plan angelegt.");
       }
-      await saveSchedulePlan(input);
-      toast.success(isEdit ? "Plan gespeichert." : "Plan angelegt.");
       onSaved();
       onOpenChange(false);
     } catch (e) {
@@ -171,6 +184,24 @@ export default function SchedulePlanDialog({
               </SelectContent>
             </Select>
           </div>
+          {scopeType === "Course" && !isEdit && (
+            <div>
+              <Label>Vorlage (optional)</Label>
+              <Select value={templateId} onValueChange={setTemplateId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Keine Vorlage" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Keine Vorlage</SelectItem>
+                  {(options?.templates ?? []).map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name} ({t.entryCount} Einträge)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {scopeType === "Group" && (
             <div>
               <Label>Gruppe</Label>
