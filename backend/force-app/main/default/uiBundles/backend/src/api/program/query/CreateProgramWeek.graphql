@@ -4,7 +4,7 @@ mutation CreateProgramWeek(
   $name: String!
   $number: Double!
   $status: Picklist
-  $description: String
+  $description: LongTextArea
 ) {
   uiapi {
     ProgramWeek__cCreate(

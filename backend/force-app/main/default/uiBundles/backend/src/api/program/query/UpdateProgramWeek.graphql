@@ -3,7 +3,7 @@ mutation UpdateProgramWeek(
   $name: String
   $number: Double
   $status: Picklist
-  $description: String
+  $description: LongTextArea
   $moduleId: IdOrRef
 ) {
   uiapi {

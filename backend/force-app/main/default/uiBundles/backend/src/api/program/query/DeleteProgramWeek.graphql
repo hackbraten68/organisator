@@ -1,9 +1,7 @@
 mutation DeleteProgramWeek($id: IdOrRef!) {
   uiapi {
     ProgramWeek__cDelete(input: { Id: $id }) {
-      Record {
-        Id
-      }
+      Id
     }
   }
 }
