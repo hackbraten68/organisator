@@ -1,0 +1,7 @@
+mutation UnassignProgramCoach($id: IdOrRef!) {
+  uiapi {
+    ProgramCoach__cDelete(input: { Id: $id }) {
+      Id
+    }
+  }
+}

@@ -44,6 +44,9 @@ import CREATE_PROGRAM from "./query/CreateProgram.graphql?raw";
 import UPDATE_PROGRAM from "./query/UpdateProgram.graphql?raw";
 import MODULES_BY_PROGRAM from "./query/ModulesByProgram.graphql?raw";
 import MODULE_BY_ID from "./query/ModuleById.graphql?raw";
+import LIST_PROGRAM_COACHES from "./query/ListProgramCoaches.graphql?raw";
+import ASSIGN_PROGRAM_COACH from "./query/AssignProgramCoach.graphql?raw";
+import UNASSIGN_PROGRAM_COACH from "./query/UnassignProgramCoach.graphql?raw";
 import CREATE_MODULE from "./query/CreateModule.graphql?raw";
 import UPDATE_MODULE from "./query/UpdateModule.graphql?raw";
 import DELETE_MODULE from "./query/DeleteModule.graphql?raw";
@@ -78,6 +81,21 @@ interface ProgramsResponse {
     query?: {
       Program__c?: {
         edges?: Array<{ node?: ProgramNode | null } | null> | null;
+      } | null;
+    } | null;
+  } | null;
+}
+
+interface ProgramCoachesResponse {
+  uiapi?: {
+    query?: {
+      ProgramCoach__c?: {
+        edges?: Array<{
+          node?: {
+            Id: string;
+            Coach_Profile__c?: { value?: string | null } | null;
+          } | null;
+        } | null> | null;
       } | null;
     } | null;
   } | null;
@@ -126,33 +144,15 @@ function mapProgram(node: ProgramNode, coachIds: string[]): Program {
   };
 }
 
-// Transitional program↔coach assignment: no junction object exists yet, so
-// assignments live session-local, keyed by live program ID and seeded from
-// known org data by program name.
-const programCoachSeed: Record<string, string[]> = {};
-
-function coachNamesFor(programId: string, programName: string): string[] {
-  if (!(programId in programCoachSeed)) {
-    seedCoachNames(programId, programName);
-  }
-  return programCoachSeed[programId];
-}
-
-function seedCoachNames(programId: string, programName: string): void {
-  programCoachSeed[programId] =
-    programName === "IT Pro" ? ["Sam Dillenburg"] : [];
-}
-
-async function resolveCoachIds(names: string[]): Promise<string[]> {
-  const coaches = await listCoaches();
-  return coaches
-    .filter((coach) => names.includes(coach.name))
-    .map((coach) => coach.id);
-}
-
-async function coachNameForId(id: string): Promise<string | undefined> {
-  const coaches = await listCoaches();
-  return coaches.find((coach) => coach.id === id)?.name;
+async function resolveCoachProfileIds(programId: string): Promise<string[]> {
+  const data = await executeGraphQL<ProgramCoachesResponse, { programId: string }>(
+    LIST_PROGRAM_COACHES,
+    { programId },
+  );
+  const edges = data.uiapi?.query?.ProgramCoach__c?.edges ?? [];
+  return edges
+    .map((edge) => edge?.node?.Coach_Profile__c?.value ?? null)
+    .filter((id): id is string => id != null);
 }
 
 export async function listPrograms(): Promise<Program[]> {
@@ -165,9 +165,7 @@ export async function listPrograms(): Promise<Program[]> {
     nodes.map(async (node) =>
       mapProgram(
         node,
-        await resolveCoachIds(
-          coachNamesFor(node.Id, node.Name?.value ?? ""),
-        ),
+        await resolveCoachProfileIds(node.Id),
       ),
     ),
   );
@@ -220,7 +218,7 @@ export async function getProgram(id: string): Promise<Program | null> {
   if (!node) return null;
   return mapProgram(
     node,
-    await resolveCoachIds(coachNamesFor(node.Id, node.Name?.value ?? "")),
+    await resolveCoachProfileIds(node.Id),
   );
 }
 
@@ -433,21 +431,22 @@ export async function reorderModules(
 // assignment moved to participantService)
 // ---------------------------------------------------------------------------
 
-async function coachesForNames(
-  names: string[],
-): Promise<ProgramCoachSummary[]> {
-  const coaches = await listCoaches();
-  return coaches
-    .filter((coach) => names.includes(coach.name))
-    .map((coach) => ({ ...coach }));
-}
-
 export async function listProgramCoaches(
   programId: string,
 ): Promise<ProgramCoachSummary[]> {
-  const program = await getProgram(programId);
-  if (!program) return [];
-  return coachesForNames(coachNamesFor(programId, program.name));
+  const data = await executeGraphQL<ProgramCoachesResponse, { programId: string }>(
+    LIST_PROGRAM_COACHES,
+    { programId },
+  );
+  const edges = data.uiapi?.query?.ProgramCoach__c?.edges ?? [];
+  const assignedProfileIds = edges
+    .map((edge) => edge?.node?.Coach_Profile__c?.value)
+    .filter((id): id is string => id != null);
+
+  const coaches = await listCoaches();
+  return coaches
+    .filter((coach) => assignedProfileIds.includes(coach.id))
+    .map((coach) => ({ ...coach }));
 }
 
 export async function listAvailableCoaches(
@@ -467,26 +466,27 @@ export async function assignCoach(
   programId: string,
   coachId: string,
 ): Promise<void> {
-  const name = await coachNameForId(coachId);
-  if (!name) return;
-  const program = await getProgram(programId);
-  if (!program) return;
-  const names = coachNamesFor(programId, program.name);
-  if (!names.includes(name)) {
-    programCoachSeed[programId] = [...names, name];
-  }
+  // coachId is a Coach_Profile__c.Id (see Program.coachIds).
+  await executeGraphQL<MutationResponse, { programId: string; coachProfileId: string }>(
+    ASSIGN_PROGRAM_COACH,
+    { programId, coachProfileId: coachId },
+  );
 }
 
 export async function unassignCoach(
   programId: string,
   coachId: string,
 ): Promise<void> {
-  const name = await coachNameForId(coachId);
-  const program = await getProgram(programId);
-  if (!name || !program) return;
-  programCoachSeed[programId] = coachNamesFor(programId, program.name).filter(
-    (entry) => entry !== name,
+  // Resolve the junction row id first.
+  const data = await executeGraphQL<ProgramCoachesResponse, { programId: string }>(
+    LIST_PROGRAM_COACHES,
+    { programId },
   );
+  const edges = data.uiapi?.query?.ProgramCoach__c?.edges ?? [];
+  const row = edges.find((edge) => edge?.node?.Coach_Profile__c?.value === coachId);
+  const rowId = row?.node?.Id;
+  if (!rowId) return;
+  await executeGraphQL<MutationResponse, { id: string }>(UNASSIGN_PROGRAM_COACH, { id: rowId });
 }
 
 // ---------------------------------------------------------------------------

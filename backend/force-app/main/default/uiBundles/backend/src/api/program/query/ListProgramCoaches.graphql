@@ -1,0 +1,28 @@
+query ListProgramCoaches($programId: ID!) {
+  uiapi {
+    query {
+      ProgramCoach__c(
+        where: { Program__c: { eq: $programId } }
+        first: 200
+      ) {
+        edges {
+          node {
+            Id
+            Coach_Profile__c @optional {
+              value
+            }
+            Coach_Profile__r @optional {
+              Id
+              Name @optional {
+                value
+              }
+              User__c @optional {
+                value
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

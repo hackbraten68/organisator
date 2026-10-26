@@ -1,0 +1,16 @@
+mutation AssignProgramCoach($programId: IdOrRef!, $coachProfileId: IdOrRef!) {
+  uiapi {
+    ProgramCoach__cCreate(
+      input: {
+        ProgramCoach__c: {
+          Program__c: $programId
+          Coach_Profile__c: $coachProfileId
+        }
+      }
+    ) {
+      Record {
+        Id
+      }
+    }
+  }
+}
