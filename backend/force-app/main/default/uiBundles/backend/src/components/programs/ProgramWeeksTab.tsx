@@ -173,9 +173,10 @@ export default function ProgramWeeksTab({ programId }: { programId: string }) {
               className="flex items-center justify-between border rounded-md p-3"
             >
               <div className="flex items-center gap-3">
-                <span className="font-medium">
-                  Woche {week.number} – {week.name}
+                <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
+                  Woche {week.number}
                 </span>
+                <span className="font-medium">{week.name}</span>
                 <span className="text-xs text-muted-foreground">
                   Modul: {moduleList.find((m) => m.id === week.moduleId)?.name ?? "–"}
                 </span>
