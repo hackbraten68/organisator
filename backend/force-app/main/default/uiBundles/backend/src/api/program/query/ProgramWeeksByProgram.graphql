@@ -4,6 +4,7 @@ query ProgramWeeksByProgram($programId: ID!) {
       ProgramWeek__c(
         where: { Program__c: { eq: $programId } }
         orderBy: { Number__c: { order: ASC } }
+        first: 200
       ) {
         edges {
           node {

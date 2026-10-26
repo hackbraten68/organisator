@@ -4,6 +4,7 @@ query ModulesByProgram($programId: ID!) {
       Module__c(
         where: { Program__c: { eq: $programId } }
         orderBy: { Order__c: { order: ASC } }
+        first: 200
       ) {
         edges {
           node {

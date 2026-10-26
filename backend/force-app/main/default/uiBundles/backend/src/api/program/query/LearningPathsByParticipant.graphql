@@ -4,6 +4,7 @@ query LearningPathsByParticipant($participantId: ID!) {
       Learning_Path__c(
         where: { Participant__c: { eq: $participantId } }
         orderBy: { Order__c: { order: ASC } }
+        first: 200
       ) {
         edges {
           node {
