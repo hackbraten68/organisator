@@ -69,6 +69,10 @@
         <apexClass>ScheduleEntryMaterialisationService</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>ProgramCoachService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
 
     <!-- read/write -->
     <objectPermissions>
