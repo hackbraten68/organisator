@@ -24,6 +24,31 @@ global with sharing class ProgramCoachService {
         return profiles.isEmpty() ? null : profiles[0].Id;
     }
 
+    /**
+     * A Coach_Profile__c with Role__c = 'Staff' is an internal staff member who
+     * also has a coach profile (for assignment in the UI). The S22 gate must
+     * not restrict them to assigned programs, otherwise every staff member who
+     * ever coached is locked out of all other programs.
+     */
+    public static Boolean isStaffProfile(Id coachProfileId) {
+        if (coachProfileId == null) {
+            return false;
+        }
+        List<Coach_Profile__c> profiles = [
+            SELECT Role__c
+            FROM Coach_Profile__c
+            WHERE Id = :coachProfileId
+            LIMIT 1
+        ];
+        return !profiles.isEmpty() && profiles[0].Role__c == 'Staff';
+    }
+
+    /** True for a user with no coach profile or with a Staff coach profile. */
+    public static Boolean isStaffUser(String userId) {
+        Id profileId = resolveCoachProfileId(userId);
+        return profileId == null || isStaffProfile(profileId);
+    }
+
     public static Boolean isAssignedToProgram(String programId) {
         return isAssignedToProgram(programId, UserInfo.getUserId());
     }

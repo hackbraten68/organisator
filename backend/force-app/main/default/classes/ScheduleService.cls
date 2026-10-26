@@ -413,6 +413,11 @@ global with sharing class ScheduleService {
         if (profileId == null) {
             return;
         }
+        // Staff members also have a coach profile (Role__c = 'Staff') but are
+        // not restricted to assigned programs; only real coaches are.
+        if (ProgramCoachService.isStaffProfile(profileId)) {
+            return;
+        }
         if (programWeekId == null) {
             return;
         }
@@ -471,15 +476,48 @@ global with sharing class ScheduleService {
     }
 
     private static void validateProgramWeekUnique(WeeklySchedule__c schedule) {
-        List<WeeklySchedule__c> duplicates = [
-            SELECT Id
-            FROM WeeklySchedule__c
-            WHERE ProgramWeek__c = :schedule.ProgramWeek__c
-              AND Id != :schedule.Id
-            LIMIT 1
-        ];
+        // K4: one ProgramWeek can carry several plan instances - the Course
+        // default, one per ParticipantGroup and one per Participant. The
+        // uniqueness key is therefore (ProgramWeek, scope, target), not just
+        // ProgramWeek. The portal enforces the same shape at read time:
+        // duplicate Course and Individual instances are a data error, while
+        // several Group instances are expected.
+        String scope = schedule.ScopeType__c;
+        List<WeeklySchedule__c> duplicates;
+        if (scope == 'Course') {
+            duplicates = [
+                SELECT Id
+                FROM WeeklySchedule__c
+                WHERE ProgramWeek__c = :schedule.ProgramWeek__c
+                  AND ScopeType__c = 'Course'
+                  AND Id != :schedule.Id
+                LIMIT 1
+            ];
+        } else if (scope == 'Group') {
+            duplicates = [
+                SELECT Id
+                FROM WeeklySchedule__c
+                WHERE ProgramWeek__c = :schedule.ProgramWeek__c
+                  AND ScopeType__c = 'Group'
+                  AND ParticipantGroup__c = :schedule.ParticipantGroup__c
+                  AND Id != :schedule.Id
+                LIMIT 1
+            ];
+        } else if (scope == 'Individual') {
+            duplicates = [
+                SELECT Id
+                FROM WeeklySchedule__c
+                WHERE ProgramWeek__c = :schedule.ProgramWeek__c
+                  AND ScopeType__c = 'Individual'
+                  AND Participant__c = :schedule.Participant__c
+                  AND Id != :schedule.Id
+                LIMIT 1
+            ];
+        } else {
+            return;
+        }
         if (!duplicates.isEmpty()) {
-            throw badRequest('Fuer diese Kurswoche existiert bereits ein Wochenplan.');
+            throw badRequest('Fuer diese Kurswoche und diesen Geltungsbereich existiert bereits ein Wochenplan.');
         }
     }
 

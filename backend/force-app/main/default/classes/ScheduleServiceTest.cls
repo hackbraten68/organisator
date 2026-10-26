@@ -76,6 +76,52 @@ public class ScheduleServiceTest {
     }
 
     @IsTest
+    static void scopebegrenztePlaeneTeilenSichEineKurswoche() {
+        Id programId = [SELECT Id FROM Program__c LIMIT 1].Id;
+        ParticipantGroup__c participantGroup = new ParticipantGroup__c(
+            Name = 'Svc Gruppe',
+            Program__c = programId
+        );
+        insert participantGroup;
+
+        ScheduleService.WeeklyScheduleRequest courseRequest = new ScheduleService.WeeklyScheduleRequest();
+        courseRequest.name = 'Kursplan';
+        courseRequest.programWeekId = programWeekId();
+        courseRequest.scopeType = 'Course';
+        courseRequest.startDate = '2027-03-01';
+        WeeklySchedule__c coursePlan = ScheduleService.upsertWeeklySchedule(courseRequest);
+        System.assertNotEquals(null, coursePlan.Id, 'Kursplan gespeichert');
+
+        ScheduleService.WeeklyScheduleRequest groupRequest = new ScheduleService.WeeklyScheduleRequest();
+        groupRequest.name = 'Gruppenplan';
+        groupRequest.programWeekId = programWeekId();
+        groupRequest.scopeType = 'Group';
+        groupRequest.participantGroupId = participantGroup.Id;
+        groupRequest.startDate = '2027-03-01';
+        WeeklySchedule__c groupPlan = ScheduleService.upsertWeeklySchedule(groupRequest);
+        System.assertNotEquals(null, groupPlan.Id, 'Gruppenplan gespeichert');
+
+        ScheduleService.WeeklyScheduleRequest individualRequest = new ScheduleService.WeeklyScheduleRequest();
+        individualRequest.name = 'Individualplan';
+        individualRequest.programWeekId = programWeekId();
+        individualRequest.scopeType = 'Individual';
+        individualRequest.participantId = participantId();
+        individualRequest.startDate = '2027-03-01';
+        WeeklySchedule__c individualPlan = ScheduleService.upsertWeeklySchedule(individualRequest);
+        System.assertNotEquals(null, individualPlan.Id, 'Individualplan gespeichert');
+
+        System.assertEquals(3, [SELECT COUNT() FROM WeeklySchedule__c WHERE ProgramWeek__c = :programWeekId()], 'drei Geltungsbereiche');
+
+        // A second Course plan for the same week is still a duplicate.
+        try {
+            ScheduleService.upsertWeeklySchedule(courseRequest);
+            System.assert(false, 'zweiter Kursplan muss abgelehnt werden');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(400, error.getStatusCode());
+        }
+    }
+
+    @IsTest
     static void upsertScheduleEntryErstelltUndBerechnetDate() {
         ScheduleService.WeeklyScheduleRequest wsReq = new ScheduleService.WeeklyScheduleRequest();
         wsReq.name = 'Test Schedule';

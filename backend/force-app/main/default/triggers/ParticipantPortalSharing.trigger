@@ -86,4 +86,12 @@ trigger ParticipantPortalSharing on Participant__c(after insert, after update) {
   // drives both calls. Without the second one a participant keeps reading a coach
   // profile and a program they are no longer assigned to.
   ParticipantPortalSharingService.synchroniseReferences(changed);
+
+  // Schedule rows are a third, independent sharing surface: WeeklySchedule__c,
+  // ProgramWeek__c and ScheduleEntry__c are Private for external users and have
+  // no Apex sharing reason (see SchedulePortalSharingService). This call shares
+  // the participant's group memberships and every already-published plan of
+  // their program, so a participant provisioned after a plan was published
+  // still sees it.
+  SchedulePortalSharingService.synchroniseParticipants(changed);
 }
