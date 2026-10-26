@@ -494,6 +494,22 @@ export async function listScheduleTemplates(programId?: string): Promise<Schedul
   }));
 }
 
+export async function saveAsTemplate(input: {
+  weeklyScheduleId: string;
+  name: string;
+  description?: string;
+}): Promise<{ id: string; status: string }> {
+  const raw = await request<RawMutationResponse>(EDIT_PATH, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ action: "saveAsTemplate", ...input }),
+  });
+  if (!raw.success || !raw.id) {
+    throw new ScheduleEditorError(raw.code ?? "ERROR", raw.message ?? "Fehler", 400);
+  }
+  return { id: raw.id, status: raw.status ?? "Active" };
+}
+
 export async function applyScheduleTemplate(input: {
   templateId: string;
   programWeekId: string;

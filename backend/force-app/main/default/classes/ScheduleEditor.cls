@@ -161,6 +161,12 @@ global with sharing class ScheduleEditor {
         global String notes;
     }
 
+    global class SaveAsTemplateInput {
+        global String weeklyScheduleId;
+        global String name;
+        global String description;
+    }
+
     global class CreateIndividualPlanInput {
         global String learningPathId;
         global String templateId;
@@ -268,6 +274,8 @@ global with sharing class ScheduleEditor {
                 applyTemplate(resp, payload);
             } else if (action == 'createIndividualPlanFromLearningPath') {
                 createIndividualPlanFromLearningPath(resp, payload);
+            } else if (action == 'saveAsTemplate') {
+                saveAsTemplate(resp, payload);
             } else {
                 throw badRequest('Unbekannte Aktion.');
             }
@@ -1028,6 +1036,34 @@ global with sharing class ScheduleEditor {
         SchedulePortalSharingService.revokePlan(id);
         resp.id = unpublished.Id;
         resp.status = unpublished.Status__c;
+    }
+
+    private static void saveAsTemplate(MutationResponse resp, Map<String, Object> payload) {
+        SaveAsTemplateInput input = (SaveAsTemplateInput) JSON.deserialize(JSON.serialize(payload), SaveAsTemplateInput.class);
+        if (String.isBlank(input.weeklyScheduleId)) {
+            throw badRequest('weeklyScheduleId ist erforderlich.');
+        }
+        if (String.isBlank(input.name)) {
+            throw badRequest('name ist erforderlich.');
+        }
+
+        List<WeeklySchedule__c> plans = [
+            SELECT Id, ProgramWeek__c FROM WeeklySchedule__c WHERE Id = :input.weeklyScheduleId LIMIT 1
+        ];
+        if (plans.isEmpty()) {
+            throw notFound('Der Wochenplan existiert nicht.');
+        }
+        ScheduleService.assertCoachAccess(plans[0].ProgramWeek__c);
+
+        ScheduleTemplateService.SaveAsTemplateRequest req = new ScheduleTemplateService.SaveAsTemplateRequest();
+        req.weeklyScheduleId = input.weeklyScheduleId;
+        req.name = input.name;
+        req.description = input.description;
+
+        ScheduleTemplate__c template = ScheduleTemplateService.saveAsTemplate(req);
+        resp.id = template.Id;
+        resp.status = template.Status__c;
+        resp.success = true;
     }
 
     private static void applyTemplate(MutationResponse resp, Map<String, Object> payload) {

@@ -31,6 +31,12 @@ global with sharing class ScheduleTemplateService {
         global String mergeMode;
     }
 
+    global class SaveAsTemplateRequest {
+        global String weeklyScheduleId;
+        global String name;
+        global String description;
+    }
+
     public static WeeklySchedule__c applyTemplate(ApplyRequest request) {
         if (request == null || String.isBlank(request.templateId)) {
             throw badRequest('templateId ist erforderlich.');
@@ -199,6 +205,92 @@ global with sharing class ScheduleTemplateService {
             }
 
             return schedule;
+        } catch (ScheduleTemplateServiceException e) {
+            throw e;
+        } catch (Exception e) {
+            Database.rollback(sp);
+            throw new ScheduleTemplateServiceException(500, CODE_INTERNAL, e.getMessage());
+        }
+    }
+
+    public static ScheduleTemplate__c saveAsTemplate(SaveAsTemplateRequest request) {
+        if (request == null || String.isBlank(request.weeklyScheduleId)) {
+            throw badRequest('weeklyScheduleId ist erforderlich.');
+        }
+        if (String.isBlank(request.name)) {
+            throw badRequest('name ist erforderlich.');
+        }
+
+        List<WeeklySchedule__c> plans = [
+            SELECT Id, Name, ProgramWeek__c, ProgramWeek__r.Program__c, ProgramWeek__r.Module__c, Status__c
+            FROM WeeklySchedule__c
+            WHERE Id = :request.weeklyScheduleId
+            LIMIT 1
+        ];
+        if (plans.isEmpty()) {
+            throw notFound('Der Wochenplan existiert nicht.');
+        }
+        WeeklySchedule__c plan = plans[0];
+
+        List<ScheduleEntry__c> entries = [
+            SELECT Id, Name, Description__c, EntryKind__c, Type__c, IsRequired__c,
+                   DayOfWeek__c, StartTime__c, EndTime__c, DurationMinutes__c,
+                   TargetType__c, ParticipantGroup__c, Participant__c, Coach_Profile__c,
+                   Location__c, MeetingLink__c, Order__c, DeviationReason__c, Notes__c
+            FROM ScheduleEntry__c
+            WHERE WeeklySchedule__c = :plan.Id
+        ];
+
+        Savepoint sp = Database.setSavepoint();
+        try {
+            ScheduleTemplate__c template = new ScheduleTemplate__c(
+                Name = request.name,
+                ProgramWeek__c = plan.ProgramWeek__c,
+                Program__c = plan.ProgramWeek__r.Program__c,
+                Module__c = plan.ProgramWeek__r.Module__c,
+                Description__c = request.description,
+                Status__c = 'Active'
+            );
+            insert template;
+
+            List<ScheduleEntry__c> copies = new List<ScheduleEntry__c>();
+            for (ScheduleEntry__c src : entries) {
+                ScheduleEntry__c copy = new ScheduleEntry__c(
+                    Name = src.Name,
+                    ScheduleTemplate__c = template.Id,
+                    Description__c = src.Description__c,
+                    EntryKind__c = src.EntryKind__c,
+                    Type__c = src.Type__c,
+                    IsRequired__c = src.IsRequired__c,
+                    DayOfWeek__c = src.DayOfWeek__c,
+                    StartTime__c = src.StartTime__c,
+                    EndTime__c = src.EndTime__c,
+                    DurationMinutes__c = src.DurationMinutes__c,
+                    TargetType__c = src.TargetType__c,
+                    ParticipantGroup__c = null,
+                    Participant__c = null,
+                    Coach_Profile__c = src.Coach_Profile__c,
+                    Location__c = src.Location__c,
+                    MeetingLink__c = src.MeetingLink__c,
+                    Order__c = src.Order__c,
+                    DeviationReason__c = src.DeviationReason__c,
+                    Notes__c = src.Notes__c,
+                    IsCustomized__c = false
+                );
+                copies.add(copy);
+            }
+            if (!copies.isEmpty()) {
+                insert copies;
+            }
+
+            AuditEvent__c audit = buildAudit(EVENT_TEMPLATE_APPLIED, 'ScheduleTemplate__c', template.Id, null);
+            Database.SaveResult auditResult = Database.insert(audit, false);
+            if (!auditResult.isSuccess()) {
+                Database.rollback(sp);
+                throw new ScheduleTemplateServiceException(500, CODE_AUDIT_FAILED, 'Das Audit-Event konnte nicht geschrieben werden; die Aenderung wurde zurueckgerollt.');
+            }
+
+            return template;
         } catch (ScheduleTemplateServiceException e) {
             throw e;
         } catch (Exception e) {

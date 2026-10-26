@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AlertDialog,
@@ -22,6 +25,7 @@ import {
   publishSchedulePlan,
   unpublishSchedulePlan,
   deleteSchedulePlan,
+  saveAsTemplate,
 } from "@/api/schedule/scheduleEditorService";
 import ScheduleStatusBadge from "@/components/schedule/ScheduleStatusBadge";
 import ScheduleScopeBadge from "@/components/schedule/ScheduleScopeBadge";
@@ -44,6 +48,9 @@ export default function ScheduleEditorPage() {
   const [entryDialogOpen, setEntryDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ScheduleEntry | null>(null);
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const [deleteEntryTarget, setDeleteEntryTarget] = useState<ScheduleEntry | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -129,6 +136,16 @@ export default function ScheduleEditorPage() {
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={() => setPlanDialogOpen(true)}>
                 Bearbeiten
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setTemplateName(plan.name);
+                  setTemplateDialogOpen(true);
+                }}
+              >
+                Als Vorlage speichern
               </Button>
               {plan.status === "Draft" ? (
                 <Button size="sm" onClick={handlePublish}>
@@ -224,6 +241,53 @@ export default function ScheduleEditorPage() {
         existingScopes={[]}
         onSaved={refresh}
       />
+
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Als Vorlage speichern</DialogTitle>
+            <DialogDescription>
+              Erstellt eine wiederverwendbare Vorlage aus diesem Plan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="template-name">Vorlagenname</Label>
+              <Input
+                id="template-name"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateDialogOpen(false)} disabled={savingTemplate}>
+              Abbrechen
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!plan || !templateName.trim()) return;
+                setSavingTemplate(true);
+                try {
+                  await saveAsTemplate({
+                    weeklyScheduleId: plan.id,
+                    name: templateName.trim(),
+                  });
+                  toast.success("Vorlage gespeichert.");
+                  setTemplateDialogOpen(false);
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Fehler.");
+                } finally {
+                  setSavingTemplate(false);
+                }
+              }}
+              disabled={savingTemplate || !templateName.trim()}
+            >
+              {savingTemplate ? "Speichern..." : "Speichern"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteEntryTarget} onOpenChange={(o) => !o && setDeleteEntryTarget(null)}>
         <AlertDialogContent>
