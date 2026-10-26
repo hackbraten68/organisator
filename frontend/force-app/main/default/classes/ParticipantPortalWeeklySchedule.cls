@@ -408,9 +408,9 @@ global without sharing class ParticipantPortalWeeklySchedule {
     private static Date isoMonday(Date d) {
         if (d == null) return null;
         Date anchor = Date.newInstance(1900, 1, 1); // a Monday
-        Integer diffMod = Math.mod(d.daysBetween(anchor), 7);
-        Integer daysBack = Math.mod(7 - diffMod, 7);
-        return d.addDays(-daysBack);
+        Integer daysSince = anchor.daysBetween(d);
+        Integer dow = Math.mod(daysSince, 7); // 0 = Monday
+        return d.addDays(-dow);
     }
 
     @TestVisible
