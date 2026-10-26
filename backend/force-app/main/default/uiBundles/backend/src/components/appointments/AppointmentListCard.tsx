@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { Calendar, MapPin, Video, Hash, MessageSquare, CheckCheck, Star, Landmark, Briefcase, FileText, MoreHorizontal } from "lucide-react";
+import { Calendar, MapPin, Video, Hash, MessageSquare, CheckCheck, Star, Landmark, Briefcase, FileText, MoreHorizontal, Users, Rocket, Presentation, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -22,6 +22,12 @@ const TYPE_ICONS: Record<Appointment["type"], React.ReactNode> = {
   Behörde: <Landmark className="size-4 text-orange-500" aria-label="Behörde" />,
   Praktikum: <Briefcase className="size-4 text-teal-500" aria-label="Praktikum" />,
   Sonstiges: <FileText className="size-4 text-gray-500" aria-label="Sonstiges" />,
+  Einzelcoaching: <MessageSquare className="size-4 text-blue-500" aria-label="Einzelcoaching" />,
+  Gruppencoaching: <Users className="size-4 text-indigo-500" aria-label="Gruppencoaching" />,
+  'Projekt-Kick-off': <Rocket className="size-4 text-red-500" aria-label="Projekt-Kick-off" />,
+  Workshop: <Presentation className="size-4 text-amber-500" aria-label="Workshop" />,
+  Selbstlernphase: <BookOpen className="size-4 text-emerald-500" aria-label="Selbstlernphase" />,
+  Projektarbeit: <Briefcase className="size-4 text-teal-500" aria-label="Projektarbeit" />,
 };
 
 const LOCATION_ICONS: Record<Exclude<Appointment["location"], undefined>, React.ReactNode> = {

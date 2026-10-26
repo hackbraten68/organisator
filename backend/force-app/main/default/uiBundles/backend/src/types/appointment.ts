@@ -10,7 +10,7 @@
  * entstuende. Bei Bedarf gehoert er zurueck — mit Feld und benannter Aktion.
  */
 export type AppointmentStatus = 'Draft' | 'Finding' | 'Confirmed' | 'Completed' | 'Cancelled' | 'NoShow';
-export type AppointmentType = 'Coaching' | 'CheckIn' | 'Feedback' | 'Behörde' | 'Praktikum' | 'Sonstiges';
+export type AppointmentType = 'Coaching' | 'CheckIn' | 'Feedback' | 'Behörde' | 'Praktikum' | 'Sonstiges' | 'Einzelcoaching' | 'Gruppencoaching' | 'Projekt-Kick-off' | 'Workshop' | 'Selbstlernphase' | 'Projektarbeit';
 export type AppointmentLocation = 'Discord' | 'Zoom' | 'Teams' | 'External';
 
 export const APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
@@ -18,7 +18,8 @@ export const APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
 ] as const;
 
 export const APPOINTMENT_TYPES: readonly AppointmentType[] = [
-  'Coaching', 'CheckIn', 'Feedback', 'Behörde', 'Praktikum', 'Sonstiges'
+  'Coaching', 'CheckIn', 'Feedback', 'Behörde', 'Praktikum', 'Sonstiges',
+  'Einzelcoaching', 'Gruppencoaching', 'Projekt-Kick-off', 'Workshop', 'Selbstlernphase', 'Projektarbeit'
 ] as const;
 
 export const APPOINTMENT_LOCATIONS: readonly AppointmentLocation[] = [

@@ -24,6 +24,7 @@ const DOMAIN_LABELS: Record<AuditDomain, string> = {
   system: 'System',
   learning_path: 'Lernpfad',
   availability: 'Verfügbarkeit',
+  schedule: 'Wochenplan',
 };
 
 const ACTION_LABELS: Record<AuditAction, string> = {

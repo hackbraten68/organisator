@@ -26,6 +26,7 @@ export const AUDIT_DOMAINS = [
   'system',
   'learning_path',
   'availability',
+  'schedule',
 ] as const;
 
 export type AuditDomain = (typeof AUDIT_DOMAINS)[number];
@@ -355,6 +356,7 @@ export const DEFAULT_DOMAIN_VISIBILITY: Record<AuditDomain, AuditVisibility> = {
   system: 'staff',
   learning_path: 'staff',
   availability: 'staff',
+  schedule: 'staff',
 };
 
 export const DEFAULT_DOMAIN_SENSITIVITY: Record<AuditDomain, AuditSensitivity> = {
@@ -369,6 +371,7 @@ export const DEFAULT_DOMAIN_SENSITIVITY: Record<AuditDomain, AuditSensitivity> =
   system: 'normal',
   learning_path: 'normal',
   availability: 'normal',
+  schedule: 'normal',
 };
 
 /**
@@ -445,6 +448,11 @@ export const METADATA_ALLOWLISTS: Record<AuditDomain, Set<string>> = {
     'isActive',
     'validFrom',
     'validTo',
+  ]),
+  schedule: new Set([
+    'programId',
+    'weeklyScheduleId',
+    'entryId',
   ]),
 };
 
@@ -534,6 +542,16 @@ export const EVENT_TYPES = {
   AVAILABILITY_SLOT_ADDED: 'availability.slot_added' as const,
   AVAILABILITY_SLOT_UPDATED: 'availability.slot_updated' as const,
   AVAILABILITY_SLOT_DELETED: 'availability.slot_deleted' as const,
+
+  // Wochenplan (Schedule)
+  SCHEDULE_CREATED: 'schedule.created' as const,
+  SCHEDULE_UPDATED: 'schedule.updated' as const,
+  SCHEDULE_TEMPLATE_APPLIED: 'schedule.template_applied' as const,
+  SCHEDULE_PUBLISHED: 'schedule.published' as const,
+  SCHEDULE_UNPUBLISHED: 'schedule.unpublished' as const,
+  SCHEDULE_ENTRY_CREATED: 'schedule.entry_created' as const,
+  SCHEDULE_ENTRY_UPDATED: 'schedule.entry_updated' as const,
+  SCHEDULE_ENTRY_DELETED: 'schedule.entry_deleted' as const,
 } as const;
 
 /**

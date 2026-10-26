@@ -121,6 +121,16 @@ export const ACTIVITY_PROJECTION_RULES = {
   "appointment.cancelled": { category: "appointments", audiences: COACH_STAFF_PARTICIPANT, includeInActivity: true, technical: false },
   "appointment.attendance_changed": { category: "appointments", audiences: COACH_STAFF, includeInActivity: true, technical: false },
 
+  // Wochenplan (Schedule)
+  "schedule.created": { category: "administration", audiences: COACH_STAFF, includeInActivity: true, technical: false },
+  "schedule.updated": { category: "administration", audiences: COACH_STAFF, includeInActivity: true, technical: false },
+  "schedule.template_applied": { category: "administration", audiences: COACH_STAFF, includeInActivity: true, technical: true },
+  "schedule.published": { category: "administration", audiences: COACH_STAFF, includeInActivity: true, technical: false },
+  "schedule.unpublished": { category: "administration", audiences: COACH_STAFF, includeInActivity: true, technical: true },
+  "schedule.entry_created": { category: "administration", audiences: COACH_STAFF, includeInActivity: true, technical: false },
+  "schedule.entry_updated": { category: "administration", audiences: COACH_STAFF, includeInActivity: true, technical: false },
+  "schedule.entry_deleted": { category: "administration", audiences: COACH_STAFF, includeInActivity: true, technical: true },
+
   // Klassenbuch / Anwesenheit
   "classbook.entry_created": { category: "attendance", audiences: COACH_STAFF, includeInActivity: true, technical: false },
   "classbook.entry_updated": { category: "attendance", audiences: COACH_STAFF, includeInActivity: true, technical: false },
