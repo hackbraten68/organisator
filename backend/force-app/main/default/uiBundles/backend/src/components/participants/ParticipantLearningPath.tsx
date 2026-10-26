@@ -31,6 +31,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { useNavigate } from "react-router";
+import LearningPathWeeklyPlanDialog from "@/components/participants/LearningPathWeeklyPlanDialog";
 import {
   addLearningPathItem,
   deleteLearningPathItem,
@@ -67,6 +69,9 @@ export default function ParticipantLearningPath({
   const [status, setStatus] = useState<LearningPathItemStatus>("Planned");
   const [adding, setAdding] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const [weeklyPlanDialogOpen, setWeeklyPlanDialogOpen] = useState(false);
+  const [weeklyPlanItemId, setWeeklyPlanItemId] = useState<string | null>(null);
 
   const { data, loading, error } = useAsyncData(async () => {
     const [items, plannedWeeks, program] = await Promise.all([
@@ -178,6 +183,7 @@ export default function ParticipantLearningPath({
   }
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle>Learning Path</CardTitle>
@@ -261,7 +267,18 @@ export default function ParticipantLearningPath({
                     ))}
                   </SelectContent>
                 </Select>
-                <div className="flex shrink-0 items-center">
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Wochenplan aus Vorlage fuer ${item.title}`}
+                    onClick={() => {
+                      setWeeklyPlanItemId(item.id);
+                      setWeeklyPlanDialogOpen(true);
+                    }}
+                  >
+                    Wochenplan
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -360,6 +377,18 @@ export default function ParticipantLearningPath({
         )}
       </CardContent>
     </Card>
+    {weeklyPlanItemId && (
+      <LearningPathWeeklyPlanDialog
+        open={weeklyPlanDialogOpen}
+        onOpenChange={setWeeklyPlanDialogOpen}
+        learningPathId={weeklyPlanItemId}
+        onCreated={(planId) => {
+          setWeeklyPlanDialogOpen(false);
+          navigate(`/wochenplan/${planId}`);
+        }}
+      />
+    )}
+    </>
   );
 }
 

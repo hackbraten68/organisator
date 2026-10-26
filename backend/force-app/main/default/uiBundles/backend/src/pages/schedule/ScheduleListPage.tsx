@@ -18,6 +18,7 @@ import {
   deleteSchedulePlan,
 } from "@/api/schedule/scheduleEditorService";
 import ScheduleStatusBadge from "@/components/schedule/ScheduleStatusBadge";
+import ScheduleScopeBadge from "@/components/schedule/ScheduleScopeBadge";
 import SchedulePlanDialog from "@/components/schedule/SchedulePlanDialog";
 import type { SchedulePlan, ScheduleWeek } from "@/types/schedule";
 
@@ -126,12 +127,13 @@ export default function ScheduleListPage() {
                       <div className="flex items-center gap-3">
                         <ScheduleStatusBadge status={plan.status} />
                         <span className="font-medium">{plan.name}</span>
+                        <ScheduleScopeBadge scope={plan.scopeType} />
                         <span className="text-xs text-muted-foreground">
-                          {plan.scopeType === "Course"
-                            ? "Kurs"
-                            : plan.scopeType === "Group"
-                              ? `Gruppe: ${plan.participantGroupName ?? "–"}`
-                              : `Individuell: ${plan.participantName ?? "–"}`}
+                          {plan.scopeType === "Group"
+                            ? plan.participantGroupName ?? "–"
+                            : plan.scopeType === "Individual"
+                              ? plan.participantName ?? "–"
+                              : ""}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           Start: {plan.startDate ?? "–"} · {plan.entryCount} Einträge

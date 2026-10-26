@@ -6,6 +6,8 @@ import type {
   ScheduleOptions,
   PlanInput,
   EntryInput,
+  LearningPathPlanOptions,
+  CreateIndividualPlanResult,
 } from "@/types/schedule";
 
 const EDIT_PATH = "/services/apexrest/schedule-editor";
@@ -150,6 +152,27 @@ interface RawOptionsResponse {
   code?: string | null;
   message?: string | null;
   options?: RawOptions | null;
+}
+
+interface RawLearningPathOptions {
+  learningPathId?: string | null;
+  learningPathTitle?: string | null;
+  participantId?: string | null;
+  participantName?: string | null;
+  programId?: string | null;
+  programName?: string | null;
+  moduleId?: string | null;
+  moduleName?: string | null;
+  programWeeks?: { id?: string | null; name?: string | null; weekNumber?: number | null }[] | null;
+  templates?: RawTemplate[] | null;
+  resolutionStatus?: string | null;
+}
+
+interface RawLearningPathOptionsResponse {
+  success?: boolean | null;
+  code?: string | null;
+  message?: string | null;
+  learningPathOptions?: RawLearningPathOptions | null;
 }
 
 interface RawMutationResponse {
@@ -386,6 +409,65 @@ export async function unpublishSchedulePlan(id: string): Promise<{ id: string; s
     throw new ScheduleEditorError(raw.code ?? "ERROR", raw.message ?? "Fehler", 400);
   }
   return { id: raw.id, status: raw.status ?? "Draft" };
+}
+
+export async function getLearningPathOptions(learningPathId: string): Promise<LearningPathPlanOptions> {
+  const params = new URLSearchParams();
+  params.set("action", "learningPathOptions");
+  params.set("learningPathId", learningPathId);
+  const raw = await request<RawLearningPathOptionsResponse>(`${EDIT_PATH}?${params.toString()}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+  if (!raw.success || !raw.learningPathOptions) {
+    throw new ScheduleEditorError(raw.code ?? "ERROR", raw.message ?? "Fehler", 400);
+  }
+  const lpo = raw.learningPathOptions;
+  return {
+    learningPathId: lpo.learningPathId ?? "",
+    learningPathTitle: lpo.learningPathTitle ?? null,
+    participantId: lpo.participantId ?? null,
+    participantName: lpo.participantName ?? null,
+    programId: lpo.programId ?? null,
+    programName: lpo.programName ?? null,
+    moduleId: lpo.moduleId ?? null,
+    moduleName: lpo.moduleName ?? null,
+    programWeeks: (lpo.programWeeks ?? []).map((pw) => ({
+      id: pw.id ?? "",
+      name: pw.name ?? null,
+      weekNumber: pw.weekNumber ?? null,
+    })),
+    templates: (lpo.templates ?? []).map((t) => ({
+      id: t.id ?? "",
+      name: t.name ?? "",
+      programId: t.programId ?? null,
+      programWeekId: t.programWeekId ?? null,
+      entryCount: t.entryCount ?? 0,
+      status: t.status ?? null,
+    })),
+    resolutionStatus: lpo.resolutionStatus ?? "UNKNOWN",
+  };
+}
+
+export async function createIndividualPlanFromLearningPath(input: {
+  learningPathId: string;
+  templateId: string;
+  startDate: string;
+  name?: string;
+  programWeekId?: string;
+}): Promise<CreateIndividualPlanResult> {
+  const raw = await request<RawMutationResponse>(EDIT_PATH, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ action: "createIndividualPlanFromLearningPath", ...input }),
+  });
+  return {
+    planId: raw.id ?? "",
+    created: raw.code !== "EXISTING_SCHEDULE_OPENED",
+    status: raw.status ?? "Draft",
+    code: raw.code ?? null,
+    message: raw.message ?? null,
+  };
 }
 
 export async function applyScheduleTemplate(input: {

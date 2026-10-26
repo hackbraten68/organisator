@@ -129,7 +129,7 @@ global without sharing class ParticipantPortalWeeklySchedule {
         }
         List<WeeklySchedule__c> allInstances = [
             SELECT Id, Name, ScopeType__c, Participant__c, ParticipantGroup__c,
-                   StartDate__c, EndDate__c, Status__c, ProgramWeek__c
+                   StartDate__c, EndDate__c, Status__c, ProgramWeek__c, MergeMode__c
             FROM WeeklySchedule__c
             WHERE Status__c = 'Published'
               AND ProgramWeek__c IN :programWeekIds
@@ -230,6 +230,12 @@ global without sharing class ParticipantPortalWeeklySchedule {
             // visibility check
             Boolean anyVisible = false;
             for (WeeklySchedule__c inst : insts) {
+                // A Replace-mode Individual plan is a conscious full replacement;
+                // an empty one still makes the week visible (intentionally empty).
+                if (inst.ScopeType__c == 'Individual' && inst.MergeMode__c == 'Replace') {
+                    anyVisible = true;
+                    break;
+                }
                 for (ScheduleEntry__c e : entriesByInstance.get(inst.Id) == null ? new List<ScheduleEntry__c>() : entriesByInstance.get(inst.Id)) {
                     if (isVisibleTo(e, participantId, groupIds)) { anyVisible = true; break; }
                 }
@@ -279,74 +285,92 @@ global without sharing class ParticipantPortalWeeklySchedule {
         pw.weekNumber = repPw2 == null ? null : (Integer) repPw2.Number__c;
         resp.programWeek = pw;
 
-        // Collect entries per scope.
-        List<ScheduleEntry__c> courseEntries = new List<ScheduleEntry__c>();
-        List<ScheduleEntry__c> groupEntries = new List<ScheduleEntry__c>();
-        List<ScheduleEntry__c> individualEntries = new List<ScheduleEntry__c>();
+        // Check for Replace-mode Individual plan (full replacement).
+        WeeklySchedule__c replaceIndividual = null;
         for (WeeklySchedule__c inst : selInsts) {
-            List<ScheduleEntry__c> es = entriesByInstance.get(inst.Id);
-            if (es == null) continue;
-            if (inst.ScopeType__c == 'Course') courseEntries.addAll(es);
-            else if (inst.ScopeType__c == 'Group') groupEntries.addAll(es);
-            else if (inst.ScopeType__c == 'Individual') individualEntries.addAll(es);
+            if (inst.ScopeType__c == 'Individual' && inst.MergeMode__c == 'Replace') {
+                replaceIndividual = inst;
+                break;
+            }
         }
 
-        // Filter visible.
-        courseEntries = filterVisible(courseEntries, participantId, groupIds);
-        groupEntries = filterVisible(groupEntries, participantId, groupIds);
-        individualEntries = filterVisible(individualEntries, participantId, groupIds);
-
-        // Slot uniqueness within each scope.
-        assertUniqueSlots(groupEntries, 'Group');
-        assertUniqueSlots(individualEntries, 'Individual');
-        // Course: allow duplicates? No — treat as data error too.
-        assertUniqueSlots(courseEntries, 'Course');
-
-        // Merge Course -> Group -> Individual.
         List<ScheduleEntry__c> merged = new List<ScheduleEntry__c>();
-        Map<String, Integer> slotIndex = new Map<String, Integer>();
-        for (ScheduleEntry__c e : courseEntries) {
-            String k = slotKey(e);
-            if (k != null && slotIndex.containsKey(k)) {
-                throw identityError(500, 'INTERNAL_ERROR', 'Slot conflict.');
-            }
-            if (k != null) slotIndex.put(k, merged.size());
-            merged.add(e);
-        }
-        for (ScheduleEntry__c e : groupEntries) {
-            String k = slotKey(e);
-            if (k != null && slotIndex.containsKey(k)) {
-                merged.set(slotIndex.get(k), e);
-            } else {
-                if (k != null) slotIndex.put(k, merged.size());
-                merged.add(e);
-            }
-        }
-        for (ScheduleEntry__c e : individualEntries) {
-            String k = slotKey(e);
-            if (k != null && slotIndex.containsKey(k)) {
-                merged.set(slotIndex.get(k), e);
-            } else {
-                if (k != null) slotIndex.put(k, merged.size());
-                merged.add(e);
-            }
-        }
-
-        // appliedScopes
         List<String> applied = new List<String>();
-        // simpler: track which scopes had an applicable instance
-        applied = new List<String>();
-        Boolean hasCourse = false, hasGroup = false, hasIndividual = false;
-        for (WeeklySchedule__c inst : selInsts) {
-            if (inst.ScopeType__c == 'Course') hasCourse = true;
-            else if (inst.ScopeType__c == 'Group') hasGroup = true;
-            else if (inst.ScopeType__c == 'Individual') hasIndividual = true;
-        }
-        if (hasCourse) applied.add('Course');
-        if (hasGroup) applied.add('Group');
-        if (hasIndividual) applied.add('Individual');
 
-        resp.effectiveScope = hasIndividual ? 'Individual' : (hasGroup ? 'Group' : 'Course');
+        if (replaceIndividual != null) {
+            // Full replacement: only the Replace Individual plan's entries.
+            List<ScheduleEntry__c> replEntries = entriesByInstance.get(replaceIndividual.Id);
+            if (replEntries != null) {
+                merged.addAll(filterVisible(replEntries, participantId, groupIds));
+            }
+            applied.add('Individual');
+            resp.effectiveScope = 'Individual';
+        } else {
+            // Collect entries per scope.
+            List<ScheduleEntry__c> courseEntries = new List<ScheduleEntry__c>();
+            List<ScheduleEntry__c> groupEntries = new List<ScheduleEntry__c>();
+            List<ScheduleEntry__c> individualEntries = new List<ScheduleEntry__c>();
+            for (WeeklySchedule__c inst : selInsts) {
+                List<ScheduleEntry__c> es = entriesByInstance.get(inst.Id);
+                if (es == null) continue;
+                if (inst.ScopeType__c == 'Course') courseEntries.addAll(es);
+                else if (inst.ScopeType__c == 'Group') groupEntries.addAll(es);
+                else if (inst.ScopeType__c == 'Individual') individualEntries.addAll(es);
+            }
+
+            // Filter visible.
+            courseEntries = filterVisible(courseEntries, participantId, groupIds);
+            groupEntries = filterVisible(groupEntries, participantId, groupIds);
+            individualEntries = filterVisible(individualEntries, participantId, groupIds);
+
+            // Slot uniqueness within each scope.
+            assertUniqueSlots(groupEntries, 'Group');
+            assertUniqueSlots(individualEntries, 'Individual');
+            assertUniqueSlots(courseEntries, 'Course');
+
+            // Merge Course -> Group -> Individual (overlay).
+            Map<String, Integer> slotIndex = new Map<String, Integer>();
+            for (ScheduleEntry__c e : courseEntries) {
+                String k = slotKey(e);
+                if (k != null && slotIndex.containsKey(k)) {
+                    throw identityError(500, 'INTERNAL_ERROR', 'Slot conflict.');
+                }
+                if (k != null) slotIndex.put(k, merged.size());
+                merged.add(e);
+            }
+            for (ScheduleEntry__c e : groupEntries) {
+                String k = slotKey(e);
+                if (k != null && slotIndex.containsKey(k)) {
+                    merged.set(slotIndex.get(k), e);
+                } else {
+                    if (k != null) slotIndex.put(k, merged.size());
+                    merged.add(e);
+                }
+            }
+            for (ScheduleEntry__c e : individualEntries) {
+                String k = slotKey(e);
+                if (k != null && slotIndex.containsKey(k)) {
+                    merged.set(slotIndex.get(k), e);
+                } else {
+                    if (k != null) slotIndex.put(k, merged.size());
+                    merged.add(e);
+                }
+            }
+
+            // appliedScopes
+            Boolean hasCourse = false, hasGroup = false, hasIndividual = false;
+            for (WeeklySchedule__c inst : selInsts) {
+                if (inst.ScopeType__c == 'Course') hasCourse = true;
+                else if (inst.ScopeType__c == 'Group') hasGroup = true;
+                else if (inst.ScopeType__c == 'Individual') hasIndividual = true;
+            }
+            if (hasCourse) applied.add('Course');
+            if (hasGroup) applied.add('Group');
+            if (hasIndividual) applied.add('Individual');
+
+            resp.effectiveScope = hasIndividual ? 'Individual' : (hasGroup ? 'Group' : 'Course');
+        }
+
         resp.appliedScopes = applied;
 
         // Map to DTO.

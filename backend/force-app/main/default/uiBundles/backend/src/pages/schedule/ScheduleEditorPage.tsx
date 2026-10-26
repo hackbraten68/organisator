@@ -24,6 +24,7 @@ import {
   deleteSchedulePlan,
 } from "@/api/schedule/scheduleEditorService";
 import ScheduleStatusBadge from "@/components/schedule/ScheduleStatusBadge";
+import ScheduleScopeBadge from "@/components/schedule/ScheduleScopeBadge";
 import ScheduleEntryTable from "@/components/schedule/ScheduleEntryTable";
 import ScheduleEntryDialog from "@/components/schedule/ScheduleEntryDialog";
 import SchedulePlanDialog from "@/components/schedule/SchedulePlanDialog";
@@ -118,6 +119,7 @@ export default function ScheduleEditorPage() {
         </Button>
         <h1 className="text-2xl font-semibold">{plan.name}</h1>
         <ScheduleStatusBadge status={plan.status} />
+        <ScheduleScopeBadge scope={plan.scopeType} />
       </div>
 
       <Card>
@@ -148,7 +150,11 @@ export default function ScheduleEditorPage() {
         <CardContent className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-muted-foreground">Geltungsbereich:</span>{" "}
-            {plan.scopeType === "Course" ? "Kurs" : plan.scopeType === "Group" ? "Gruppe" : "Individuell"}
+            {plan.scopeType === "Course"
+              ? "Kurs (gilt für alle Teilnehmer des Programms)"
+              : plan.scopeType === "Group"
+                ? `Gruppe: ${plan.participantGroupName ?? "–"}`
+                : `Individuell: ${plan.participantName ?? "–"}`}
           </div>
           <div>
             <span className="text-muted-foreground">Start:</span> {plan.startDate ?? "–"}

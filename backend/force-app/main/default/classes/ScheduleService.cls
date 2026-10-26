@@ -19,6 +19,8 @@ global with sharing class ScheduleService {
     public static final String CODE_INVALID_WEEK_START = 'INVALID_WEEK_START';
     public static final String CODE_DUPLICATE_COURSE_SCHEDULE = 'DUPLICATE_COURSE_SCHEDULE';
     public static final String CODE_DUPLICATE_SLOT = 'DUPLICATE_SLOT';
+    public static final String CODE_PLAN_NOT_EDITABLE = 'PLAN_NOT_EDITABLE';
+    public static final String CODE_DUPLICATE_INDIVIDUAL_SCHEDULE = 'DUPLICATE_INDIVIDUAL_SCHEDULE';
     public static final String CODE_AUDIT_FAILED = 'AUDIT_FAILED';
     public static final String CODE_INTERNAL = 'INTERNAL_ERROR';
 
@@ -121,6 +123,10 @@ global with sharing class ScheduleService {
             }
             record = existing[0];
             oldProgramWeekId = record.ProgramWeek__c;
+            if (record.Status__c == 'Published') {
+                throw new ScheduleServiceException(409, CODE_PLAN_NOT_EDITABLE,
+                    'Ein veroffentlichter Wochenplan kann nicht bearbeitet werden. Bitte zuerst zurueckziehen.');
+            }
         } else {
             if (String.isBlank(request.programWeekId)) {
                 throw badRequest('programWeekId ist erforderlich.');
@@ -225,6 +231,15 @@ global with sharing class ScheduleService {
             }
             record = existing[0];
             oldWeeklyScheduleId = record.WeeklySchedule__c;
+            if (String.isNotBlank(record.WeeklySchedule__c)) {
+                List<WeeklySchedule__c> parentPlans = [
+                    SELECT Status__c FROM WeeklySchedule__c WHERE Id = :record.WeeklySchedule__c LIMIT 1
+                ];
+                if (!parentPlans.isEmpty() && parentPlans[0].Status__c == 'Published') {
+                    throw new ScheduleServiceException(409, CODE_PLAN_NOT_EDITABLE,
+                        'Eintraege eines veroffentlichten Plans koennen nicht bearbeitet werden. Bitte zuerst zurueckziehen.');
+                }
+            }
         } else {
             if (String.isBlank(request.title)) {
                 throw badRequest('Titel ist erforderlich.');
@@ -232,6 +247,13 @@ global with sharing class ScheduleService {
             record = new ScheduleEntry__c(Name = request.title);
             if (String.isNotBlank(request.weeklyScheduleId)) {
                 record.WeeklySchedule__c = request.weeklyScheduleId;
+                List<WeeklySchedule__c> parentPlans = [
+                    SELECT Status__c FROM WeeklySchedule__c WHERE Id = :request.weeklyScheduleId LIMIT 1
+                ];
+                if (!parentPlans.isEmpty() && parentPlans[0].Status__c == 'Published') {
+                    throw new ScheduleServiceException(409, CODE_PLAN_NOT_EDITABLE,
+                        'Eintraege eines veroffentlichten Plans koennen nicht angelegt werden. Bitte zuerst zurueckziehen.');
+                }
             }
             if (String.isNotBlank(request.scheduleTemplateId)) {
                 record.ScheduleTemplate__c = request.scheduleTemplateId;
@@ -371,9 +393,20 @@ global with sharing class ScheduleService {
         if (String.isBlank(entryId)) {
             throw badRequest('Eintrag-ID fehlt.');
         }
-        List<ScheduleEntry__c> entries = [SELECT Id FROM ScheduleEntry__c WHERE Id = :entryId LIMIT 1];
+        List<ScheduleEntry__c> entries = [
+            SELECT Id, WeeklySchedule__c FROM ScheduleEntry__c WHERE Id = :entryId LIMIT 1
+        ];
         if (entries.isEmpty()) {
             throw notFound('Die Planzeile existiert nicht.');
+        }
+        if (entries[0].WeeklySchedule__c != null) {
+            List<WeeklySchedule__c> parentPlans = [
+                SELECT Status__c FROM WeeklySchedule__c WHERE Id = :entries[0].WeeklySchedule__c LIMIT 1
+            ];
+            if (!parentPlans.isEmpty() && parentPlans[0].Status__c == 'Published') {
+                throw new ScheduleServiceException(409, CODE_PLAN_NOT_EDITABLE,
+                    'Eintraege eines veroffentlichten Plans koennen nicht geloescht werden. Bitte zuerst zurueckziehen.');
+            }
         }
         Savepoint sp = Database.setSavepoint();
         try {
@@ -596,6 +629,7 @@ global with sharing class ScheduleService {
                 WHERE ProgramWeek__c = :schedule.ProgramWeek__c
                   AND ScopeType__c = 'Individual'
                   AND Participant__c = :schedule.Participant__c
+                  AND StartDate__c = :schedule.StartDate__c
                   AND Id != :schedule.Id
                 LIMIT 1
             ];
@@ -603,6 +637,10 @@ global with sharing class ScheduleService {
             return;
         }
         if (!duplicates.isEmpty()) {
+            if (scope == 'Individual') {
+                throw new ScheduleServiceException(409, CODE_DUPLICATE_INDIVIDUAL_SCHEDULE,
+                    'Fuer diesen Teilnehmer, diese Kurswoche und dieses Startdatum existiert bereits ein individueller Wochenplan.');
+            }
             throw badRequest('Fuer diese Kurswoche und diesen Geltungsbereich existiert bereits ein Wochenplan.');
         }
     }

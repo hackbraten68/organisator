@@ -25,6 +25,10 @@ global with sharing class ScheduleTemplateService {
         global String programWeekId;
         global String startDate;
         global String name;
+        global String scopeType;
+        global String participantGroupId;
+        global String participantId;
+        global String mergeMode;
     }
 
     public static WeeklySchedule__c applyTemplate(ApplyRequest request) {
@@ -70,18 +74,64 @@ global with sharing class ScheduleTemplateService {
             throw badRequest('Die Vorlage passt nicht zum ausgewaehlten Programm.');
         }
 
+        String scope = String.isBlank(request.scopeType) ? 'Course' : request.scopeType;
+        if (scope != 'Course' && scope != 'Group' && scope != 'Individual') {
+            throw badRequest('Unbekannter Geltungsbereich.');
+        }
+        if (scope == 'Group' && String.isBlank(request.participantGroupId)) {
+            throw badRequest('Fuer einen Gruppenplan ist eine Teilnehmergruppe erforderlich.');
+        }
+        if (scope == 'Individual' && String.isBlank(request.participantId)) {
+            throw badRequest('Fuer einen Individualplan ist ein Teilnehmer erforderlich.');
+        }
+        if (scope == 'Course' && (String.isNotBlank(request.participantGroupId) || String.isNotBlank(request.participantId))) {
+            throw badRequest('Ein Kursplan darf keine Teilnehmer- oder Gruppenzuordnung haben.');
+        }
+
         Date startDate = Date.valueOf(request.startDate);
+
+        // Duplicate check for Individual/Group scopes
+        if (scope == 'Individual') {
+            List<WeeklySchedule__c> existing = [
+                SELECT Id FROM WeeklySchedule__c
+                WHERE ProgramWeek__c = :request.programWeekId
+                  AND ScopeType__c = 'Individual'
+                  AND Participant__c = :request.participantId
+                  AND StartDate__c = :startDate
+                LIMIT 2
+            ];
+            if (!existing.isEmpty()) {
+                throw new ScheduleTemplateServiceException(409, ScheduleService.CODE_DUPLICATE_INDIVIDUAL_SCHEDULE,
+                    'Fuer diesen Teilnehmer, diese Kurswoche und dieses Startdatum existiert bereits ein individueller Wochenplan.');
+            }
+        } else if (scope == 'Group') {
+            List<WeeklySchedule__c> existing = [
+                SELECT Id FROM WeeklySchedule__c
+                WHERE ProgramWeek__c = :request.programWeekId
+                  AND ScopeType__c = 'Group'
+                  AND ParticipantGroup__c = :request.participantGroupId
+                  AND StartDate__c = :startDate
+                LIMIT 2
+            ];
+            if (!existing.isEmpty()) {
+                throw new ScheduleTemplateServiceException(409, ScheduleService.CODE_DUPLICATE_INDIVIDUAL_SCHEDULE,
+                    'Fuer diese Gruppe, diese Kurswoche und dieses Startdatum existiert bereits ein Gruppenwochenplan.');
+            }
+        }
 
         String scheduleName = String.isBlank(request.name) ? template.Name : request.name;
 
         WeeklySchedule__c schedule = new WeeklySchedule__c(
             Name = scheduleName,
             ProgramWeek__c = request.programWeekId,
-            ScopeType__c = 'Course',
+            ScopeType__c = scope,
+            ParticipantGroup__c = scope == 'Group' ? request.participantGroupId : null,
+            Participant__c = scope == 'Individual' ? request.participantId : null,
             StartDate__c = startDate,
             Status__c = 'Draft',
             AppliedTemplate__c = template.Id,
-            TemplateAppliedAt__c = Datetime.now()
+            TemplateAppliedAt__c = Datetime.now(),
+            MergeMode__c = String.isBlank(request.mergeMode) ? 'Overlay' : request.mergeMode
         );
 
         Savepoint sp = Database.setSavepoint();
@@ -96,6 +146,16 @@ global with sharing class ScheduleTemplateService {
                 FROM ScheduleEntry__c
                 WHERE ScheduleTemplate__c = :template.Id
             ];
+
+            // For Group/Individual scopes, template entries must be Course-targeted
+            // (generic content). Context-specific entries are not portable.
+            if (scope != 'Course') {
+                for (ScheduleEntry__c src : templateEntries) {
+                    if (src.TargetType__c != 'Course') {
+                        throw badRequest('Die Vorlage enthaelt zielgruppenspezifische Eintraege und kann nicht auf diesen Geltungsbereich angewendet werden.');
+                    }
+                }
+            }
 
             List<ScheduleEntry__c> copies = new List<ScheduleEntry__c>();
             for (ScheduleEntry__c src : templateEntries) {

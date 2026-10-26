@@ -20,6 +20,27 @@ global with sharing class ScheduleEditor {
         global PlanView plan;
         global List<EntryView> entries;
         global OptionsView options;
+        global LearningPathOptionsView learningPathOptions;
+    }
+
+    global class LearningPathOptionsView {
+        global String learningPathId;
+        global String learningPathTitle;
+        global String participantId;
+        global String participantName;
+        global String programId;
+        global String programName;
+        global String moduleId;
+        global String moduleName;
+        global List<ProgramWeekView> programWeeks;
+        global List<TemplateView> templates;
+        global String resolutionStatus;
+    }
+
+    global class ProgramWeekView {
+        global String id;
+        global String name;
+        global Integer weekNumber;
     }
 
     global class MutationResponse {
@@ -139,6 +160,14 @@ global with sharing class ScheduleEditor {
         global String notes;
     }
 
+    global class CreateIndividualPlanInput {
+        global String learningPathId;
+        global String templateId;
+        global String programWeekId;
+        global String startDate;
+        global String name;
+    }
+
     global class SaveEntryInput {
         global String id;
         global String weeklyScheduleId;
@@ -184,6 +213,9 @@ global with sharing class ScheduleEditor {
             } else if (action == 'options') {
                 String programId = RestContext.request == null ? null : RestContext.request.params.get('programId');
                 getOptions(resp, programId);
+            } else if (action == 'learningPathOptions') {
+                String learningPathId = RestContext.request == null ? null : RestContext.request.params.get('learningPathId');
+                getLearningPathOptions(resp, learningPathId);
             } else {
                 throw badRequest('Unbekannte Aktion.');
             }
@@ -230,6 +262,8 @@ global with sharing class ScheduleEditor {
                 unpublishPlan(resp, payload);
             } else if (action == 'applyTemplate') {
                 applyTemplate(resp, payload);
+            } else if (action == 'createIndividualPlanFromLearningPath') {
+                createIndividualPlanFromLearningPath(resp, payload);
             } else {
                 throw badRequest('Unbekannte Aktion.');
             }
@@ -477,6 +511,238 @@ global with sharing class ScheduleEditor {
         ov.targetTypes = picklistValues('ScheduleEntry__c', 'TargetType__c');
 
         resp.options = ov;
+    }
+
+    private static void getLearningPathOptions(EditorResponse resp, String learningPathId) {
+        if (String.isBlank(learningPathId)) {
+            throw badRequest('learningPathId ist erforderlich.');
+        }
+        List<Learning_Path__c> paths = [
+            SELECT Id, Title__c, Participant__c, Participant__r.Name, Participant__r.Program__c,
+                   Participant__r.Program__r.Name, Module__c, Module__r.Name
+            FROM Learning_Path__c
+            WHERE Id = :learningPathId
+            LIMIT 1
+        ];
+        if (paths.isEmpty()) {
+            throw notFound('Der Lernpfadeintrag existiert nicht.');
+        }
+        Learning_Path__c lp = paths[0];
+
+        LearningPathOptionsView lpo = new LearningPathOptionsView();
+        lpo.learningPathId = lp.Id;
+        lpo.learningPathTitle = lp.Title__c;
+        lpo.participantId = lp.Participant__c;
+        lpo.participantName = lp.Participant__r == null ? null : lp.Participant__r.Name;
+        lpo.programId = lp.Participant__r == null ? null : lp.Participant__r.Program__c;
+        lpo.programName = lp.Participant__r == null || lp.Participant__r.Program__r == null ? null : lp.Participant__r.Program__r.Name;
+        lpo.moduleId = lp.Module__c;
+        lpo.moduleName = lp.Module__r == null ? null : lp.Module__r.Name;
+
+        // Resolution status
+        if (lp.Participant__c == null) {
+            lpo.resolutionStatus = 'NO_PARTICIPANT';
+        } else if (lp.Participant__r.Program__c == null) {
+            lpo.resolutionStatus = 'NO_PROGRAM';
+        } else if (lp.Module__c == null) {
+            lpo.resolutionStatus = 'NO_MODULE';
+        } else {
+            lpo.resolutionStatus = 'OK';
+        }
+
+        // Program weeks for the module
+        lpo.programWeeks = new List<ProgramWeekView>();
+        if (lpo.programId != null && lp.Module__c != null) {
+            for (ProgramWeek__c pw : [
+                SELECT Id, Name, Number__c
+                FROM ProgramWeek__c
+                WHERE Program__c = :lpo.programId
+                  AND Module__c = :lp.Module__c
+                ORDER BY Number__c
+            ]) {
+                ProgramWeekView pwv = new ProgramWeekView();
+                pwv.id = pw.Id;
+                pwv.name = pw.Name;
+                pwv.weekNumber = (Integer) pw.Number__c;
+                lpo.programWeeks.add(pwv);
+            }
+        }
+
+        // Templates: active, matching program or programWeek
+        Set<Id> weekIds = new Set<Id>();
+        for (ProgramWeekView pwv : lpo.programWeeks) {
+            weekIds.add(pwv.id);
+        }
+        lpo.templates = new List<TemplateView>();
+        if (lpo.programId != null) {
+            for (ScheduleTemplate__c t : [
+                SELECT Id, Name, Program__c, ProgramWeek__c, Status__c
+                FROM ScheduleTemplate__c
+                WHERE Status__c = 'Active'
+                  AND (Program__c = :lpo.programId OR ProgramWeek__c IN :weekIds)
+                ORDER BY Name
+            ]) {
+                // If template has a Module__c, it must match the learning path module
+                if (t.ProgramWeek__c != null && !weekIds.contains(t.ProgramWeek__c)) {
+                    continue;
+                }
+                TemplateView tv = new TemplateView();
+                tv.id = t.Id;
+                tv.name = t.Name;
+                tv.programId = t.Program__c;
+                tv.programWeekId = t.ProgramWeek__c;
+                tv.status = t.Status__c;
+                tv.entryCount = [SELECT COUNT() FROM ScheduleEntry__c WHERE ScheduleTemplate__c = :t.Id];
+                lpo.templates.add(tv);
+            }
+        }
+
+        resp.learningPathOptions = lpo;
+    }
+
+    private static void createIndividualPlanFromLearningPath(MutationResponse resp, Map<String, Object> payload) {
+        CreateIndividualPlanInput input = (CreateIndividualPlanInput) JSON.deserialize(JSON.serialize(payload), CreateIndividualPlanInput.class);
+
+        if (String.isBlank(input.learningPathId)) {
+            throw badRequest('learningPathId ist erforderlich.');
+        }
+        if (String.isBlank(input.templateId)) {
+            throw badRequest('templateId ist erforderlich.');
+        }
+        if (String.isBlank(input.startDate)) {
+            throw badRequest('startDate ist erforderlich.');
+        }
+
+        // Load learning path
+        List<Learning_Path__c> paths = [
+            SELECT Id, Title__c, Participant__c, Participant__r.Program__c, Module__c
+            FROM Learning_Path__c
+            WHERE Id = :input.learningPathId
+            LIMIT 1
+        ];
+        if (paths.isEmpty()) {
+            throw notFound('Der Lernpfadeintrag existiert nicht.');
+        }
+        Learning_Path__c lp = paths[0];
+
+        if (lp.Participant__c == null) {
+            throw badRequest('Der Lernpfadeintrag hat keinen Teilnehmer.');
+        }
+        if (lp.Participant__r.Program__c == null) {
+            throw badRequest('Der Teilnehmer hat kein Programm.');
+        }
+        if (lp.Module__c == null) {
+            throw badRequest('Der Lernpfadeintrag hat kein Modul.');
+        }
+
+        // Determine programWeekId
+        String programWeekId = input.programWeekId;
+        if (String.isBlank(programWeekId)) {
+            List<ProgramWeek__c> weeks = [
+                SELECT Id FROM ProgramWeek__c
+                WHERE Program__c = :lp.Participant__r.Program__c
+                  AND Module__c = :lp.Module__c
+                LIMIT 2
+            ];
+            if (weeks.isEmpty()) {
+                throw notFound('Keine Kurswoche fuer das Modul gefunden.');
+            }
+            if (weeks.size() > 1) {
+                throw badRequest('Mehrere Kurswochen fuer das Modul gefunden. Bitte programWeekId angeben.');
+            }
+            programWeekId = weeks[0].Id;
+        }
+
+        // Validate programWeek belongs to participant's program and module
+        List<ProgramWeek__c> pwCheck = [
+            SELECT Id, Program__c, Module__c FROM ProgramWeek__c WHERE Id = :programWeekId LIMIT 1
+        ];
+        if (pwCheck.isEmpty()) {
+            throw notFound('Die Kurswoche existiert nicht.');
+        }
+        if (pwCheck[0].Program__c != lp.Participant__r.Program__c) {
+            throw badRequest('Die Kurswoche gehoert nicht zum Teilnehmerprogramm.');
+        }
+        if (pwCheck[0].Module__c != lp.Module__c) {
+            throw badRequest('Die Kurswoche gehoert nicht zum Modul des Lernpfadeintrags.');
+        }
+
+        // Coach gate
+        ScheduleService.assertCoachAccess(programWeekId);
+
+        // Validate template
+        List<ScheduleTemplate__c> templates = [
+            SELECT Id, Status__c, Program__c, ProgramWeek__c, Module__c
+            FROM ScheduleTemplate__c
+            WHERE Id = :input.templateId
+            LIMIT 1
+        ];
+        if (templates.isEmpty()) {
+            throw notFound('Die Vorlage existiert nicht.');
+        }
+        ScheduleTemplate__c template = templates[0];
+        if (template.Status__c != 'Active') {
+            throw badRequest('Die Vorlage ist nicht aktiv.');
+        }
+        if (template.ProgramWeek__c != null && template.ProgramWeek__c != programWeekId) {
+            throw badRequest('Die Vorlage passt nicht zur ausgewaehlten Kurswoche.');
+        }
+        if (template.ProgramWeek__c == null && template.Program__c != null
+                && template.Program__c != lp.Participant__r.Program__c) {
+            throw badRequest('Die Vorlage passt nicht zum ausgewaehlten Programm.');
+        }
+        if (template.Module__c != null && template.Module__c != lp.Module__c) {
+            throw badRequest('Die Vorlage passt nicht zum Modul des Lernpfadeintrags.');
+        }
+
+        // Validate start date is Monday
+        Date startDate;
+        try {
+            startDate = Date.valueOf(input.startDate);
+        } catch (Exception e) {
+            throw badRequest('Ungueltiges Startdatum.');
+        }
+        if (Math.mod(startDate.daysBetween(Date.newInstance(1900, 1, 1)), 7) != 0) {
+            throw badRequest('Das Startdatum muss ein Montag sein.');
+        }
+
+        // Duplicate check
+        List<WeeklySchedule__c> existing = [
+            SELECT Id, Status__c FROM WeeklySchedule__c
+            WHERE ProgramWeek__c = :programWeekId
+              AND ScopeType__c = 'Individual'
+              AND Participant__c = :lp.Participant__c
+              AND StartDate__c = :startDate
+            LIMIT 2
+        ];
+        if (!existing.isEmpty()) {
+            if (existing.size() > 1) {
+                throw new ScheduleServiceException(409, ScheduleService.CODE_DUPLICATE_INDIVIDUAL_SCHEDULE,
+                    'Mehrere individuelle Wochenplaene fuer diesen Teilnehmer, diese Kurswoche und dieses Startdatum gefunden.');
+            }
+            WeeklySchedule__c found = existing[0];
+            resp.id = found.Id;
+            resp.status = found.Status__c;
+            resp.code = 'EXISTING_SCHEDULE_OPENED';
+            resp.message = 'Ein vorhandener Plan wurde geoeffnet.';
+            resp.success = true;
+            return;
+        }
+
+        // Apply template with Individual scope
+        ScheduleTemplateService.ApplyRequest applyReq = new ScheduleTemplateService.ApplyRequest();
+        applyReq.templateId = input.templateId;
+        applyReq.programWeekId = programWeekId;
+        applyReq.startDate = input.startDate;
+        applyReq.name = String.isBlank(input.name) ? null : input.name;
+        applyReq.scopeType = 'Individual';
+        applyReq.participantId = lp.Participant__c;
+        applyReq.mergeMode = 'Replace';
+
+        WeeklySchedule__c created = ScheduleTemplateService.applyTemplate(applyReq);
+        resp.id = created.Id;
+        resp.status = created.Status__c;
+        resp.success = true;
     }
 
     private static PlanView mapPlan(WeeklySchedule__c plan, Integer entryCount) {

@@ -111,6 +111,28 @@ export interface ScheduleOptionsResponse {
   options: ScheduleOptions;
 }
 
+export interface LearningPathPlanOptions {
+  learningPathId: string;
+  learningPathTitle: string | null;
+  participantId: string | null;
+  participantName: string | null;
+  programId: string | null;
+  programName: string | null;
+  moduleId: string | null;
+  moduleName: string | null;
+  programWeeks: { id: string; name: string | null; weekNumber: number | null }[];
+  templates: ScheduleTemplate[];
+  resolutionStatus: string;
+}
+
+export interface CreateIndividualPlanResult {
+  planId: string;
+  created: boolean;
+  status: string;
+  code: string | null;
+  message: string | null;
+}
+
 export interface PlanInput {
   id?: string;
   name: string;
