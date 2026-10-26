@@ -192,6 +192,21 @@
         <field>ScheduleEntry__c.IsCustomized__c</field>
         <readable>true</readable>
     </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>ScheduleEntry__c.WeeklySchedule__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>ScheduleEntry__c.Date__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>ProgramWeek__c.Name</field>
+        <readable>true</readable>
+    </fieldPermissions>
 
 <!-- Referenziert die Sharing Rule PortalParticipantSeesOwnRecord
          (Participant__c.Portal_User__c = UserInfo.getUserId()). Ohne Read auf
