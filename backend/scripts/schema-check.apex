@@ -42,6 +42,7 @@ List<String> OBJECT_NAMES = new List<String>{
   'Participant__c',
   'Coach_Profile__c',
   'Program__c',
+  'ProgramCoach__c',
   'Learning_Path__c',
   'Module__c',
   'Appointment__c',

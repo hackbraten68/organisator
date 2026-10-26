@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Coach_Profile__c</fullName>
+    <deleteConstraint>Restrict</deleteConstraint>
+    <description>Coach-Profil der Zuordnung</description>
+    <label>Coach</label>
+    <referenceTo>Coach_Profile__c</referenceTo>
+    <relationshipLabel>Coach-Zuordnungen</relationshipLabel>
+    <relationshipName>Program_Coaches</relationshipName>
+    <required>true</required>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>
