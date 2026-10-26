@@ -165,6 +165,8 @@ global with sharing class ScheduleService {
         }
 
         validateWeeklySchedule(record);
+        Id pwId = String.isNotBlank(request.id) ? record.ProgramWeek__c : (String.isNotBlank(request.programWeekId) ? request.programWeekId : null);
+        assertCoachAccess(pwId);
         assertNoDuplicateCourseSchedule(record);
 
         Savepoint sp = Database.setSavepoint();
@@ -317,6 +319,12 @@ global with sharing class ScheduleService {
 
         computeDateForEntry(record);
         validateScheduleEntry(record);
+        if (String.isNotBlank(record.WeeklySchedule__c)) {
+            List<WeeklySchedule__c> ws = [SELECT ProgramWeek__c FROM WeeklySchedule__c WHERE Id = :record.WeeklySchedule__c LIMIT 1];
+            if (!ws.isEmpty()) {
+                assertCoachAccess(ws[0].ProgramWeek__c);
+            }
+        }
 
         Savepoint sp = Database.setSavepoint();
         try {
@@ -397,6 +405,28 @@ global with sharing class ScheduleService {
         ];
         if (!duplicates.isEmpty()) {
             throw new ScheduleServiceException(409, CODE_DUPLICATE_COURSE_SCHEDULE, 'Fuer dieses Programm und diese Woche existiert bereits ein veroffentlichter Kurs-Wochenplan.');
+        }
+    }
+
+    public static void assertCoachAccess(Id programWeekId) {
+        Id profileId = ProgramCoachService.resolveCoachProfileId(UserInfo.getUserId());
+        if (profileId == null) {
+            return;
+        }
+        if (programWeekId == null) {
+            return;
+        }
+        List<ProgramWeek__c> weeks = [
+            SELECT Program__c
+            FROM ProgramWeek__c
+            WHERE Id = :programWeekId
+            LIMIT 1
+        ];
+        if (weeks.isEmpty() || weeks[0].Program__c == null) {
+            return;
+        }
+        if (!ProgramCoachService.isAssignedToProgram(weeks[0].Program__c, UserInfo.getUserId())) {
+            throw new ScheduleServiceException(403, CODE_NOT_ASSIGNED, 'Sie sind diesem Programm nicht zugeordnet.');
         }
     }
 
