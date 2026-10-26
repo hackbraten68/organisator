@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronUp,
   ListOrdered,
+  Pencil,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -73,6 +74,12 @@ export default function ParticipantLearningPath({
   const [adding, setAdding] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editWeeks, setEditWeeks] = useState("");
+  const [editStatus, setEditStatus] = useState<LearningPathItemStatus>("Planned");
+  const [editModuleId, setEditModuleId] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
   const [modules, setModules] = useState<ProgramModule[]>([]);
   const [selectedModuleId, setSelectedModuleId] = useState("");
   const [assigningModuleId, setAssigningModuleId] = useState<string | null>(null);
@@ -282,6 +289,20 @@ export default function ParticipantLearningPath({
                 <div className="flex shrink-0 items-center gap-1">
                   <Button
                     variant="ghost"
+                    size="icon"
+                    aria-label={`Bearbeiten ${item.title}`}
+                    onClick={() => {
+                      setEditingItemId(item.id);
+                      setEditTitle(item.title);
+                      setEditWeeks(item.estimatedWeeks?.toString() ?? "");
+                      setEditStatus(item.status);
+                      setEditModuleId(item.moduleId ?? "");
+                    }}
+                  >
+                    <Pencil className="size-4" aria-hidden="true" />
+                  </Button>
+                  <Button
+                    variant="ghost"
                     size="sm"
                     aria-label={`Wochenplan aus Vorlage fuer ${item.title}`}
                     onClick={() => {
@@ -444,6 +465,97 @@ export default function ParticipantLearningPath({
           <DialogFooter>
             <Button variant="outline" onClick={() => setAssigningModuleId(null)}>
               Abbrechen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
+    {editingItemId && (
+      <Dialog open={!!editingItemId} onOpenChange={(o) => !o && setEditingItemId(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Lernpfadeintrag bearbeiten</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-title">Titel</Label>
+              <Input
+                id="edit-title"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-weeks">Weeks (est.)</Label>
+              <Input
+                id="edit-weeks"
+                type="number"
+                min={1}
+                step={1}
+                value={editWeeks}
+                onChange={(e) => setEditWeeks(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as LearningPathItemStatus)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LEARNING_PATH_STATUSES.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Modul</Label>
+              <Select value={editModuleId} onValueChange={setEditModuleId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Modul wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Kein Modul</SelectItem>
+                  {modules.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingItemId(null)} disabled={savingEdit}>
+              Abbrechen
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!editingItemId) return;
+                setSavingEdit(true);
+                try {
+                  const parsedWeeks = editWeeks.trim() ? Number(editWeeks) : undefined;
+                  await updateLearningPathItem(editingItemId, {
+                    title: editTitle.trim(),
+                    estimatedWeeks: parsedWeeks,
+                    status: editStatus,
+                    moduleId: editModuleId || undefined,
+                  });
+                  toast.success("Lernpfadeintrag aktualisiert.");
+                  setEditingItemId(null);
+                  refresh();
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Fehler.");
+                } finally {
+                  setSavingEdit(false);
+                }
+              }}
+              disabled={savingEdit}
+            >
+              {savingEdit ? "Speichern..." : "Speichern"}
             </Button>
           </DialogFooter>
         </DialogContent>
