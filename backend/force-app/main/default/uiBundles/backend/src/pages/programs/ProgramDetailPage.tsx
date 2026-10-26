@@ -21,6 +21,7 @@ import ProgramFormDialog from "@/components/programs/ProgramFormDialog";
 import ProgramStatusBadge from "@/components/programs/ProgramStatusBadge";
 import ProgramOverviewTab from "@/components/programs/ProgramOverviewTab";
 import ProgramModulesTab from "@/components/programs/ProgramModulesTab";
+import ProgramWeeksTab from "@/components/programs/ProgramWeeksTab";
 import ProgramParticipantsTab from "@/components/programs/ProgramParticipantsTab";
 import ProgramCoachesTab from "@/components/programs/ProgramCoachesTab";
 import ProgramSettingsTab from "@/components/programs/ProgramSettingsTab";
@@ -105,6 +106,7 @@ export default function ProgramDetailPage() {
             <TabsList className="mb-6 flex-wrap">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="modules">Modules</TabsTrigger>
+              <TabsTrigger value="weeks">Kurswochen</TabsTrigger>
               <TabsTrigger value="participants">Participants</TabsTrigger>
               <TabsTrigger value="coaches">Coaches</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -119,6 +121,9 @@ export default function ProgramDetailPage() {
             </TabsContent>
             <TabsContent value="modules">
               <ProgramModulesTab programId={program.id} />
+            </TabsContent>
+            <TabsContent value="weeks">
+              <ProgramWeeksTab programId={program.id} />
             </TabsContent>
             <TabsContent value="participants">
               <ProgramParticipantsTab programId={program.id} />

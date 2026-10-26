@@ -1,0 +1,27 @@
+mutation CreateProgramWeek(
+  $programId: IdOrRef!
+  $moduleId: IdOrRef!
+  $name: String!
+  $number: Double!
+  $status: Picklist
+  $description: String
+) {
+  uiapi {
+    ProgramWeek__cCreate(
+      input: {
+        ProgramWeek__c: {
+          Program__c: $programId
+          Module__c: $moduleId
+          Name: $name
+          Number__c: $number
+          Status__c: $status
+          Description__c: $description
+        }
+      }
+    ) {
+      Record {
+        Id
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+mutation UpdateProgramWeek(
+  $id: IdOrRef!
+  $name: String
+  $number: Double
+  $status: Picklist
+  $description: String
+  $moduleId: IdOrRef
+) {
+  uiapi {
+    ProgramWeek__cUpdate(
+      input: {
+        Id: $id
+        ProgramWeek__c: {
+          Name: $name
+          Number__c: $number
+          Status__c: $status
+          Description__c: $description
+          Module__c: $moduleId
+        }
+      }
+    ) {
+      Record {
+        Id
+      }
+    }
+  }
+}

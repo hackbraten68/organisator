@@ -1,0 +1,31 @@
+query ProgramWeekById($id: ID!) {
+  uiapi {
+    query {
+      ProgramWeek__c(where: { Id: { eq: $id } }, first: 1) {
+        edges {
+          node {
+            Id
+            Name @optional {
+              value
+            }
+            Number__c @optional {
+              value
+            }
+            Description__c @optional {
+              value
+            }
+            Status__c @optional {
+              value
+            }
+            Module__c @optional {
+              value
+            }
+            Program__c @optional {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -24,6 +24,8 @@ import type {
   ProgramInput,
   ProgramModule,
   ProgramModuleInput,
+  ProgramWeek,
+  ProgramWeekInput,
   ProgramStatus,
 } from "@/types/program";
 import { executeGraphQL } from "../graphqlClient";
@@ -43,6 +45,11 @@ import PROGRAM_COUNTS from "./query/ProgramCounts.graphql?raw";
 import CREATE_PROGRAM from "./query/CreateProgram.graphql?raw";
 import UPDATE_PROGRAM from "./query/UpdateProgram.graphql?raw";
 import MODULES_BY_PROGRAM from "./query/ModulesByProgram.graphql?raw";
+import PROGRAM_WEEKS_BY_PROGRAM from "./query/ProgramWeeksByProgram.graphql?raw";
+import PROGRAM_WEEK_BY_ID from "./query/ProgramWeekById.graphql?raw";
+import CREATE_PROGRAM_WEEK from "./query/CreateProgramWeek.graphql?raw";
+import UPDATE_PROGRAM_WEEK from "./query/UpdateProgramWeek.graphql?raw";
+import DELETE_PROGRAM_WEEK from "./query/DeleteProgramWeek.graphql?raw";
 import MODULE_BY_ID from "./query/ModuleById.graphql?raw";
 import LIST_PROGRAM_COACHES from "./query/ListProgramCoaches.graphql?raw";
 import ASSIGN_PROGRAM_COACH from "./query/AssignProgramCoach.graphql?raw";
@@ -412,6 +419,127 @@ export async function deleteModule(id: string): Promise<void> {
   }
   // Order gaps after delete are harmless: lists sort by Order__c and new
   // modules use max(order) + 1.
+}
+
+// ---------------------------------------------------------------------------
+// Program weeks (per-program course weeks)
+// ---------------------------------------------------------------------------
+
+interface ProgramWeekNode {
+  Id: string;
+  Name?: ScalarValue<string>;
+  Number__c?: ScalarValue<number>;
+  Description__c?: ScalarValue<string>;
+  Status__c?: ScalarValue<string>;
+  Module__c?: ScalarValue<string>;
+  Program__c?: ScalarValue<string>;
+}
+
+interface ProgramWeeksResponse {
+  uiapi?: {
+    query?: {
+      ProgramWeek__c?: {
+        edges?: Array<{ node?: ProgramWeekNode | null } | null> | null;
+      } | null;
+    } | null;
+  } | null;
+}
+
+function mapProgramWeek(node: ProgramWeekNode): ProgramWeek {
+  return {
+    id: node.Id,
+    programId: node.Program__c?.value ?? "",
+    moduleId: node.Module__c?.value ?? "",
+    name: node.Name?.value ?? "Untitled Week",
+    number: node.Number__c?.value != null ? Math.round(node.Number__c.value) : 0,
+    status: node.Status__c?.value ?? "Draft",
+    description: node.Description__c?.value ?? undefined,
+  };
+}
+
+export async function listProgramWeeks(programId: string): Promise<ProgramWeek[]> {
+  const data = await executeGraphQL<ProgramWeeksResponse, { programId: string }>(
+    PROGRAM_WEEKS_BY_PROGRAM,
+    { programId },
+  );
+  const edges = data.uiapi?.query?.ProgramWeek__c?.edges ?? [];
+  return edges
+    .map((edge) => edge?.node)
+    .filter((node): node is ProgramWeekNode => node != null)
+    .map(mapProgramWeek);
+}
+
+export async function createProgramWeek(
+  programId: string,
+  input: ProgramWeekInput,
+): Promise<ProgramWeek> {
+  const data = await executeGraphQL<
+    MutationResponse,
+    {
+      programId: string;
+      moduleId: string;
+      name: string;
+      number: number;
+      status?: string | null;
+      description?: string | null;
+    }
+  >(CREATE_PROGRAM_WEEK, {
+    programId,
+    moduleId: input.moduleId,
+    name: input.name.trim(),
+    number: input.number,
+    status: input.status,
+    description: input.description?.trim() || null,
+  });
+  const id = (Object.values(data.uiapi ?? {})[0]?.Record?.Id ?? null) as
+    | string
+    | null;
+  if (!id) throw new Error("Program week creation returned no record Id.");
+  const created = await getProgramWeekById(id);
+  if (!created) throw new Error("Created program week could not be reloaded.");
+  return created;
+}
+
+async function getProgramWeekById(id: string): Promise<ProgramWeek | null> {
+  const data = await executeGraphQL<ProgramWeeksResponse, { id: string }>(
+    PROGRAM_WEEK_BY_ID,
+    { id },
+  );
+  const node = data.uiapi?.query?.ProgramWeek__c?.edges?.[0]?.node ?? null;
+  return node ? mapProgramWeek(node) : null;
+}
+
+export async function updateProgramWeek(
+  id: string,
+  patch: Partial<ProgramWeekInput>,
+): Promise<ProgramWeek | null> {
+  await executeGraphQL<
+    MutationResponse,
+    {
+      id: string;
+      name?: string;
+      number?: number | null;
+      status?: string | null;
+      description?: string | null;
+      moduleId?: string | null;
+    }
+  >(UPDATE_PROGRAM_WEEK, {
+    id,
+    ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
+    ...(patch.number !== undefined ? { number: patch.number } : {}),
+    ...(patch.status !== undefined ? { status: patch.status } : {}),
+    ...(patch.description !== undefined
+      ? { description: patch.description.trim() || null }
+      : {}),
+    ...(patch.moduleId !== undefined ? { moduleId: patch.moduleId } : {}),
+  });
+  return getProgramWeekById(id);
+}
+
+export async function deleteProgramWeek(id: string): Promise<void> {
+  await executeGraphQL<MutationResponse, { id: string }>(DELETE_PROGRAM_WEEK, {
+    id,
+  });
 }
 
 export async function reorderModules(

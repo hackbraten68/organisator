@@ -80,6 +80,24 @@ export interface ProgramModuleInput {
   description?: string;
 }
 
+export interface ProgramWeek {
+  id: string;
+  programId: string;
+  moduleId: string;
+  name: string;
+  number: number;
+  status: string;
+  description?: string;
+}
+
+export interface ProgramWeekInput {
+  name: string;
+  moduleId: string;
+  number: number;
+  status: string;
+  description?: string;
+}
+
 export type LearningPathItemStatus = "Planned" | "In Progress" | "Completed";
 
 export const LEARNING_PATH_STATUSES: LearningPathItemStatus[] = [
