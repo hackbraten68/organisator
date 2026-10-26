@@ -21,7 +21,7 @@ global with sharing class SchedulePublishService {
             throw badRequest('weeklyScheduleId ist erforderlich.');
         }
         List<WeeklySchedule__c> rows = [
-            SELECT Id, Name, Status__c, PublishedAt__c, PublishedBy__c, StartDate__c, EndDate__c
+            SELECT Id, Name, Status__c, ScopeType__c, ProgramWeek__c, PublishedAt__c, PublishedBy__c, StartDate__c, EndDate__c
             FROM WeeklySchedule__c
             WHERE Id = :weeklyScheduleId
             LIMIT 1
@@ -64,7 +64,7 @@ global with sharing class SchedulePublishService {
             throw badRequest('weeklyScheduleId ist erforderlich.');
         }
         List<WeeklySchedule__c> rows = [
-            SELECT Id, Name, Status__c, PublishedAt__c, PublishedBy__c
+            SELECT Id, Name, Status__c, ScopeType__c, ProgramWeek__c, PublishedAt__c, PublishedBy__c
             FROM WeeklySchedule__c
             WHERE Id = :weeklyScheduleId
             LIMIT 1
