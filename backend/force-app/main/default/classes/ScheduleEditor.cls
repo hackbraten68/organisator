@@ -758,34 +758,49 @@ global with sharing class ScheduleEditor {
     }
 
     private static void getTemplates(EditorResponse resp, String programId) {
-        if (String.isBlank(programId)) {
-            if (resp.options == null) resp.options = new OptionsView();
-            resp.options.templates = new List<TemplateView>();
-            return;
-        }
-        assertProgramAccess(programId);
-
-        Set<Id> weekIds = new Set<Id>();
-        for (ProgramWeek__c pw : [SELECT Id FROM ProgramWeek__c WHERE Program__c = :programId]) {
-            weekIds.add(pw.Id);
-        }
-
         List<TemplateView> templates = new List<TemplateView>();
-        for (ScheduleTemplate__c t : [
-            SELECT Id, Name, Program__c, ProgramWeek__c, Status__c
-            FROM ScheduleTemplate__c
-            WHERE Status__c = 'Active'
-              AND (Program__c = :programId OR ProgramWeek__c IN :weekIds)
-            ORDER BY Name
-        ]) {
-            TemplateView tv = new TemplateView();
-            tv.id = t.Id;
-            tv.name = t.Name;
-            tv.programId = t.Program__c;
-            tv.programWeekId = t.ProgramWeek__c;
-            tv.status = t.Status__c;
-            tv.entryCount = [SELECT COUNT() FROM ScheduleEntry__c WHERE ScheduleTemplate__c = :t.Id];
-            templates.add(tv);
+
+        if (String.isBlank(programId)) {
+            // List all templates the user can access
+            for (ScheduleTemplate__c t : [
+                SELECT Id, Name, Program__c, ProgramWeek__c, Status__c
+                FROM ScheduleTemplate__c
+                WHERE Status__c = 'Active'
+                ORDER BY Name
+            ]) {
+                TemplateView tv = new TemplateView();
+                tv.id = t.Id;
+                tv.name = t.Name;
+                tv.programId = t.Program__c;
+                tv.programWeekId = t.ProgramWeek__c;
+                tv.status = t.Status__c;
+                tv.entryCount = [SELECT COUNT() FROM ScheduleEntry__c WHERE ScheduleTemplate__c = :t.Id];
+                templates.add(tv);
+            }
+        } else {
+            assertProgramAccess(programId);
+
+            Set<Id> weekIds = new Set<Id>();
+            for (ProgramWeek__c pw : [SELECT Id FROM ProgramWeek__c WHERE Program__c = :programId]) {
+                weekIds.add(pw.Id);
+            }
+
+            for (ScheduleTemplate__c t : [
+                SELECT Id, Name, Program__c, ProgramWeek__c, Status__c
+                FROM ScheduleTemplate__c
+                WHERE Status__c = 'Active'
+                  AND (Program__c = :programId OR ProgramWeek__c IN :weekIds)
+                ORDER BY Name
+            ]) {
+                TemplateView tv = new TemplateView();
+                tv.id = t.Id;
+                tv.name = t.Name;
+                tv.programId = t.Program__c;
+                tv.programWeekId = t.ProgramWeek__c;
+                tv.status = t.Status__c;
+                tv.entryCount = [SELECT COUNT() FROM ScheduleEntry__c WHERE ScheduleTemplate__c = :t.Id];
+                templates.add(tv);
+            }
         }
 
         if (resp.options == null) resp.options = new OptionsView();
