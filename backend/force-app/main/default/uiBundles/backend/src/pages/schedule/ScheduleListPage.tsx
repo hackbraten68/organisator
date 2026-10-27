@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   listScheduleBoard,
   deleteSchedulePlan,
+  getScheduleOptions,
 } from "@/api/schedule/scheduleEditorService";
 import ScheduleStatusBadge from "@/components/schedule/ScheduleStatusBadge";
 import ScheduleScopeBadge from "@/components/schedule/ScheduleScopeBadge";
@@ -35,6 +36,7 @@ export default function ScheduleListPage() {
   );
 
   const [selectedProgramId, setSelectedProgramId] = useState<string>("");
+  const [selectedParticipantId, setSelectedParticipantId] = useState<string>("");
   const [scopeFilter, setScopeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("current");
@@ -43,6 +45,7 @@ export default function ScheduleListPage() {
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [planDialogWeekId, setPlanDialogWeekId] = useState<string>("");
   const [planDialogPlan, setPlanDialogPlan] = useState<SchedulePlan | null>(null);
+  const [planDialogParticipantId, setPlanDialogParticipantId] = useState<string | null>(null);
 
   const programs = board?.programs ?? [];
   const effectiveProgramId = selectedProgramId || programs[0]?.id || "";
@@ -52,54 +55,41 @@ export default function ScheduleListPage() {
     [effectiveProgramId, reload],
   );
 
-  const weeks = programBoard?.weeks ?? [];
+  const { data: options } = useAsyncData(
+    () => (effectiveProgramId ? getScheduleOptions(effectiveProgramId) : Promise.resolve(null)),
+    [effectiveProgramId],
+  );
 
-  // Collect coaches
+  const weeks = programBoard?.weeks ?? [];
+  const participants = options?.participants ?? [];
+
+  // All plans flattened
+  const allPlans = useMemo(() => {
+    const plans: SchedulePlan[] = [];
+    for (const week of weeks) {
+      for (const plan of week.plans) {
+        plans.push(plan);
+      }
+    }
+    return plans;
+  }, [weeks]);
+
+  // Coaches
   const coaches = useMemo(() => {
     const seen = new Set<string>();
     const result: { id: string; name: string }[] = [];
-    for (const week of weeks) {
-      for (const plan of week.plans) {
-        if (plan.coachName && !seen.has(plan.coachName)) {
-          seen.add(plan.coachName);
-          result.push({ id: plan.coachName, name: plan.coachName });
-        }
+    for (const plan of allPlans) {
+      if (plan.coachName && !seen.has(plan.coachName)) {
+        seen.add(plan.coachName);
+        result.push({ id: plan.coachName, name: plan.coachName });
       }
     }
     return result;
-  }, [weeks]);
+  }, [allPlans]);
 
-  const hasActiveFilters = scopeFilter !== "all" || statusFilter !== "all" || timeFilter !== "current" || search.trim() !== "" || coachFilter !== "all";
+  // Filtered plans for "all plans" view
+  const hasActiveFilters = scopeFilter !== "all" || statusFilter !== "all" || timeFilter !== "current" || search.trim() !== "" || coachFilter !== "all" || selectedParticipantId !== "";
 
-  // Filter plans within each week
-  const filteredWeeks = useMemo(() => {
-    return weeks.map((week) => {
-      const filteredPlans = week.plans.filter((plan) => {
-        if (scopeFilter !== "all" && plan.scopeType !== scopeFilter) return false;
-        if (statusFilter !== "all" && plan.status !== statusFilter) return false;
-        if (timeFilter !== "all" && timeStatus(plan) !== timeFilter) return false;
-        if (search.trim()) {
-          const q = search.toLowerCase();
-          if (
-            !(plan.participantName?.toLowerCase().includes(q) ?? false) &&
-            !(plan.participantGroupName?.toLowerCase().includes(q) ?? false) &&
-            !plan.name.toLowerCase().includes(q)
-          ) return false;
-        }
-        if (coachFilter !== "all" && plan.coachName !== coachFilter) return false;
-        return true;
-      });
-      return { ...week, plans: filteredPlans };
-    });
-  }, [weeks, scopeFilter, statusFilter, timeFilter, search, coachFilter, hasActiveFilters]);
-
-  const resetFilters = () => {
-    setScopeFilter("all");
-    setStatusFilter("all");
-    setTimeFilter("current");
-    setSearch("");
-    setCoachFilter("all");
-  };
 
   if (loading) {
     return (
@@ -113,6 +103,8 @@ export default function ScheduleListPage() {
     return <div className="p-6 text-destructive">{error}</div>;
   }
 
+  const selectedParticipant = participants.find((p) => p.id === selectedParticipantId);
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -122,8 +114,23 @@ export default function ScheduleListPage() {
         </Button>
       </div>
 
-      {/* Filter bar in shadcn style */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Participant selector - primary filter */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="w-64">
+          <label className="text-xs text-muted-foreground mb-1 block">Teilnehmer</label>
+          <Select value={selectedParticipantId} onValueChange={setSelectedParticipantId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Teilnehmer wählen" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Alle Teilnehmer</SelectItem>
+              {participants.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <Select value={effectiveProgramId} onValueChange={setSelectedProgramId}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Programm" />
@@ -136,7 +143,7 @@ export default function ScheduleListPage() {
         </Select>
 
         <Select value={scopeFilter} onValueChange={setScopeFilter}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-[130px]">
             <SelectValue placeholder="Scope" />
           </SelectTrigger>
           <SelectContent>
@@ -148,7 +155,7 @@ export default function ScheduleListPage() {
         </Select>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-[130px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -159,7 +166,7 @@ export default function ScheduleListPage() {
         </Select>
 
         <Select value={timeFilter} onValueChange={setTimeFilter}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-[130px]">
             <SelectValue placeholder="Zeitraum" />
           </SelectTrigger>
           <SelectContent>
@@ -172,7 +179,7 @@ export default function ScheduleListPage() {
 
         {coaches.length > 0 && (
           <Select value={coachFilter} onValueChange={setCoachFilter}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-[130px]">
               <SelectValue placeholder="Coach" />
             </SelectTrigger>
             <SelectContent>
@@ -187,22 +194,54 @@ export default function ScheduleListPage() {
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Teilnehmer suchen..."
+            placeholder="Suchen..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 w-[200px]"
+            className="pl-8 w-[180px]"
           />
         </div>
 
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={resetFilters}>
+          <Button variant="ghost" size="sm" onClick={() => {
+            setScopeFilter("all");
+            setStatusFilter("all");
+            setTimeFilter("current");
+            setSearch("");
+            setCoachFilter("all");
+            setSelectedParticipantId("");
+          }}>
             Filter zurücksetzen
           </Button>
         )}
       </div>
 
-      {/* Weeks as cards (original layout) */}
-      {filteredWeeks.map((week) => {
+      {/* Participant header */}
+      {selectedParticipant && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              {selectedParticipant.name}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Programm: {programs.find((p) => p.id === effectiveProgramId)?.name ?? "–"}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Weeks as cards */}
+      {weeks.map((week) => {
+        const plans = selectedParticipantId
+          ? week.plans.filter((p) =>
+              p.scopeType === "Individual"
+                ? p.participantId === selectedParticipantId
+                : true
+            )
+          : week.plans;
+
+        if (plans.length === 0 && selectedParticipantId) return null;
+
         return (
           <Card key={week.programWeekId}>
             <CardHeader>
@@ -217,6 +256,7 @@ export default function ScheduleListPage() {
                   onClick={() => {
                     setPlanDialogWeekId(week.programWeekId);
                     setPlanDialogPlan(null);
+                    setPlanDialogParticipantId(selectedParticipantId || null);
                     setPlanDialogOpen(true);
                   }}
                 >
@@ -225,71 +265,75 @@ export default function ScheduleListPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {week.plans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className="flex items-center justify-between border rounded-md p-3"
-                  >
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <ScheduleTimeStatusBadge status={timeStatus(plan)} />
-                      <ScheduleStatusBadge status={plan.status} />
-                      <ScheduleScopeBadge scope={plan.scopeType} />
-                      <span className="font-medium">{plan.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {plan.scopeType === "Group"
-                          ? plan.participantGroupName ?? "–"
-                          : plan.scopeType === "Individual"
-                            ? plan.participantName ?? "–"
-                            : ""}
-                      </span>
-                      {plan.coachName && (
+              {plans.length === 0 ? (
+                <div className="text-sm text-muted-foreground">Kein Plan vorhanden.</div>
+              ) : (
+                <div className="space-y-2">
+                  {plans.map((plan) => (
+                    <div
+                      key={plan.id}
+                      className="flex items-center justify-between border rounded-md p-3"
+                    >
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <ScheduleTimeStatusBadge status={timeStatus(plan)} />
+                        <ScheduleStatusBadge status={plan.status} />
+                        <ScheduleScopeBadge scope={plan.scopeType} />
+                        <span className="font-medium">{plan.name}</span>
                         <span className="text-xs text-muted-foreground">
-                          Coach: {plan.coachName}
+                          {plan.scopeType === "Group"
+                            ? plan.participantGroupName ?? "–"
+                            : plan.scopeType === "Individual"
+                              ? plan.participantName ?? "–"
+                              : ""}
                         </span>
-                      )}
-                      <span className="text-xs text-muted-foreground">
-                        {plan.startDate ?? "–"}{plan.endDate ? ` – ${plan.endDate}` : ""} · {plan.entryCount} Einträge
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => navigate(`/wochenplan/${plan.id}`)}
-                      >
-                        Öffnen
-                      </Button>
-                      {plan.status === "Draft" && (
+                        {plan.coachName && (
+                          <span className="text-xs text-muted-foreground">
+                            Coach: {plan.coachName}
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {plan.startDate ?? "–"}{plan.endDate ? ` – ${plan.endDate}` : ""} · {plan.entryCount} Einträge
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
                         <Button
                           size="sm"
-                          variant="destructive"
-                          onClick={async () => {
-                            if (!window.confirm(`Plan "${plan.name}" wirklich löschen?`)) return;
-                            try {
-                              await deleteSchedulePlan(plan.id);
-                              toast.success("Plan gelöscht.");
-                              refresh();
-                            } catch (e) {
-                              toast.error(e instanceof Error ? e.message : "Fehler beim Löschen.");
-                            }
-                          }}
+                          variant="outline"
+                          onClick={() => navigate(`/wochenplan/${plan.id}`)}
                         >
-                          Löschen
+                          Öffnen
                         </Button>
-                      )}
+                        {plan.status === "Draft" && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={async () => {
+                              if (!window.confirm(`Plan "${plan.name}" wirklich löschen?`)) return;
+                              try {
+                                await deleteSchedulePlan(plan.id);
+                                toast.success("Plan gelöscht.");
+                                refresh();
+                              } catch (e) {
+                                toast.error(e instanceof Error ? e.message : "Fehler beim Löschen.");
+                              }
+                            }}
+                          >
+                            Löschen
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         );
       })}
 
-      {filteredWeeks.every((w) => w.plans.length === 0) && (
+      {weeks.length === 0 && (
         <div className="text-sm text-muted-foreground py-8 text-center">
-          Für die gewählten Filter wurden keine Wochenpläne gefunden.
+          In diesem Programm wurden noch keine Kurswochen angelegt. Kurswoche anlegen unter Programs → Kurswochen.
         </div>
       )}
 
@@ -298,6 +342,7 @@ export default function ScheduleListPage() {
         onOpenChange={setPlanDialogOpen}
         programWeekId={planDialogWeekId}
         programId={effectiveProgramId}
+        defaultParticipantId={planDialogParticipantId}
         plan={planDialogPlan}
         existingScopes={
           weeks.find((w) => w.programWeekId === planDialogWeekId)?.plans.map((p) => p.scopeType) ?? []

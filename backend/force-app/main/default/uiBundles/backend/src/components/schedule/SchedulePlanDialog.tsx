@@ -32,6 +32,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   programWeekId: string;
   programId: string;
+  defaultParticipantId?: string | null;
   plan: SchedulePlan | null;
   existingScopes: ScheduleScope[];
   onSaved: () => void;
@@ -42,6 +43,7 @@ export default function SchedulePlanDialog({
   onOpenChange,
   programWeekId,
   programId,
+  defaultParticipantId,
   plan,
   existingScopes,
   onSaved,
@@ -65,7 +67,7 @@ export default function SchedulePlanDialog({
     getScheduleOptions(programId, isEdit && plan ? plan.id : undefined)
       .then(setOptions)
       .catch(() => setOptions(null));
-  }, [open, programId, plan?.id]);
+  }, [open, programId, plan?.id, defaultParticipantId]);
 
   useEffect(() => {
     if (!open) return;
