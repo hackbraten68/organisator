@@ -20,6 +20,7 @@ const ProgramDetailPage = lazy(
 const ScheduleListPage = lazy(() => import('./pages/schedule/ScheduleListPage'));
 const ScheduleEditorPage = lazy(() => import('./pages/schedule/ScheduleEditorPage'));
 const ScheduleTemplateListPage = lazy(() => import('./pages/schedule/ScheduleTemplateListPage'));
+const ScheduleTemplateDetailPage = lazy(() => import('./pages/schedule/ScheduleTemplateDetailPage'));
 
 function PageFallback() {
   return (
@@ -159,6 +160,14 @@ export const routes: RouteObject[] = [
             element: (
               <Suspense fallback={<PageFallback />}>
                 <ScheduleTemplateListPage />
+              </Suspense>
+            ),
+          },
+          {
+            path: 'vorlagen/:templateId',
+            element: (
+              <Suspense fallback={<PageFallback />}>
+                <ScheduleTemplateDetailPage />
               </Suspense>
             ),
           },

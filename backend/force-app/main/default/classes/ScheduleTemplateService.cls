@@ -299,6 +299,34 @@ global with sharing class ScheduleTemplateService {
         }
     }
 
+    public static void deleteTemplate(String templateId) {
+        if (String.isBlank(templateId)) {
+            throw badRequest('Vorlagen-ID fehlt.');
+        }
+        List<ScheduleTemplate__c> templates = [
+            SELECT Id, Status__c FROM ScheduleTemplate__c WHERE Id = :templateId LIMIT 1
+        ];
+        if (templates.isEmpty()) {
+            throw notFound('Die Vorlage existiert nicht.');
+        }
+        Savepoint sp = Database.setSavepoint();
+        try {
+            delete [SELECT Id FROM ScheduleEntry__c WHERE ScheduleTemplate__c = :templateId];
+            delete templates[0];
+            AuditEvent__c audit = buildAudit('schedule.template_deleted', 'ScheduleTemplate__c', templateId, null);
+            Database.SaveResult auditResult = Database.insert(audit, false);
+            if (!auditResult.isSuccess()) {
+                Database.rollback(sp);
+                throw new ScheduleTemplateServiceException(500, CODE_AUDIT_FAILED, 'Das Audit-Event konnte nicht geschrieben werden; die Aenderung wurde zurueckgerollt.');
+            }
+        } catch (ScheduleTemplateServiceException e) {
+            throw e;
+        } catch (Exception e) {
+            Database.rollback(sp);
+            throw new ScheduleTemplateServiceException(500, CODE_INTERNAL, e.getMessage());
+        }
+    }
+
     public static List<ScheduleTemplate__c> listTemplates() {
         return [
             SELECT Id, Name, Status__c, Program__c, Module__c, ProgramWeek__c, Description__c

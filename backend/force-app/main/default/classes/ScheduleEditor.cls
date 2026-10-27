@@ -277,6 +277,8 @@ global with sharing class ScheduleEditor {
                 createIndividualPlanFromLearningPath(resp, payload);
             } else if (action == 'saveAsTemplate') {
                 saveAsTemplate(resp, payload);
+            } else if (action == 'deleteTemplate') {
+                deleteTemplate(resp, payload);
             } else {
                 throw badRequest('Unbekannte Aktion.');
             }
@@ -1090,6 +1092,16 @@ global with sharing class ScheduleEditor {
         ScheduleTemplate__c template = ScheduleTemplateService.saveAsTemplate(req);
         resp.id = template.Id;
         resp.status = template.Status__c;
+        resp.success = true;
+    }
+
+    private static void deleteTemplate(MutationResponse resp, Map<String, Object> payload) {
+        String id = (String) payload.get('id');
+        if (String.isBlank(id)) {
+            throw badRequest('Vorlagen-ID fehlt.');
+        }
+        ScheduleTemplateService.deleteTemplate(id);
+        resp.id = id;
         resp.success = true;
     }
 

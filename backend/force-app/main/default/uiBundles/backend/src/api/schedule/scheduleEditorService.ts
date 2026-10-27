@@ -511,6 +511,17 @@ export async function saveAsTemplate(input: {
   return { id: raw.id, status: raw.status ?? "Active" };
 }
 
+export async function deleteScheduleTemplate(id: string): Promise<void> {
+  const raw = await request<RawMutationResponse>(EDIT_PATH, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ action: "deleteTemplate", id }),
+  });
+  if (!raw.success) {
+    throw new ScheduleEditorError(raw.code ?? "ERROR", raw.message ?? "Fehler", 400);
+  }
+}
+
 export async function applyScheduleTemplate(input: {
   templateId: string;
   programWeekId: string;
