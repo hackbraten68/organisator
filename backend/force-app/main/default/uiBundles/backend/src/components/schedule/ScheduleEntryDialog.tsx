@@ -75,8 +75,8 @@ export default function ScheduleEntryDialog({ open, onOpenChange, plan, entry, o
       setType(entry.type);
       setIsRequired(entry.isRequired);
       setDayOfWeek(entry.dayOfWeek);
-      setStartTime(entry.startTime ?? "");
-      setEndTime(entry.endTime ?? "");
+      setStartTime(entry.startTime ? entry.startTime.slice(0, 5) : "");
+      setEndTime(entry.endTime ? entry.endTime.slice(0, 5) : "");
       setDurationMinutes(entry.durationMinutes?.toString() ?? "");
       setCoachProfileId(entry.coachProfileId ?? "");
       setLocation(entry.location ?? "");
