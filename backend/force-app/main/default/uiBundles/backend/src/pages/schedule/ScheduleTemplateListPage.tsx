@@ -1,18 +1,49 @@
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/components/ui/sonner";
+import { deleteScheduleTemplate } from "@/api/schedule/scheduleEditorService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { listScheduleTemplates } from "@/api/schedule/scheduleEditorService";
 
 export default function ScheduleTemplateListPage() {
   const navigate = useNavigate();
+  const [reload, setReload] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const { data: templates, loading, error } = useAsyncData(
     () => listScheduleTemplates(),
-    [],
+    [reload],
   );
 
   const list = templates ?? [];
+
+  const handleDelete = async (id: string) => {
+    setDeleting(true);
+    try {
+      await deleteScheduleTemplate(id);
+      toast.success("Vorlage gelöscht.");
+      setDeleteTarget(null);
+      setReload((v) => v + 1);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Fehler beim Löschen.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -72,11 +103,34 @@ export default function ScheduleTemplateListPage() {
                 >
                   Öffnen
                 </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setDeleteTarget(t.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           ))}
         </div>
       )}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vorlage löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Die Vorlage wird unwiderruflich gelöscht.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteTarget && handleDelete(deleteTarget)} disabled={deleting}>
+              {deleting ? "Löschen..." : "Löschen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
