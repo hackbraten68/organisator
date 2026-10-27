@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertCircle,
   ChevronDown,
@@ -247,13 +247,14 @@ function ModuleFormDialog({
     setSaving(false);
   }
 
+  useEffect(() => {
+    if (open) reset(module);
+  }, [open, module]);
+
   return (
     <Dialog
       open={open}
-      onOpenChange={(nextOpen) => {
-        if (nextOpen) reset(module);
-        onOpenChange(nextOpen);
-      }}
+      onOpenChange={onOpenChange}
     >
       <DialogContent>
         <DialogHeader>

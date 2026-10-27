@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -63,12 +63,22 @@ export default function ProgramWeeksTab({ programId }: { programId: string }) {
 
   function openEdit(week: ProgramWeek) {
     setEditing(week);
-    setName(week.name);
-    setModuleId(week.moduleId);
-    setStatus(week.status);
-    setDescription(week.description ?? "");
     setDialogOpen(true);
   }
+
+  useEffect(() => {
+    if (editing) {
+      setName(editing.name);
+      setModuleId(editing.moduleId);
+      setStatus(editing.status);
+      setDescription(editing.description ?? "");
+    } else {
+      setName("");
+      setModuleId(moduleList[0]?.id ?? "");
+      setStatus("Draft");
+      setDescription("");
+    }
+  }, [editing, moduleList]);
 
   async function handleSave() {
     if (!name.trim()) {
@@ -215,7 +225,7 @@ export default function ProgramWeeksTab({ programId }: { programId: string }) {
         </div>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) setEditing(null); setDialogOpen(o); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
