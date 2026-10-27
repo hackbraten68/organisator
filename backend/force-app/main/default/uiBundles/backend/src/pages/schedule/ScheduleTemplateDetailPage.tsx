@@ -81,9 +81,14 @@ export default function ScheduleTemplateDetailPage() {
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Vorlagen-Details</span>
-            <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
-              <Trash2 className="h-4 w-4 mr-1" /> Löschen
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => navigate(`/wochenplan/vorlagen/${template.id}/edit`)}>
+                Bearbeiten
+              </Button>
+              <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
+                <Trash2 className="h-4 w-4 mr-1" /> Löschen
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 text-sm">

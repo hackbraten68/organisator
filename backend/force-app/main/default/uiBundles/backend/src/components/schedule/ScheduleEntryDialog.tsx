@@ -34,9 +34,10 @@ interface Props {
   plan: SchedulePlan;
   entry: ScheduleEntry | null;
   onSaved: () => void;
+  templateId?: string;
 }
 
-export default function ScheduleEntryDialog({ open, onOpenChange, plan, entry, onSaved }: Props) {
+export default function ScheduleEntryDialog({ open, onOpenChange, plan, entry, onSaved, templateId }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [entryKind, setEntryKind] = useState("Aktivität");
@@ -114,7 +115,8 @@ export default function ScheduleEntryDialog({ open, onOpenChange, plan, entry, o
     setSaving(true);
     try {
       const input: EntryInput = {
-        weeklyScheduleId: plan.id,
+        weeklyScheduleId: templateId ? undefined : plan.id,
+        scheduleTemplateId: templateId,
         title: title.trim(),
         description: description || null,
         entryKind: entryKind as EntryInput["entryKind"],
@@ -124,7 +126,7 @@ export default function ScheduleEntryDialog({ open, onOpenChange, plan, entry, o
         startTime: startTime || null,
         endTime: endTime || null,
         durationMinutes: durationMinutes ? Number(durationMinutes) : null,
-        targetType: plan.scopeType,
+        targetType: templateId ? "Course" : plan.scopeType,
         coachProfileId: coachProfileId || null,
         location: location || null,
         meetingLink: meetingLink || null,

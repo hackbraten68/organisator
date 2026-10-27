@@ -21,6 +21,7 @@ const ScheduleListPage = lazy(() => import('./pages/schedule/ScheduleListPage'))
 const ScheduleEditorPage = lazy(() => import('./pages/schedule/ScheduleEditorPage'));
 const ScheduleTemplateListPage = lazy(() => import('./pages/schedule/ScheduleTemplateListPage'));
 const ScheduleTemplateDetailPage = lazy(() => import('./pages/schedule/ScheduleTemplateDetailPage'));
+const ScheduleTemplateEditorPage = lazy(() => import('./pages/schedule/ScheduleTemplateEditorPage'));
 
 function PageFallback() {
   return (
@@ -168,6 +169,14 @@ export const routes: RouteObject[] = [
             element: (
               <Suspense fallback={<PageFallback />}>
                 <ScheduleTemplateDetailPage />
+              </Suspense>
+            ),
+          },
+          {
+            path: 'vorlagen/:templateId/edit',
+            element: (
+              <Suspense fallback={<PageFallback />}>
+                <ScheduleTemplateEditorPage />
               </Suspense>
             ),
           },

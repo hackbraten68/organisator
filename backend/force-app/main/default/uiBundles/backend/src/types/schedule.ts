@@ -150,7 +150,7 @@ export interface PlanInput {
 
 export interface EntryInput {
   id?: string;
-  weeklyScheduleId: string;
+  weeklyScheduleId?: string;
   scheduleTemplateId?: string;
   title: string;
   description?: string | null;

@@ -534,6 +534,28 @@ export async function deleteScheduleTemplate(id: string): Promise<void> {
   }
 }
 
+export async function getScheduleTemplate(templateId: string): Promise<{ plan: { id: string; name: string; status: string | null; notes: string | null }; entries: ScheduleEntry[] }> {
+  const params = new URLSearchParams();
+  params.set("action", "template");
+  params.set("templateId", templateId);
+  const raw = await request<RawDetailResponse>(`${EDIT_PATH}?${params.toString()}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+  if (!raw.success || !raw.plan) {
+    throw new ScheduleEditorError(raw.code ?? "ERROR", raw.message ?? "Fehler", 400);
+  }
+  return {
+    plan: {
+      id: raw.plan.id ?? "",
+      name: raw.plan.name ?? "",
+      status: raw.plan.status ?? null,
+      notes: raw.plan.notes ?? null,
+    },
+    entries: (raw.entries ?? []).map(toEntry),
+  };
+}
+
 export async function applyScheduleTemplate(input: {
   templateId: string;
   programWeekId: string;

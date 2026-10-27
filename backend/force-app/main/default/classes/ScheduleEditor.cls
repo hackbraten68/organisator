@@ -229,6 +229,9 @@ global with sharing class ScheduleEditor {
             } else if (action == 'templates') {
                 String programId = RestContext.request == null ? null : RestContext.request.params.get('programId');
                 getTemplates(resp, programId);
+            } else if (action == 'template') {
+                String templateId = RestContext.request == null ? null : RestContext.request.params.get('templateId');
+                getTemplate(resp, templateId);
             } else if (action == 'learningPathOptions') {
                 String learningPathId = RestContext.request == null ? null : RestContext.request.params.get('learningPathId');
                 getLearningPathOptions(resp, learningPathId);
@@ -778,6 +781,43 @@ global with sharing class ScheduleEditor {
         resp.success = true;
     }
 
+    private static void getTemplate(EditorResponse resp, String templateId) {
+        if (String.isBlank(templateId)) {
+            throw badRequest('templateId ist erforderlich.');
+        }
+        List<ScheduleTemplate__c> templates = [
+            SELECT Id, Name, Program__c, ProgramWeek__c, Status__c, Description__c
+            FROM ScheduleTemplate__c
+            WHERE Id = :templateId
+            LIMIT 1
+        ];
+        if (templates.isEmpty()) {
+            throw notFound('Die Vorlage existiert nicht.');
+        }
+        ScheduleTemplate__c tmpl = templates[0];
+
+        PlanView pv = new PlanView();
+        pv.id = tmpl.Id;
+        pv.name = tmpl.Name;
+        pv.status = tmpl.Status__c;
+        pv.notes = tmpl.Description__c;
+        resp.plan = pv;
+
+        List<EntryView> entries = new List<EntryView>();
+        for (ScheduleEntry__c e : [
+            SELECT Id, Name, Description__c, EntryKind__c, Type__c, IsRequired__c, DayOfWeek__c,
+                   StartTime__c, EndTime__c, DurationMinutes__c, TargetType__c, ParticipantGroup__c,
+                   Participant__c, Coach_Profile__c, Coach_Profile__r.Name, Location__c, MeetingLink__c,
+                   Order__c, DeviationReason__c, Notes__c, IsCustomized__c
+            FROM ScheduleEntry__c
+            WHERE ScheduleTemplate__c = :templateId
+            ORDER BY DayOfWeek__c, Order__c, StartTime__c
+        ]) {
+            entries.add(mapEntry(e));
+        }
+        resp.entries = entries;
+    }
+
     private static void getTemplates(EditorResponse resp, String programId) {
         List<TemplateView> templates = new List<TemplateView>();
 
@@ -977,6 +1017,14 @@ global with sharing class ScheduleEditor {
                 ScheduleService.assertCoachAccess(plans[0].ProgramWeek__c);
             }
         }
+        if (String.isNotBlank(req.scheduleTemplateId)) {
+            List<ScheduleTemplate__c> templates = [
+                SELECT ProgramWeek__c FROM ScheduleTemplate__c WHERE Id = :req.scheduleTemplateId LIMIT 1
+            ];
+            if (!templates.isEmpty() && templates[0].ProgramWeek__c != null) {
+                ScheduleService.assertCoachAccess(templates[0].ProgramWeek__c);
+            }
+        }
 
         ScheduleEntry__c saved = ScheduleService.upsertScheduleEntry(req);
         resp.id = saved.Id;
@@ -1008,6 +1056,19 @@ global with sharing class ScheduleEditor {
             ];
             if (!plans.isEmpty()) {
                 ScheduleService.assertCoachAccess(plans[0].ProgramWeek__c);
+            }
+        } else {
+            // Template entry - check template's program week
+            List<ScheduleEntry__c> entryCheck = [
+                SELECT ScheduleTemplate__c FROM ScheduleEntry__c WHERE Id = :id LIMIT 1
+            ];
+            if (!entryCheck.isEmpty() && entryCheck[0].ScheduleTemplate__c != null) {
+                List<ScheduleTemplate__c> templates = [
+                    SELECT ProgramWeek__c FROM ScheduleTemplate__c WHERE Id = :entryCheck[0].ScheduleTemplate__c LIMIT 1
+                ];
+                if (!templates.isEmpty() && templates[0].ProgramWeek__c != null) {
+                    ScheduleService.assertCoachAccess(templates[0].ProgramWeek__c);
+                }
             }
         }
         ScheduleService.deleteScheduleEntry(id);
