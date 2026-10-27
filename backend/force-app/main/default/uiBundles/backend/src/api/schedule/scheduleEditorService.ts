@@ -536,7 +536,7 @@ export async function deleteScheduleTemplate(id: string): Promise<void> {
 
 export async function getScheduleTemplate(templateId: string): Promise<{ plan: { id: string; name: string; status: string | null; notes: string | null }; entries: ScheduleEntry[] }> {
   const params = new URLSearchParams();
-  params.set("action", "template");
+  params.set("action", "getTemplate");
   params.set("templateId", templateId);
   const raw = await request<RawDetailResponse>(`${EDIT_PATH}?${params.toString()}`, {
     method: "GET",

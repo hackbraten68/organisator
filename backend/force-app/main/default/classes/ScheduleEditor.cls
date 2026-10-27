@@ -229,7 +229,7 @@ global with sharing class ScheduleEditor {
             } else if (action == 'templates') {
                 String programId = RestContext.request == null ? null : RestContext.request.params.get('programId');
                 getTemplates(resp, programId);
-            } else if (action == 'template') {
+            } else if (action == 'getTemplate') {
                 String templateId = RestContext.request == null ? null : RestContext.request.params.get('templateId');
                 getTemplate(resp, templateId);
             } else if (action == 'learningPathOptions') {
