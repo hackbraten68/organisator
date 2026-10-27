@@ -135,6 +135,9 @@ export default function SchedulePlanDialog({
         };
         if (isEdit && plan) {
           input.id = plan.id;
+          input.scopeType = scopeType;
+          input.participantGroupId = scopeType === "Group" ? participantGroupId : "";
+          input.participantId = scopeType === "Individual" ? participantId : "";
         } else {
           input.participantGroupId = scopeType === "Group" ? participantGroupId : null;
           input.participantId = scopeType === "Individual" ? participantId : null;
@@ -169,8 +172,12 @@ export default function SchedulePlanDialog({
             <Label>Geltungsbereich</Label>
             <Select
               value={scopeType}
-              onValueChange={(v) => setScopeType(v as ScheduleScope)}
-              disabled={isEdit}
+              onValueChange={(v) => {
+                const newScope = v as ScheduleScope;
+                setScopeType(newScope);
+                if (newScope !== "Group") setParticipantGroupId("");
+                if (newScope !== "Individual") setParticipantId("");
+              }}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -208,7 +215,6 @@ export default function SchedulePlanDialog({
               <Select
                 value={participantGroupId}
                 onValueChange={setParticipantGroupId}
-                disabled={isEdit}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Gruppe wählen" />
@@ -229,7 +235,6 @@ export default function SchedulePlanDialog({
               <Select
                 value={participantId}
                 onValueChange={setParticipantId}
-                disabled={isEdit}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Teilnehmer wählen" />
@@ -252,7 +257,6 @@ export default function SchedulePlanDialog({
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                disabled={isEdit}
               />
             </div>
             <div>
