@@ -37,6 +37,11 @@ global with sharing class ScheduleTemplateService {
         global String description;
     }
 
+    global class DuplicateTemplateRequest {
+        global String templateId;
+        global String name;
+    }
+
     public static WeeklySchedule__c applyTemplate(ApplyRequest request) {
         if (request == null || String.isBlank(request.templateId)) {
             throw badRequest('templateId ist erforderlich.');
@@ -319,6 +324,91 @@ global with sharing class ScheduleTemplateService {
                 Database.rollback(sp);
                 throw new ScheduleTemplateServiceException(500, CODE_AUDIT_FAILED, 'Das Audit-Event konnte nicht geschrieben werden; die Aenderung wurde zurueckgerollt.');
             }
+        } catch (ScheduleTemplateServiceException e) {
+            throw e;
+        } catch (Exception e) {
+            Database.rollback(sp);
+            throw new ScheduleTemplateServiceException(500, CODE_INTERNAL, e.getMessage());
+        }
+    }
+
+    public static ScheduleTemplate__c duplicateTemplate(DuplicateTemplateRequest request) {
+        if (request == null || String.isBlank(request.templateId)) {
+            throw badRequest('templateId ist erforderlich.');
+        }
+
+        List<ScheduleTemplate__c> originals = [
+            SELECT Id, Name, Status__c, Program__c, Module__c, ProgramWeek__c, Description__c
+            FROM ScheduleTemplate__c
+            WHERE Id = :request.templateId
+            LIMIT 1
+        ];
+        if (originals.isEmpty()) {
+            throw notFound('Die Vorlage existiert nicht.');
+        }
+        ScheduleTemplate__c original = originals[0];
+
+        String newName = String.isBlank(request.name) ? 'Kopie von ' + original.Name : request.name;
+
+        List<ScheduleEntry__c> entries = [
+            SELECT Id, Name, Description__c, EntryKind__c, Type__c, IsRequired__c,
+                   DayOfWeek__c, StartTime__c, EndTime__c, DurationMinutes__c,
+                   TargetType__c, ParticipantGroup__c, Participant__c, Coach_Profile__c,
+                   Location__c, MeetingLink__c, Order__c, DeviationReason__c, Notes__c
+            FROM ScheduleEntry__c
+            WHERE ScheduleTemplate__c = :original.Id
+        ];
+
+        Savepoint sp = Database.setSavepoint();
+        try {
+            ScheduleTemplate__c copy = new ScheduleTemplate__c(
+                Name = newName,
+                ProgramWeek__c = original.ProgramWeek__c,
+                Program__c = original.Program__c,
+                Module__c = original.Module__c,
+                Description__c = original.Description__c,
+                Status__c = original.Status__c
+            );
+            insert copy;
+
+            List<ScheduleEntry__c> entryCopies = new List<ScheduleEntry__c>();
+            for (ScheduleEntry__c src : entries) {
+                ScheduleEntry__c c = new ScheduleEntry__c(
+                    Name = src.Name,
+                    ScheduleTemplate__c = copy.Id,
+                    Description__c = src.Description__c,
+                    EntryKind__c = src.EntryKind__c,
+                    Type__c = src.Type__c,
+                    IsRequired__c = src.IsRequired__c,
+                    DayOfWeek__c = src.DayOfWeek__c,
+                    StartTime__c = src.StartTime__c,
+                    EndTime__c = src.EndTime__c,
+                    DurationMinutes__c = src.DurationMinutes__c,
+                    TargetType__c = src.TargetType__c,
+                    ParticipantGroup__c = null,
+                    Participant__c = null,
+                    Coach_Profile__c = src.Coach_Profile__c,
+                    Location__c = src.Location__c,
+                    MeetingLink__c = src.MeetingLink__c,
+                    Order__c = src.Order__c,
+                    DeviationReason__c = src.DeviationReason__c,
+                    Notes__c = src.Notes__c,
+                    IsCustomized__c = false
+                );
+                entryCopies.add(c);
+            }
+            if (!entryCopies.isEmpty()) {
+                insert entryCopies;
+            }
+
+            AuditEvent__c audit = buildAudit('schedule.template_duplicated', 'ScheduleTemplate__c', copy.Id, null);
+            Database.SaveResult auditResult = Database.insert(audit, false);
+            if (!auditResult.isSuccess()) {
+                Database.rollback(sp);
+                throw new ScheduleTemplateServiceException(500, CODE_AUDIT_FAILED, 'Das Audit-Event konnte nicht geschrieben werden; die Aenderung wurde zurueckgerollt.');
+            }
+
+            return copy;
         } catch (ScheduleTemplateServiceException e) {
             throw e;
         } catch (Exception e) {

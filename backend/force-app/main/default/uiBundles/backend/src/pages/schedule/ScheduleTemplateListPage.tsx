@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Copy, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/sonner";
-import { deleteScheduleTemplate } from "@/api/schedule/scheduleEditorService";
+import { deleteScheduleTemplate, duplicateScheduleTemplate } from "@/api/schedule/scheduleEditorService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { listScheduleTemplates } from "@/api/schedule/scheduleEditorService";
@@ -102,6 +102,22 @@ export default function ScheduleTemplateListPage() {
                   onClick={() => navigate(`/wochenplan/vorlagen/${t.id}`)}
                 >
                   Öffnen
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  title="Duplizieren"
+                  onClick={async () => {
+                    try {
+                      await duplicateScheduleTemplate(t.id, `Kopie von ${t.name}`);
+                      toast.success("Vorlage dupliziert.");
+                      setReload((v) => v + 1);
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Fehler.");
+                    }
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
                 </Button>
                 <Button
                   size="sm"

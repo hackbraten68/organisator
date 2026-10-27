@@ -161,6 +161,11 @@ global with sharing class ScheduleEditor {
         global String notes;
     }
 
+    global class DuplicateTemplateInput {
+        global String templateId;
+        global String name;
+    }
+
     global class SaveAsTemplateInput {
         global String weeklyScheduleId;
         global String name;
@@ -279,6 +284,8 @@ global with sharing class ScheduleEditor {
                 saveAsTemplate(resp, payload);
             } else if (action == 'deleteTemplate') {
                 deleteTemplate(resp, payload);
+            } else if (action == 'duplicateTemplate') {
+                duplicateTemplate(resp, payload);
             } else {
                 throw badRequest('Unbekannte Aktion.');
             }
@@ -1092,6 +1099,22 @@ global with sharing class ScheduleEditor {
         ScheduleTemplate__c template = ScheduleTemplateService.saveAsTemplate(req);
         resp.id = template.Id;
         resp.status = template.Status__c;
+        resp.success = true;
+    }
+
+    private static void duplicateTemplate(MutationResponse resp, Map<String, Object> payload) {
+        DuplicateTemplateInput input = (DuplicateTemplateInput) JSON.deserialize(JSON.serialize(payload), DuplicateTemplateInput.class);
+        if (String.isBlank(input.templateId)) {
+            throw badRequest('templateId ist erforderlich.');
+        }
+
+        ScheduleTemplateService.DuplicateTemplateRequest req = new ScheduleTemplateService.DuplicateTemplateRequest();
+        req.templateId = input.templateId;
+        req.name = input.name;
+
+        ScheduleTemplate__c copy = ScheduleTemplateService.duplicateTemplate(req);
+        resp.id = copy.Id;
+        resp.status = copy.Status__c;
         resp.success = true;
     }
 

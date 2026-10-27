@@ -511,6 +511,18 @@ export async function saveAsTemplate(input: {
   return { id: raw.id, status: raw.status ?? "Active" };
 }
 
+export async function duplicateScheduleTemplate(id: string, name?: string): Promise<{ id: string; status: string }> {
+  const raw = await request<RawMutationResponse>(EDIT_PATH, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ action: "duplicateTemplate", templateId: id, name }),
+  });
+  if (!raw.success || !raw.id) {
+    throw new ScheduleEditorError(raw.code ?? "ERROR", raw.message ?? "Fehler", 400);
+  }
+  return { id: raw.id, status: raw.status ?? "Active" };
+}
+
 export async function deleteScheduleTemplate(id: string): Promise<void> {
   const raw = await request<RawMutationResponse>(EDIT_PATH, {
     method: "POST",
