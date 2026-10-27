@@ -310,10 +310,11 @@ export async function getSchedulePlan(planId: string): Promise<ScheduleDetailRes
   };
 }
 
-export async function getScheduleOptions(programId: string): Promise<ScheduleOptions> {
+export async function getScheduleOptions(programId: string, planId?: string): Promise<ScheduleOptions> {
   const params = new URLSearchParams();
   params.set("action", "options");
-  params.set("programId", programId);
+  if (programId) params.set("programId", programId);
+  if (planId) params.set("planId", planId);
   const raw = await request<RawOptionsResponse>(`${EDIT_PATH}?${params.toString()}`, {
     method: "GET",
     headers: { Accept: "application/json" },

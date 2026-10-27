@@ -62,10 +62,10 @@ export default function SchedulePlanDialog({
 
   useEffect(() => {
     if (!open) return;
-    getScheduleOptions(programId)
+    getScheduleOptions(programId, isEdit && plan ? plan.id : undefined)
       .then(setOptions)
       .catch(() => setOptions(null));
-  }, [open, programId]);
+  }, [open, programId, plan?.id]);
 
   useEffect(() => {
     if (!open) return;

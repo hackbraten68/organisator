@@ -219,7 +219,8 @@ global with sharing class ScheduleEditor {
                 getPlan(resp, planId);
             } else if (action == 'options') {
                 String programId = RestContext.request == null ? null : RestContext.request.params.get('programId');
-                getOptions(resp, programId);
+                String planId = RestContext.request == null ? null : RestContext.request.params.get('planId');
+                getOptions(resp, programId, planId);
             } else if (action == 'templates') {
                 String programId = RestContext.request == null ? null : RestContext.request.params.get('programId');
                 getTemplates(resp, programId);
@@ -456,8 +457,19 @@ global with sharing class ScheduleEditor {
         resp.entries = entries;
     }
 
-    private static void getOptions(EditorResponse resp, String programId) {
-        assertProgramAccess(programId);
+    private static void getOptions(EditorResponse resp, String programId, String planId) {
+        if (String.isBlank(programId) && String.isNotBlank(planId)) {
+            List<WeeklySchedule__c> plans = [
+                SELECT ProgramWeek__r.Program__c FROM WeeklySchedule__c WHERE Id = :planId LIMIT 1
+            ];
+            if (!plans.isEmpty() && plans[0].ProgramWeek__r != null) {
+                programId = plans[0].ProgramWeek__r.Program__c;
+            }
+        }
+
+        if (String.isNotBlank(programId)) {
+            assertProgramAccess(programId);
+        }
 
         OptionsView ov = new OptionsView();
         List<CoachView> coaches = new List<CoachView>();
