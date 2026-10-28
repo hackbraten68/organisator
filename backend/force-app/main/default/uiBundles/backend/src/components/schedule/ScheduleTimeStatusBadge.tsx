@@ -7,7 +7,13 @@ export function timeStatus(plan: { startDate: string | null; endDate: string | n
   const today = new Date().toISOString().slice(0, 10);
   if (!plan.startDate) return "past";
   const start = plan.startDate;
-  const end = plan.endDate ?? start;
+  // A weekly plan spans Mon-Sun; if no explicit end date, assume start + 6 days
+  let end = plan.endDate;
+  if (!end) {
+    const d = new Date(start + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() + 6);
+    end = d.toISOString().slice(0, 10);
+  }
   if (today < start) return "future";
   if (today > end) return "past";
   return "current";
