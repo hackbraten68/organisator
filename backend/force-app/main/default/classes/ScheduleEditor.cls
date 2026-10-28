@@ -54,6 +54,7 @@ global with sharing class ScheduleEditor {
     global class ProgramView {
         global String id;
         global String name;
+        global Integer durationWeeks;
     }
 
     global class WeekView {
@@ -343,17 +344,18 @@ global with sharing class ScheduleEditor {
     private static void listBoard(EditorResponse resp, String programId) {
         List<ProgramView> programs = new List<ProgramView>();
         if (ProgramCoachService.isStaffUser(UserInfo.getUserId())) {
-            for (Program__c program : [SELECT Id, Name FROM Program__c ORDER BY Name]) {
+            for (Program__c program : [SELECT Id, Name, DurationWeeks__c FROM Program__c ORDER BY Name]) {
                 ProgramView pv = new ProgramView();
                 pv.id = program.Id;
                 pv.name = program.Name;
+                pv.durationWeeks = program.DurationWeeks__c == null ? null : (Integer) program.DurationWeeks__c;
                 programs.add(pv);
             }
         } else {
             Id profileId = ProgramCoachService.resolveCoachProfileId(UserInfo.getUserId());
             if (profileId != null) {
                 for (ProgramCoach__c pc : [
-                    SELECT Program__c, Program__r.Name
+                    SELECT Program__c, Program__r.Name, Program__r.DurationWeeks__c
                     FROM ProgramCoach__c
                     WHERE Coach_Profile__c = :profileId
                 ]) {
@@ -361,6 +363,7 @@ global with sharing class ScheduleEditor {
                         ProgramView pv = new ProgramView();
                         pv.id = pc.Program__c;
                         pv.name = pc.Program__r.Name;
+                        pv.durationWeeks = pc.Program__r.DurationWeeks__c == null ? null : (Integer) pc.Program__r.DurationWeeks__c;
                         programs.add(pv);
                     }
                 }

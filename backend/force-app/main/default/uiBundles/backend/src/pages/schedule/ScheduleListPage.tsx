@@ -128,7 +128,7 @@ export default function ScheduleListPage() {
     return <div className="p-6 text-destructive">{error}</div>;
   }
 
-  const totalWeeks = 12; // TODO: from program.DurationWeeks__c
+  const totalWeeks = programs.find((p) => p.id === effectiveProgramId)?.durationWeeks ?? null;
 
   return (
     <div className="p-6 space-y-6">
@@ -211,7 +211,7 @@ export default function ScheduleListPage() {
             <div className="flex gap-4">
               <span>Programm: {programs.find((p) => p.id === effectiveProgramId)?.name ?? "–"}</span>
               <span>
-                Fortschritt: {participantProgress.get(selectedParticipantId)?.published ?? 0} / {totalWeeks} Wochen veröffentlicht
+                Fortschritt: {participantProgress.get(selectedParticipantId)?.published ?? 0} / {totalWeeks ?? "–"} Wochen veröffentlicht
               </span>
               <span>
                 ({participantProgress.get(selectedParticipantId)?.planned ?? 0} Entwürfe)

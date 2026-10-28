@@ -40,6 +40,7 @@ export class ScheduleEditorError extends Error {
 interface RawProgram {
   id?: string | null;
   name?: string | null;
+  durationWeeks?: number | null;
 }
 
 interface RawPlan {
@@ -288,7 +289,7 @@ export async function listScheduleBoard(programId?: string): Promise<ScheduleLis
     throw new ScheduleEditorError(raw.code ?? "ERROR", raw.message ?? "Fehler", 400);
   }
   return {
-    programs: (raw.programs ?? []).map((p) => ({ id: p.id ?? "", name: p.name ?? "" })),
+    programs: (raw.programs ?? []).map((p) => ({ id: p.id ?? "", name: p.name ?? "", durationWeeks: p.durationWeeks ?? null })),
     weeks: (raw.weeks ?? []).map(toWeek),
   };
 }

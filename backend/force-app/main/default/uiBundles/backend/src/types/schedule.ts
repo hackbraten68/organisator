@@ -5,6 +5,7 @@ export type EntryKind = 'Aktivität' | 'Aufgabe';
 export interface ScheduleProgram {
   id: string;
   name: string;
+  durationWeeks?: number | null;
 }
 
 export interface SchedulePlan {
