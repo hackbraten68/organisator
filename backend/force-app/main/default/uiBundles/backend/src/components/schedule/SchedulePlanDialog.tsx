@@ -32,6 +32,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   programWeekId: string;
   programId: string;
+  defaultScope?: ScheduleScope;
   defaultParticipantId?: string | null;
   plan: SchedulePlan | null;
   existingScopes: ScheduleScope[];
@@ -43,6 +44,7 @@ export default function SchedulePlanDialog({
   onOpenChange,
   programWeekId,
   programId,
+  defaultScope,
   defaultParticipantId,
   plan,
   existingScopes,
@@ -67,7 +69,7 @@ export default function SchedulePlanDialog({
     getScheduleOptions(programId, isEdit && plan ? plan.id : undefined)
       .then(setOptions)
       .catch(() => setOptions(null));
-  }, [open, programId, plan?.id, defaultParticipantId]);
+  }, [open, programId, plan?.id, defaultParticipantId, defaultScope]);
 
   useEffect(() => {
     if (!open) return;
@@ -83,7 +85,7 @@ export default function SchedulePlanDialog({
       setTemplateId("");
     } else {
       setName("");
-      setScopeType("Course");
+      setScopeType(defaultScope ?? "Course");
       setParticipantGroupId("");
       setParticipantId("");
       setStartDate(new Date().toISOString().slice(0, 10));
@@ -193,7 +195,7 @@ export default function SchedulePlanDialog({
               </SelectContent>
             </Select>
           </div>
-          {scopeType === "Course" && !isEdit && (
+          {(scopeType === "Course" || scopeType === "Individual") && !isEdit && (
             <div>
               <Label>Vorlage (optional)</Label>
               <Select value={templateId} onValueChange={setTemplateId}>
