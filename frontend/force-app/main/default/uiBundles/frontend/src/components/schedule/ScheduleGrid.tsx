@@ -177,10 +177,10 @@ export default function ScheduleGrid({
         >
           <TableHeader className="print:table-header-group">
             <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
-              <TableHead className="w-max whitespace-nowrap border-r border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
+              <TableHead className="w-max whitespace-nowrap border-r border-border px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
                 Zeitraum
               </TableHead>
-              <TableHead className="w-max whitespace-nowrap border-r border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
+              <TableHead className="w-max whitespace-nowrap border-r border-border px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
                 Dauer
               </TableHead>
               {days.map((day) => (
@@ -209,7 +209,7 @@ export default function ScheduleGrid({
                 <TableRow key={slot.id} className="week-plan-row align-top hover:bg-transparent">
                   <th
                     scope="row"
-                    className="border-r border-border bg-muted/30 dark:bg-muted/40 px-3 py-3 text-left align-top"
+                    className="border-r border-border bg-muted/30 dark:bg-muted/40 px-2 py-3 text-left align-top"
                   >
                     <span className="block font-semibold text-foreground">{slot.start}</span>
                     <span className="block text-xs text-muted-foreground">bis {slot.end}</span>
@@ -231,7 +231,7 @@ export default function ScheduleGrid({
                       </Button>
                     )}
                   </th>
-                  <TableCell className="border-r border-border bg-muted/20 dark:bg-muted/40 px-3 py-3 align-top text-xs text-muted-foreground">
+                  <TableCell className="border-r border-border bg-muted/20 dark:bg-muted/40 px-2 py-3 align-top text-xs text-muted-foreground">
                     {slotDurationMinutes(slot)} Min.
                   </TableCell>
 
