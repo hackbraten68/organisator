@@ -170,29 +170,39 @@ export default function ScheduleGrid({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
+      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
         <Table
           aria-label="Wochenplan-Raster"
-          className="week-plan-table w-full min-w-[1120px] table-fixed border-collapse text-sm print:min-w-0 print:text-[8pt]"
+          className="week-plan-table w-full min-w-[1180px] table-fixed border-collapse text-sm print:min-w-0 print:text-[8pt]"
         >
+          <colgroup>
+            <col className="w-[112px]" />
+            <col className="w-[72px]" />
+
+            {days.map((day) => (
+              <col key={day} />
+            ))}
+
+            {showFormatColumn && <col className="w-[168px]" />}
+          </colgroup>
           <TableHeader className="print:table-header-group">
             <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
-              <TableHead className="w-auto max-w-max whitespace-nowrap border-r border-border px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
+              <TableHead className="whitespace-nowrap border-r border-border px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
                 Zeitraum
               </TableHead>
-              <TableHead className="w-auto max-w-max whitespace-nowrap border-r border-border px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
+              <TableHead className="whitespace-nowrap border-r border-border px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
                 Dauer
               </TableHead>
               {days.map((day) => (
                 <TableHead
                   key={day}
-                  className="min-w-[180px] border-r border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground"
+                  className="border-r border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground"
                 >
                   {GRID_DAY_LABELS[day] ?? day}
                 </TableHead>
               ))}
               {showFormatColumn && (
-                <TableHead className="min-w-[140px] border-r border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground last:border-r-0">
+                <TableHead className="border-r border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground last:border-r-0">
                   Format / AZAV-Zuordnung
                 </TableHead>
               )}
