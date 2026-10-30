@@ -53,6 +53,8 @@ global without sharing class ParticipantPortalWeeklySchedule {
         public String meetingLink;
         public Integer order;
         public Boolean isCustomized;
+        public String timeSlotId;
+        public String category;
     }
 
     global class WeeklyScheduleResponse {
@@ -63,6 +65,7 @@ global without sharing class ParticipantPortalWeeklySchedule {
         public ProgramWeekView programWeek;
         public List<WeekOption> weeks;
         public List<EntryView> entries;
+        public String gridConfig;
         public String code;
         public String message;
     }
@@ -131,7 +134,8 @@ global without sharing class ParticipantPortalWeeklySchedule {
         }
         List<WeeklySchedule__c> allInstances = [
             SELECT Id, Name, ScopeType__c, Participant__c, ParticipantGroup__c,
-                   StartDate__c, EndDate__c, Status__c, ProgramWeek__c, MergeMode__c
+                   StartDate__c, EndDate__c, Status__c, ProgramWeek__c, MergeMode__c,
+                   GridConfig__c
             FROM WeeklySchedule__c
             WHERE Status__c = 'Published'
               AND ProgramWeek__c IN :programWeekIds
@@ -196,7 +200,8 @@ global without sharing class ParticipantPortalWeeklySchedule {
                 SELECT Id, Name, WeeklySchedule__c, Description__c, EntryKind__c, Type__c, IsRequired__c,
                        DayOfWeek__c, Date__c, StartTime__c, EndTime__c, DurationMinutes__c,
                        TargetType__c, ParticipantGroup__c, Participant__c, Coach_Profile__c,
-                       Location__c, MeetingLink__c, Order__c, IsCustomized__c
+                       Location__c, MeetingLink__c, Order__c, IsCustomized__c,
+                       TimeSlotId__c, Category__c
                 FROM ScheduleEntry__c
                 WHERE WeeklySchedule__c IN :applicableIds
                 ]) {
@@ -286,6 +291,7 @@ global without sharing class ParticipantPortalWeeklySchedule {
         pw.name = repPw2 == null ? null : repPw2.Name;
         pw.weekNumber = repPw2 == null ? null : (Integer) repPw2.Number__c;
         resp.programWeek = pw;
+        resp.gridConfig = rep.GridConfig__c;
 
         // Check for Replace-mode Individual plan (full replacement).
         WeeklySchedule__c replaceIndividual = null;
@@ -447,6 +453,8 @@ global without sharing class ParticipantPortalWeeklySchedule {
         v.meetingLink = e.MeetingLink__c;
         v.order = e.Order__c == null ? null : Integer.valueOf(e.Order__c);
         v.isCustomized = e.IsCustomized__c;
+        v.timeSlotId = e.TimeSlotId__c;
+        v.category = e.Category__c;
         return v;
     }
 
@@ -501,11 +509,11 @@ global without sharing class ParticipantPortalWeeklySchedule {
         // runs in system mode for FLS; the gate below stays fail-closed for the
         // fields where the describe result is reliable.
         Map<String, Schema.SObjectField> ws = Schema.sObjectType.WeeklySchedule__c.fields.getMap();
-        for (String f : new String[]{'Participant__c','ParticipantGroup__c','EndDate__c'}) {
+        for (String f : new String[]{'Participant__c','ParticipantGroup__c','EndDate__c','GridConfig__c'}) {
             if (ws.get(f) == null || !ws.get(f).getDescribe().isAccessible()) throw identityError(500, 'INTERNAL_ERROR', 'Schedule data unavailable.');
         }
         Map<String, Schema.SObjectField> se = Schema.sObjectType.ScheduleEntry__c.fields.getMap();
-        for (String f : new String[]{'WeeklySchedule__c','Description__c','Date__c','StartTime__c','EndTime__c','DurationMinutes__c','ParticipantGroup__c','Participant__c','Coach_Profile__c','Location__c','MeetingLink__c','Order__c'}) {
+        for (String f : new String[]{'WeeklySchedule__c','Description__c','Date__c','StartTime__c','EndTime__c','DurationMinutes__c','ParticipantGroup__c','Participant__c','Coach_Profile__c','Location__c','MeetingLink__c','Order__c','TimeSlotId__c','Category__c'}) {
             if (se.get(f) == null || !se.get(f).getDescribe().isAccessible()) throw identityError(500, 'INTERNAL_ERROR', 'Schedule data unavailable.');
         }
         Map<String, Schema.SObjectField> pw = Schema.sObjectType.ProgramWeek__c.fields.getMap();

@@ -83,7 +83,7 @@ describe("WeeklySchedule page", () => {
 		await waitFor(() => expect(screen.getByText("Angewendet:")).toBeInTheDocument());
 		expect(screen.getAllByText("Kurs")).toHaveLength(1);
 		expect(screen.getAllByText("Gruppe")).toHaveLength(1);
-		expect(screen.getAllByText("Individuell")).toHaveLength(2);
+		expect(screen.getAllByText("Individuell")).toHaveLength(1);
 	});
 
 	it("zeigt leere Woche", async () => {

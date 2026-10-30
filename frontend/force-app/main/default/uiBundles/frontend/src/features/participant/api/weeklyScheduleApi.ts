@@ -42,6 +42,8 @@ export interface PortalScheduleEntry {
 	meetingLink: string | null;
 	order: number | null;
 	isCustomized: boolean | null;
+	timeSlotId: string | null;
+	category: string | null;
 }
 
 /** Mirrors ParticipantPortalWeeklySchedule.WeeklyScheduleResponse. */
@@ -53,6 +55,7 @@ export interface PortalWeeklySchedule {
 	programWeek: PortalProgramWeek | null;
 	weeks: PortalWeekOption[] | null;
 	entries: PortalScheduleEntry[] | null;
+	gridConfig: string | null;
 	code: string | null;
 	message: string | null;
 }

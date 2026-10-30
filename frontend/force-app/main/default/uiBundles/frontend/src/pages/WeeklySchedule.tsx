@@ -9,74 +9,22 @@ import {
 	fetchWeeklySchedule,
 	WeeklyScheduleError,
 	type PortalWeeklySchedule,
-	type PortalScheduleEntry,
-} from "../features/participant/api/weeklyScheduleApi";
+	} from "../features/participant/api/weeklyScheduleApi";
 import { StatusAlert } from "../components/alerts/status-alert";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-
-const DAY_LABELS: Record<string, string> = {
-	Monday: "Montag",
-	Tuesday: "Dienstag",
-	Wednesday: "Mittwoch",
-	Thursday: "Donnerstag",
-	Friday: "Freitag",
-	Saturday: "Samstag",
-	Sunday: "Sonntag",
-};
-
-const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-
-const TYPE_LABELS: Record<string, string> = {
-	Einzelcoaching: "Einzelcoaching",
-	Gruppencoaching: "Gruppencoaching",
-	Feedback: "Feedback",
-	"Projekt-Kick-off": "Projekt-Kick-off",
-	Workshop: "Workshop",
-	Selbstlernphase: "Selbstlernphase",
-	Projektarbeit: "Projektarbeit",
-	Sonstiges: "Sonstiges",
-};
-
-const ENTRY_KIND_LABELS: Record<string, string> = {
-	Aktivität: "Aktivität",
-	Aufgabe: "Aufgabe",
-};
-
-const LOCATION_LABELS: Record<string, string> = {
-	Discord: "Discord",
-	Zoom: "Zoom",
-	Teams: "MS Teams",
-	External: "Extern",
-};
+import ScheduleGrid from "../components/schedule/ScheduleGrid";
+import { normalizeGridConfig } from "../features/schedule-grid/gridConfig";
+import type { ScheduleEntry } from "../types/schedule";
+import type { EntryCategory, ScheduleScope } from "../types/schedule";
 
 const SCOPE_LABELS: Record<string, string> = {
 	Course: "Kurs",
 	Group: "Gruppe",
 	Individual: "Individuell",
 };
-
-function formatTime(iso: string | null): string {
-	if (iso == null) return "—";
-	// The endpoint returns "HH:mm:ss.SSSZ"; keep HH:mm.
-	return iso.slice(0, 5);
-}
-
-function groupByDay(entries: PortalScheduleEntry[]): Map<string, PortalScheduleEntry[]> {
-	const map = new Map<string, PortalScheduleEntry[]>();
-	for (const day of DAY_ORDER) map.set(day, []);
-	for (const e of entries) {
-		const day = e.dayOfWeek ?? "Monday";
-		if (!map.has(day)) map.set(day, []);
-		map.get(day)!.push(e);
-	}
-	for (const day of DAY_ORDER) {
-		map.get(day)!.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-	}
-	return map;
-}
 
 export default function WeeklySchedule() {
 	const [data, setData] = useState<PortalWeeklySchedule | null>(null);
@@ -130,7 +78,32 @@ export default function WeeklySchedule() {
 	const canNext = currentIndex >= 0 && currentIndex < weeks.length - 1;
 
 	const entries = data?.entries ?? [];
-	const byDay = groupByDay(entries);
+	const gridConfig = normalizeGridConfig(data?.gridConfig ?? null);
+	const gridEntries: ScheduleEntry[] = entries.map((entry, index) => ({
+		id: entry.key ?? String(index),
+		title: entry.title ?? entry.type ?? "Eintrag",
+		description: entry.description,
+		entryKind: (entry.entryKind ?? "Aktivität") as ScheduleEntry["entryKind"],
+		type: entry.type ?? "",
+		isRequired: entry.isRequired ?? false,
+		dayOfWeek: entry.dayOfWeek ?? "Monday",
+		startTime: entry.startTime,
+		endTime: entry.endTime,
+		durationMinutes: entry.durationMinutes,
+		targetType: (entry.targetType ?? "Course") as ScheduleScope,
+		participantGroupId: null,
+		participantId: null,
+		coachProfileId: null,
+		coachName: entry.coachName,
+		location: entry.location,
+		meetingLink: entry.meetingLink,
+		order: entry.order,
+		deviationReason: null,
+		notes: null,
+		isCustomized: entry.isCustomized ?? false,
+		timeSlotId: entry.timeSlotId,
+		category: (entry.category as EntryCategory) ?? null,
+	}));
 	const appliedScopes =
 		data?.appliedScopes && data.appliedScopes.length > 0
 			? data.appliedScopes
@@ -207,68 +180,11 @@ export default function WeeklySchedule() {
 								</p>
 							)}
 
-							<div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-								{DAY_ORDER.map((day) => {
-									const dayEntries = byDay.get(day) ?? [];
-									if (dayEntries.length === 0) return null;
-									return (
-										<Card key={day} className="border">
-											<CardHeader className="pb-2">
-												<CardTitle className="text-base">{DAY_LABELS[day]}</CardTitle>
-											</CardHeader>
-											<CardContent className="space-y-2">
-												{dayEntries.map((e) => (
-													<div
-														key={e.key}
-														className="rounded-md border p-2 text-sm"
-													>
-														<div className="flex items-center justify-between gap-2">
-															<span className="font-medium">
-																{e.title ?? TYPE_LABELS[e.type ?? ""] ?? e.type}
-															</span>
-															<div className="flex shrink-0 gap-1">
-																{e.sourceScope && (
-																	<Badge
-																		variant="secondary"
-																		className="text-xs"
-																		title="Herkunft des Eintrags"
-																	>
-																		{SCOPE_LABELS[e.sourceScope] ?? e.sourceScope}
-																	</Badge>
-																)}
-																{e.isRequired && (
-																	<Badge variant="outline" className="text-xs">Pflicht</Badge>
-																)}
-															</div>
-														</div>
-														{e.description && (
-															<p className="mt-1 text-xs text-muted-foreground">{e.description}</p>
-														)}
-														<div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-															{e.startTime && e.endTime && (
-																<span>{formatTime(e.startTime)} – {formatTime(e.endTime)}</span>
-															)}
-															{e.coachName && <span>Coach: {e.coachName}</span>}
-															{e.location && <span>{LOCATION_LABELS[e.location] ?? e.location}</span>}
-															{e.entryKind && <span>{ENTRY_KIND_LABELS[e.entryKind] ?? e.entryKind}</span>}
-														</div>
-														{e.meetingLink && (
-															<a
-																href={e.meetingLink}
-																target="_blank"
-																rel="noopener noreferrer"
-																className="mt-1 block text-xs text-blue-600 underline"
-															>
-																Meeting-Link
-															</a>
-														)}
-													</div>
-												))}
-											</CardContent>
-										</Card>
-									);
-								})}
-							</div>
+							{entries.length > 0 && (
+								<div className="overflow-x-auto">
+									<ScheduleGrid config={gridConfig} entries={gridEntries} />
+								</div>
+							)}
 						</>
 					)}
 				</CardContent>

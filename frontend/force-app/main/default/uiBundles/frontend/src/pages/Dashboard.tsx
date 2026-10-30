@@ -8,6 +8,10 @@ import {
 	AppointmentError,
 	type PortalAppointment,
 } from "../features/participant/api/appointmentsApi";
+import {
+	fetchWeeklySchedule,
+	type PortalScheduleEntry,
+} from "../features/participant/api/weeklyScheduleApi";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Skeleton } from "../components/ui/skeleton";
@@ -68,6 +72,7 @@ function formatDateTime(iso: string | null): string {
 export default function Dashboard() {
 	const { me } = useParticipant();
 	const [next, setNext] = useState<PortalAppointment | null | undefined>(undefined);
+	const [todayEntries, setTodayEntries] = useState<PortalScheduleEntry[] | undefined>(undefined);
 
 	// `undefined` is load-in-progress, `null` is loaded-and-nothing-upcoming.
 	// Collapsing the two would flash "kein Termin" on every page view.
@@ -89,6 +94,23 @@ export default function Dashboard() {
 				}
 			});
 
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	useEffect(() => {
+		let cancelled = false;
+		fetchWeeklySchedule()
+			.then((schedule) => {
+				if (cancelled) return;
+				const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+				const entries = (schedule.entries ?? []).filter((entry) => entry.dayOfWeek === today);
+				setTodayEntries(entries);
+			})
+			.catch(() => {
+				if (!cancelled) setTodayEntries([]);
+			});
 		return () => {
 			cancelled = true;
 		};
@@ -167,6 +189,47 @@ export default function Dashboard() {
 									className="inline-block text-sm underline underline-offset-4"
 								>
 									Alle Termine
+								</Link>
+							</CardContent>
+						</Card>
+					)}
+
+					{todayEntries === undefined ? (
+						<Card>
+							<CardHeader>
+								<CardTitle>Heute im Wochenplan</CardTitle>
+								<CardDescription>Anstehende Einträge für heute.</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-3">
+								<Skeleton className="h-5 w-48" />
+								<Skeleton className="h-5 w-64" />
+							</CardContent>
+						</Card>
+					) : todayEntries.length === 0 ? (
+						<DashboardPlaceholder
+							title="Heute im Wochenplan"
+							description="Für heute sind keine Einträge vorhanden."
+							rows={2}
+						/>
+					) : (
+						<Card>
+							<CardHeader>
+								<CardTitle>Heute im Wochenplan</CardTitle>
+								<CardDescription>Anstehende Einträge für heute.</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-3">
+								{todayEntries.map((entry) => (
+									<div key={entry.key} className="rounded-md border p-2 text-sm">
+										<div className="font-medium">{entry.title ?? entry.type}</div>
+										<div className="text-xs text-muted-foreground">
+											{entry.startTime ? entry.startTime.slice(0, 5) : "—"}
+											{entry.endTime ? ` – ${entry.endTime.slice(0, 5)}` : ""}
+											{entry.coachName ? ` · ${entry.coachName}` : ""}
+										</div>
+									</div>
+								))}
+								<Link to="/wochenplan" className="inline-block text-sm underline underline-offset-4">
+									Zum Wochenplan
 								</Link>
 							</CardContent>
 						</Card>
