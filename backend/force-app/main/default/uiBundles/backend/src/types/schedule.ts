@@ -1,6 +1,23 @@
 export type ScheduleScope = 'Course' | 'Group' | 'Individual';
 export type ScheduleStatus = 'Draft' | 'Published';
+export type ScheduleMergeMode = 'Overlay' | 'Replace';
 export type EntryKind = 'Aktivität' | 'Aufgabe';
+export type EntryCategory = 'live' | 'async' | 'break' | 'special';
+
+export interface GridSlot {
+  id: string;
+  start: string;
+  end: string;
+  durationMinutes: number;
+  units?: string | null;
+  format?: string | null;
+  azav?: string | null;
+}
+
+export interface GridConfig {
+  version: 1;
+  slots: GridSlot[];
+}
 
 export interface ScheduleProgram {
   id: string;
@@ -11,6 +28,7 @@ export interface ScheduleProgram {
 export interface SchedulePlan {
   id: string;
   name: string;
+  programId: string | null;
   programWeekId: string | null;
   scopeType: ScheduleScope;
   status: ScheduleStatus;
@@ -28,6 +46,8 @@ export interface SchedulePlan {
   publishedAt: string | null;
   publishedBy: string | null;
   coachName: string | null;
+  mergeMode: ScheduleMergeMode;
+  gridConfig: string | null;
 }
 
 export interface ScheduleWeek {
@@ -60,6 +80,8 @@ export interface ScheduleEntry {
   deviationReason: string | null;
   notes: string | null;
   isCustomized: boolean;
+  timeSlotId: string | null;
+  category: EntryCategory | null;
 }
 
 export interface ScheduleCoach {
@@ -147,6 +169,7 @@ export interface PlanInput {
   status?: ScheduleStatus;
   deviationReason?: string | null;
   notes?: string | null;
+  mergeMode?: ScheduleMergeMode | null;
 }
 
 export interface EntryInput {
@@ -172,4 +195,36 @@ export interface EntryInput {
   deviationReason?: string | null;
   notes?: string | null;
   isCustomized?: boolean;
+  timeSlotId?: string | null;
+  category?: EntryCategory | null;
+}
+
+export interface ImportTemplateEntry {
+  title: string;
+  description?: string | null;
+  entryKind: EntryKind;
+  type: string;
+  isRequired?: boolean;
+  dayOfWeek: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  durationMinutes?: number | null;
+  category?: EntryCategory | null;
+  timeSlotId?: string | null;
+  order?: number | null;
+  location?: string | null;
+  meetingLink?: string | null;
+  notes?: string | null;
+  deviationReason?: string | null;
+  coachName?: string | null;
+}
+
+export interface ImportTemplateInput {
+  name: string;
+  description?: string | null;
+  status?: string;
+  programId?: string | null;
+  programWeekId?: string | null;
+  gridConfig: string;
+  entries: ImportTemplateEntry[];
 }

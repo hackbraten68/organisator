@@ -52,6 +52,12 @@ const LOCATION_LABELS: Record<string, string> = {
 	External: "Extern",
 };
 
+const SCOPE_LABELS: Record<string, string> = {
+	Course: "Kurs",
+	Group: "Gruppe",
+	Individual: "Individuell",
+};
+
 function formatTime(iso: string | null): string {
 	if (iso == null) return "—";
 	// The endpoint returns "HH:mm:ss.SSSZ"; keep HH:mm.
@@ -125,6 +131,12 @@ export default function WeeklySchedule() {
 
 	const entries = data?.entries ?? [];
 	const byDay = groupByDay(entries);
+	const appliedScopes =
+		data?.appliedScopes && data.appliedScopes.length > 0
+			? data.appliedScopes
+			: data?.effectiveScope
+				? [data.effectiveScope]
+				: [];
 
 	return (
 		<div className="space-y-4">
@@ -168,14 +180,15 @@ export default function WeeklySchedule() {
 											{data.programWeek.weekNumber != null ? ` (Woche ${data.programWeek.weekNumber})` : ""}
 										</div>
 									)}
-									{data.effectiveScope && (
-										<Badge variant="secondary" className="mt-1">
-											{data.effectiveScope === "Individual"
-												? "Individueller Plan"
-												: data.effectiveScope === "Group"
-													? "Gruppenplan"
-													: "Kursplan"}
-										</Badge>
+									{appliedScopes.length > 0 && (
+										<div className="mt-1 flex flex-wrap items-center justify-center gap-1">
+											<span className="text-xs text-muted-foreground">Angewendet:</span>
+											{appliedScopes.map((scope) => (
+												<Badge key={scope} variant="secondary" className="text-xs">
+													{SCOPE_LABELS[scope] ?? scope}
+												</Badge>
+											))}
+										</div>
 									)}
 								</div>
 								<Button
@@ -213,9 +226,20 @@ export default function WeeklySchedule() {
 															<span className="font-medium">
 																{e.title ?? TYPE_LABELS[e.type ?? ""] ?? e.type}
 															</span>
-															{e.isRequired && (
-																<Badge variant="outline" className="text-xs">Pflicht</Badge>
-															)}
+															<div className="flex shrink-0 gap-1">
+																{e.sourceScope && (
+																	<Badge
+																		variant="secondary"
+																		className="text-xs"
+																		title="Herkunft des Eintrags"
+																	>
+																		{SCOPE_LABELS[e.sourceScope] ?? e.sourceScope}
+																	</Badge>
+																)}
+																{e.isRequired && (
+																	<Badge variant="outline" className="text-xs">Pflicht</Badge>
+																)}
+															</div>
 														</div>
 														{e.description && (
 															<p className="mt-1 text-xs text-muted-foreground">{e.description}</p>

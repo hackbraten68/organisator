@@ -22,6 +22,7 @@ const ScheduleEditorPage = lazy(() => import('./pages/schedule/ScheduleEditorPag
 const ScheduleTemplateListPage = lazy(() => import('./pages/schedule/ScheduleTemplateListPage'));
 const ScheduleTemplateDetailPage = lazy(() => import('./pages/schedule/ScheduleTemplateDetailPage'));
 const ScheduleTemplateEditorPage = lazy(() => import('./pages/schedule/ScheduleTemplateEditorPage'));
+const WeeklyPlanTemplatePage = lazy(() => import('./pages/schedule/WeeklyPlanTemplatePage'));
 
 function PageFallback() {
   return (
@@ -133,6 +134,14 @@ export const routes: RouteObject[] = [
         ],
       },
       {
+        path: 'wochenplan-vorlage',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <WeeklyPlanTemplatePage />
+          </Suspense>
+        ),
+      },
+      {
         path: 'wochenplan',
         children: [
           {
@@ -163,6 +172,12 @@ export const routes: RouteObject[] = [
                 <ScheduleTemplateListPage />
               </Suspense>
             ),
+            handle: {
+              showInNavigation: true,
+              label: 'Vorlagen',
+              icon: 'calendar',
+              parentPath: '/wochenplan',
+            } satisfies NavigationHandle,
           },
           {
             path: 'vorlagen/:templateId',

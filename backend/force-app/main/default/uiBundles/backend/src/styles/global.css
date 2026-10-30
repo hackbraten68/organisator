@@ -185,3 +185,51 @@
     @apply bg-background text-foreground;
   }
 }
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: auto !important;
+    background: white !important;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .week-plan-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 8pt;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .week-plan-table thead {
+    display: table-header-group;
+  }
+
+  .week-plan-table th,
+  .week-plan-table td {
+    padding: 4pt !important;
+  }
+
+  .week-plan-table tr,
+  .week-plan-row,
+  .week-plan-entry {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .week-plan-table caption {
+    caption-side: top;
+    text-align: left;
+  }
+}

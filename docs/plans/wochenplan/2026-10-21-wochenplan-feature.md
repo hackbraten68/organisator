@@ -944,3 +944,25 @@ Suite (AGENTS.md Z. 1112–1115).
    sind fachlich und betreffen nur die Servicelogik (S14–S18). F2 ist durch das Fachgespräch
    geklärt (K1).
 8. **Plan:** Phasen 0, 0b, 1–8 in Abschnitt 13, mit Testmatrix in Abschnitt 11.
+
+---
+
+## 15. Nachtrag 2026-10-29 — MergeMode im Editor und Portal
+
+`WeeklySchedule__c.MergeMode__c` ist jetzt durchgängig im Editor und in der
+Teilnehmeransicht sichtbar und steuerbar:
+
+- **`Overlay` (Default):** Der Individualplan ergänzt Kurs- und Gruppenplan. Einträge mit
+  gleichem `DayOfWeek__c | Order__c | EntryKind__c` überschreiben den bestehenden Slot;
+  Einträge ohne `Order__c` werden angehängt.
+- **`Replace`:** Der Individualplan ersetzt Kurs- und Gruppenplan vollständig. Im Portal sind
+  ausschließlich seine Einträge sichtbar, auch wenn der Plan leer ist.
+- Im Plan-Dialog wird für Individualpläne die fachliche Absicht abgefragt:
+  „Bestehenden Plan ergänzen“ erzeugt einen leeren `Overlay`-Plan, „Bestehenden Plan
+  vollständig ersetzen“ erlaubt optional eine Vorlagen-Kopie als `Replace`-Plan.
+- Der Lernpfad-Weg (`createIndividualPlanFromLearningPath`) bleibt bewusst bei `Replace`.
+- Das Portal liefert weiterhin `effectiveScope` (spezifischste angewendete Ebene), zeigt im
+  Header aber alle `appliedScopes` und pro Eintrag dessen `sourceScope`. Eine
+  `sourceScheduleId` wird nicht ausgeliefert.
+- Bestehende Pläne werden nicht migriert. Ein veröffentlichter Plan muss zum Ändern des
+  Merge-Modus zuerst zurückgezogen werden.

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>GridConfig__c</fullName>
+    <description>Versionierte JSON-Konfiguration der Zeitbloecke fuer den Raster-Editor</description>
+    <inlineHelpText>Versionierte JSON-Konfiguration der Zeitbloecke fuer den Raster-Editor</inlineHelpText>
+    <label>Rasterkonfiguration</label>
+    <length>32768</length>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>5</visibleLines>
+</CustomField>

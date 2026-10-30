@@ -29,6 +29,7 @@ const entry = (overrides: Record<string, unknown> = {}) => ({
 	endTime: "11:00:00.000Z",
 	durationMinutes: 60,
 	targetType: "Individual",
+	sourceScope: "Individual",
 	coachName: "Sabine Beispiel",
 	location: "Zoom",
 	meetingLink: "https://zoom.example.invalid/x",

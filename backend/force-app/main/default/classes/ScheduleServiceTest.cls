@@ -37,11 +37,50 @@ public class ScheduleServiceTest {
         System.assertNotEquals(null, created.Id, 'Wochenplan gespeichert');
         System.assertEquals('Course', created.ScopeType__c, 'ScopeType');
         System.assertEquals('Draft', created.Status__c, 'Status Default Draft');
+        System.assertEquals('Overlay', created.MergeMode__c, 'MergeMode Default Overlay');
 
         List<AuditEvent__c> audits = [SELECT Id, Domain__c, EventType__c FROM AuditEvent__c WHERE SubjectId__c = :String.valueOf(created.Id)];
         System.assertEquals(1, audits.size(), 'genau ein Audit-Event');
         System.assertEquals('schedule', audits[0].Domain__c, 'Domain schedule');
         System.assertEquals('schedule.created', audits[0].EventType__c, 'EventType schedule.created');
+    }
+
+    @IsTest
+    static void upsertWeeklyScheduleSpeichertMergeMode() {
+        ScheduleService.WeeklyScheduleRequest request = new ScheduleService.WeeklyScheduleRequest();
+        request.name = 'Individual Replace';
+        request.programWeekId = programWeekId();
+        request.scopeType = 'Individual';
+        request.participantId = participantId();
+        request.startDate = '2027-03-01';
+        request.mergeMode = 'Replace';
+
+        WeeklySchedule__c created = ScheduleService.upsertWeeklySchedule(request);
+        System.assertEquals('Replace', created.MergeMode__c, 'MergeMode Replace');
+
+        ScheduleService.WeeklyScheduleRequest updateRequest = new ScheduleService.WeeklyScheduleRequest();
+        updateRequest.id = created.Id;
+        updateRequest.mergeMode = 'Overlay';
+        WeeklySchedule__c updated = ScheduleService.upsertWeeklySchedule(updateRequest);
+        System.assertEquals('Overlay', updated.MergeMode__c, 'MergeMode update');
+    }
+
+    @IsTest
+    static void upsertWeeklyScheduleLehntUnbekanntenMergeModeAb() {
+        ScheduleService.WeeklyScheduleRequest request = new ScheduleService.WeeklyScheduleRequest();
+        request.name = 'Invalid Merge';
+        request.programWeekId = programWeekId();
+        request.scopeType = 'Course';
+        request.startDate = '2027-03-01';
+        request.mergeMode = 'Append';
+
+        try {
+            ScheduleService.upsertWeeklySchedule(request);
+            System.assert(false, 'unbekannter MergeMode muss abgelehnt werden');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(400, error.getStatusCode());
+            System.assertEquals('Unbekannter MergeMode__c.', error.getMessage());
+        }
     }
 
     @IsTest

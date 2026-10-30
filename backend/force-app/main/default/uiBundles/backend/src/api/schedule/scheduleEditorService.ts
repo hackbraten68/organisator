@@ -9,6 +9,10 @@ import type {
   EntryInput,
   LearningPathPlanOptions,
   CreateIndividualPlanResult,
+  ScheduleMergeMode,
+  ScheduleScope,
+  GridConfig,
+  ImportTemplateInput,
 } from "@/types/schedule";
 
 const EDIT_PATH = "/services/apexrest/schedule-editor";
@@ -46,6 +50,7 @@ interface RawProgram {
 interface RawPlan {
   id?: string | null;
   name?: string | null;
+  programId?: string | null;
   programWeekId?: string | null;
   scopeType?: string | null;
   status?: string | null;
@@ -63,6 +68,8 @@ interface RawPlan {
   publishedAt?: string | null;
   publishedBy?: string | null;
   coachName?: string | null;
+  mergeMode?: string | null;
+  gridConfig?: string | null;
 }
 
 interface RawWeek {
@@ -95,6 +102,8 @@ interface RawEntry {
   deviationReason?: string | null;
   notes?: string | null;
   isCustomized?: boolean | null;
+  timeSlotId?: string | null;
+  category?: string | null;
 }
 
 interface RawCoach {
@@ -190,6 +199,7 @@ function toPlan(raw: RawPlan): ScheduleDetailResponse["plan"] {
   return {
     id: raw.id ?? "",
     name: raw.name ?? "",
+    programId: raw.programId ?? null,
     programWeekId: raw.programWeekId ?? null,
     scopeType: (raw.scopeType ?? "Course") as ScheduleDetailResponse["plan"]["scopeType"],
     status: (raw.status ?? "Draft") as ScheduleDetailResponse["plan"]["status"],
@@ -207,6 +217,8 @@ function toPlan(raw: RawPlan): ScheduleDetailResponse["plan"] {
     publishedAt: raw.publishedAt ?? null,
     publishedBy: raw.publishedBy ?? null,
     coachName: raw.coachName ?? null,
+    mergeMode: (raw.mergeMode ?? "Overlay") as ScheduleMergeMode,
+    gridConfig: raw.gridConfig ?? null,
   };
 }
 
@@ -233,6 +245,8 @@ function toEntry(raw: RawEntry): ScheduleEntry {
     deviationReason: raw.deviationReason ?? null,
     notes: raw.notes ?? null,
     isCustomized: raw.isCustomized ?? false,
+    timeSlotId: raw.timeSlotId ?? null,
+    category: (raw.category as ScheduleEntry["category"]) ?? null,
   };
 }
 
@@ -368,6 +382,26 @@ export async function saveScheduleEntry(input: EntryInput): Promise<{ id: string
     throw new ScheduleEditorError(raw.code ?? "ERROR", raw.message ?? "Fehler", 400);
   }
   return { id: raw.id };
+}
+
+export async function saveScheduleGrid(input: {
+  weeklyScheduleId?: string;
+  scheduleTemplateId?: string;
+  gridConfig: GridConfig;
+}): Promise<void> {
+  const raw = await request<RawMutationResponse>(EDIT_PATH, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      action: "saveGrid",
+      weeklyScheduleId: input.weeklyScheduleId,
+      scheduleTemplateId: input.scheduleTemplateId,
+      gridConfig: JSON.stringify(input.gridConfig),
+    }),
+  });
+  if (!raw.success) {
+    throw new ScheduleEditorError(raw.code ?? "ERROR", raw.message ?? "Fehler", 400);
+  }
 }
 
 export async function deleteScheduleEntry(id: string): Promise<void> {
@@ -524,6 +558,18 @@ export async function duplicateScheduleTemplate(id: string, name?: string): Prom
   return { id: raw.id, status: raw.status ?? "Active" };
 }
 
+export async function importScheduleTemplate(input: ImportTemplateInput): Promise<{ id: string; status: string }> {
+  const raw = await request<RawMutationResponse>(EDIT_PATH, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ action: "importTemplate", ...input }),
+  });
+  if (!raw.success || !raw.id) {
+    throw new ScheduleEditorError(raw.code ?? "ERROR", raw.message ?? "Fehler", 400);
+  }
+  return { id: raw.id, status: raw.status ?? "Active" };
+}
+
 export async function deleteScheduleTemplate(id: string): Promise<void> {
   const raw = await request<RawMutationResponse>(EDIT_PATH, {
     method: "POST",
@@ -535,7 +581,19 @@ export async function deleteScheduleTemplate(id: string): Promise<void> {
   }
 }
 
-export async function getScheduleTemplate(templateId: string): Promise<{ plan: { id: string; name: string; status: string | null; notes: string | null }; entries: ScheduleEntry[] }> {
+export async function getScheduleTemplate(templateId: string): Promise<{
+  plan: {
+    id: string;
+    name: string;
+    programId: string | null;
+    programWeekId: string | null;
+    status: string | null;
+    notes: string | null;
+    entryCount: number;
+    gridConfig: string | null;
+  };
+  entries: ScheduleEntry[];
+}> {
   const params = new URLSearchParams();
   params.set("action", "getTemplate");
   params.set("templateId", templateId);
@@ -550,8 +608,12 @@ export async function getScheduleTemplate(templateId: string): Promise<{ plan: {
     plan: {
       id: raw.plan.id ?? "",
       name: raw.plan.name ?? "",
+      programId: raw.plan.programId ?? null,
+      programWeekId: raw.plan.programWeekId ?? null,
       status: raw.plan.status ?? null,
       notes: raw.plan.notes ?? null,
+      entryCount: raw.plan.entryCount ?? 0,
+      gridConfig: raw.plan.gridConfig ?? null,
     },
     entries: (raw.entries ?? []).map(toEntry),
   };
@@ -562,6 +624,10 @@ export async function applyScheduleTemplate(input: {
   programWeekId: string;
   startDate: string;
   name?: string;
+  scopeType?: ScheduleScope;
+  participantId?: string | null;
+  participantGroupId?: string | null;
+  mergeMode?: ScheduleMergeMode;
 }): Promise<{ id: string; status: string }> {
   const raw = await request<RawMutationResponse>(EDIT_PATH, {
     method: "POST",

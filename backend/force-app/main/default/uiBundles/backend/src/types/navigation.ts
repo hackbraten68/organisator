@@ -29,4 +29,9 @@ export interface NavigationHandle {
   label?: string;
   icon?: NavigationIcon;
   showInNavigation?: boolean;
+  /**
+   * Full path of the parent navigation item. When set, the route is rendered
+   * as an indented child in the sidebar instead of a top-level entry.
+   */
+  parentPath?: string;
 }

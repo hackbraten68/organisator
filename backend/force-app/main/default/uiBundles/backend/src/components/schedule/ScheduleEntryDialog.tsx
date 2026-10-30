@@ -26,7 +26,17 @@ import {
   saveScheduleEntry,
   getScheduleOptions,
 } from "@/api/schedule/scheduleEditorService";
-import type { ScheduleEntry, SchedulePlan, EntryInput, ScheduleOptions } from "@/types/schedule";
+import { CATEGORY_ORDER, CATEGORY_STYLES } from "@/features/weekly-plan-template/categoryStyles";
+import { deriveEntryCategory } from "@/features/schedule-grid/gridConfig";
+import type {
+  EntryCategory,
+  EntryKind,
+  GridSlot,
+  ScheduleEntry,
+  SchedulePlan,
+  EntryInput,
+  ScheduleOptions,
+} from "@/types/schedule";
 
 interface Props {
   open: boolean;
@@ -35,13 +45,65 @@ interface Props {
   entry: ScheduleEntry | null;
   onSaved: () => void;
   templateId?: string;
+  programId?: string;
+  defaultDay?: string;
+  defaultSlot?: GridSlot | null;
+  defaultOrder?: number | null;
+  slots?: GridSlot[];
 }
 
-export default function ScheduleEntryDialog({ open, onOpenChange, plan, entry, onSaved, templateId }: Props) {
+function categoryForSlot(slot: GridSlot | null | undefined): EntryCategory {
+  const format = (slot?.format ?? '').toLowerCase();
+  if (format.includes('pause')) return 'break';
+  if (format.includes('asynchron')) return 'async';
+  if (format.includes('sonst')) return 'special';
+  return 'live';
+}
+
+function typeForCategory(category: EntryCategory): string {
+  switch (category) {
+    case 'async':
+      return 'Selbstlernphase';
+    case 'break':
+    case 'special':
+      return 'Sonstiges';
+    default:
+      return 'Workshop';
+  }
+}
+
+function titleForCategory(category: EntryCategory): string {
+  switch (category) {
+    case 'async':
+      return 'Asynchrones Lernen';
+    case 'break':
+      return 'Pause';
+    case 'special':
+      return 'Sondertermin';
+    default:
+      return 'Live-Unterricht';
+  }
+}
+
+export default function ScheduleEntryDialog({
+  open,
+  onOpenChange,
+  plan,
+  entry,
+  onSaved,
+  templateId,
+  programId,
+  defaultDay,
+  defaultSlot,
+  defaultOrder,
+  slots = [],
+}: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [entryKind, setEntryKind] = useState("Aktivität");
+  const [entryKind, setEntryKind] = useState<EntryKind>("Aktivität");
   const [type, setType] = useState("");
+  const [category, setCategory] = useState<EntryCategory>("live");
+  const [timeSlotId, setTimeSlotId] = useState("");
   const [isRequired, setIsRequired] = useState(false);
   const [dayOfWeek, setDayOfWeek] = useState("Monday");
   const [startTime, setStartTime] = useState("");
@@ -60,12 +122,11 @@ export default function ScheduleEntryDialog({ open, onOpenChange, plan, entry, o
 
   useEffect(() => {
     if (!open) return;
-    getScheduleOptions("")
+    getScheduleOptions(programId ?? plan.programId ?? "", templateId ? undefined : plan.id)
       .then(setOptions)
       .catch(() => setOptions(null));
-  }, [open]);
+  }, [open, programId, plan.programId, plan.id, templateId]);
 
-  // We need programId for options; plan doesn't carry it. Fetch via list? For now use empty and rely on options endpoint with programId from plan's programWeek? We'll pass programWeekId's program via a separate fetch is not available. Simpler: options endpoint requires programId; we can't get it here. We'll fetch options with the plan's programWeekId? The endpoint accepts programId. We'll leave options null and load coaches/groups/participants from a list call. To keep it simple, fetch options with an empty programId (returns coaches + templates only).
   useEffect(() => {
     if (!open) return;
     if (entry) {
@@ -73,6 +134,8 @@ export default function ScheduleEntryDialog({ open, onOpenChange, plan, entry, o
       setDescription(entry.description ?? "");
       setEntryKind(entry.entryKind);
       setType(entry.type);
+      setCategory(entry.category ?? deriveEntryCategory(entry));
+      setTimeSlotId(entry.timeSlotId ?? "");
       setIsRequired(entry.isRequired);
       setDayOfWeek(entry.dayOfWeek);
       setStartTime(entry.startTime ? entry.startTime.slice(0, 5) : "");
@@ -84,24 +147,58 @@ export default function ScheduleEntryDialog({ open, onOpenChange, plan, entry, o
       setOrder(entry.order?.toString() ?? "");
       setDeviationReason(entry.deviationReason ?? "");
       setNotes(entry.notes ?? "");
-    } else {
-      setTitle("");
-      setDescription("");
-      setEntryKind("Aktivität");
-      setType(options?.types?.[0] ?? "");
-      setIsRequired(false);
-      setDayOfWeek("Monday");
-      setStartTime("");
-      setEndTime("");
-      setDurationMinutes("");
-      setCoachProfileId("");
-      setLocation("");
-      setMeetingLink("");
-      setOrder("");
-      setDeviationReason("");
-      setNotes("");
+      return;
     }
-  }, [open, entry, options]);
+
+    const initialCategory = categoryForSlot(defaultSlot);
+    setTitle(titleForCategory(initialCategory));
+    setDescription("");
+    setEntryKind(initialCategory === "async" ? "Aufgabe" : "Aktivität");
+    setType(typeForCategory(initialCategory));
+    setCategory(initialCategory);
+    setTimeSlotId(defaultSlot?.id ?? "");
+    setIsRequired(false);
+    setDayOfWeek(defaultDay ?? "Monday");
+    setStartTime(defaultSlot?.start ?? "");
+    setEndTime(defaultSlot?.end ?? "");
+    setDurationMinutes(defaultSlot ? String(defaultSlot.durationMinutes) : "");
+    setCoachProfileId("");
+    setLocation("");
+    setMeetingLink("");
+    setOrder(defaultOrder?.toString() ?? "");
+    setDeviationReason("");
+    setNotes("");
+  }, [open, entry, defaultDay, defaultSlot, defaultOrder]);
+
+  useEffect(() => {
+    if (!open || entry || type || !options?.types?.length) return;
+    setType(options.types[0]);
+  }, [open, entry, type, options]);
+
+  const handleCategoryChange = (value: string) => {
+    const nextCategory = value as EntryCategory;
+    setCategory(nextCategory);
+    if (!isEdit) {
+      setEntryKind(nextCategory === "async" ? "Aufgabe" : "Aktivität");
+      setType(typeForCategory(nextCategory));
+      setTitle(titleForCategory(nextCategory));
+    }
+  };
+
+  const handleSlotChange = (value: string) => {
+    if (!value) {
+      setTimeSlotId("");
+      return;
+    }
+    const selected = slots.find((slot) => slot.id === value);
+    if (!selected) return;
+    setTimeSlotId(selected.id);
+    setStartTime(selected.start);
+    setEndTime(selected.end);
+    setDurationMinutes(String(selected.durationMinutes));
+    const slotIndex = slots.findIndex((slot) => slot.id === selected.id);
+    if (slotIndex >= 0) setOrder(String(slotIndex + 1));
+  };
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -119,7 +216,7 @@ export default function ScheduleEntryDialog({ open, onOpenChange, plan, entry, o
         scheduleTemplateId: templateId,
         title: title.trim(),
         description: description || null,
-        entryKind: entryKind as EntryInput["entryKind"],
+        entryKind,
         type,
         isRequired,
         dayOfWeek,
@@ -133,6 +230,8 @@ export default function ScheduleEntryDialog({ open, onOpenChange, plan, entry, o
         order: order ? Number(order) : null,
         deviationReason: deviationReason || null,
         notes: notes || null,
+        category,
+        timeSlotId: timeSlotId || null,
       };
       if (plan.scopeType === "Group") {
         input.participantGroupId = plan.participantGroupId;
@@ -167,6 +266,7 @@ export default function ScheduleEntryDialog({ open, onOpenChange, plan, entry, o
           <DialogTitle>{isEdit ? "Eintrag bearbeiten" : "Eintrag anlegen"}</DialogTitle>
           <DialogDescription>
             Geltungsbereich: {plan.scopeType === "Course" ? "Kurs" : plan.scopeType === "Group" ? "Gruppe" : "Individuell"}
+            {defaultSlot ? ` · Zeitblock ${defaultSlot.start}–${defaultSlot.end}` : ""}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -178,10 +278,10 @@ export default function ScheduleEntryDialog({ open, onOpenChange, plan, entry, o
             <Label htmlFor="entry-desc">Beschreibung</Label>
             <Textarea id="entry-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label>Art</Label>
-              <Select value={entryKind} onValueChange={setEntryKind}>
+              <Select value={entryKind} onValueChange={(v) => setEntryKind(v as EntryKind)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {kinds.map((k) => (
@@ -201,6 +301,19 @@ export default function ScheduleEntryDialog({ open, onOpenChange, plan, entry, o
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>Kategorie</Label>
+              <Select value={category} onValueChange={handleCategoryChange}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_ORDER.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {CATEGORY_STYLES[value].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div>
             <Label>Tag</Label>
@@ -213,6 +326,23 @@ export default function ScheduleEntryDialog({ open, onOpenChange, plan, entry, o
               </SelectContent>
             </Select>
           </div>
+          {slots.length > 0 && (
+            <div>
+              <Label>Zeitblock</Label>
+              <Select value={timeSlotId} onValueChange={handleSlotChange}>
+                <SelectTrigger><SelectValue placeholder="Kein Zeitblock" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Kein Zeitblock</SelectItem>
+                  {slots.map((slot) => (
+                    <SelectItem key={slot.id} value={slot.id}>
+                      {slot.start}–{slot.end}
+                      {slot.format ? ` · ${slot.format}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-3">
             <div>
               <Label htmlFor="entry-start">Start</Label>

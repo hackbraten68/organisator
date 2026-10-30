@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Printer, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -17,9 +17,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import {
-  listScheduleTemplates,
+  getScheduleTemplate,
   deleteScheduleTemplate,
 } from "@/api/schedule/scheduleEditorService";
+import ScheduleGrid from "@/components/schedule/ScheduleGrid";
+import WeeklyPlanLegend from "@/components/weekly-plan/WeeklyPlanLegend";
+import { normalizeGridConfig } from "@/features/schedule-grid/gridConfig";
 
 export default function ScheduleTemplateDetailPage() {
   const { templateId } = useParams<{ templateId: string }>();
@@ -27,16 +30,17 @@ export default function ScheduleTemplateDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const { data: templates, loading } = useAsyncData(
-    () => listScheduleTemplates(),
-    [],
+  const { data, loading, error } = useAsyncData(
+    () => (templateId ? getScheduleTemplate(templateId) : Promise.resolve(null)),
+    [templateId],
   );
 
-  const template = (templates ?? []).find((t) => t.id === templateId) ?? null;
-
-  // Load entries via a separate fetch - we need to get them from the template
-  // For now, we'll use getScheduleOptions to get templates with entry counts
-  // and show basic info
+  const template = data?.plan ?? null;
+  const entries = data?.entries ?? [];
+  const gridConfig = useMemo(
+    () => normalizeGridConfig(template?.gridConfig),
+    [template?.gridConfig],
+  );
 
   if (loading) {
     return (
@@ -47,8 +51,8 @@ export default function ScheduleTemplateDetailPage() {
     );
   }
 
-  if (!template) {
-    return <div className="p-6 text-destructive">Vorlage nicht gefunden.</div>;
+  if (error || !template) {
+    return <div className="p-6 text-destructive">{error ?? "Vorlage nicht gefunden."}</div>;
   }
 
   const handleDelete = async () => {
@@ -66,8 +70,8 @@ export default function ScheduleTemplateDetailPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center gap-3">
+    <div className="space-y-6 p-6 print:space-y-3 print:p-0">
+      <div className="flex flex-wrap items-center gap-3 print:hidden">
         <Button variant="ghost" size="sm" onClick={() => navigate("/wochenplan/vorlagen")}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Zurück
         </Button>
@@ -75,25 +79,26 @@ export default function ScheduleTemplateDetailPage() {
         <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-800">
           Vorlage
         </span>
+        <div className="ml-auto flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => window.print()}>
+            <Printer className="h-4 w-4 mr-1" /> Drucken
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => navigate(`/wochenplan/vorlagen/${template.id}/edit`)}>
+            <Pencil className="h-4 w-4 mr-1" /> Bearbeiten
+          </Button>
+          <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="h-4 w-4 mr-1" /> Löschen
+          </Button>
+        </div>
       </div>
 
-      <Card>
+      <Card className="print:hidden">
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Vorlagen-Details</span>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => navigate(`/wochenplan/vorlagen/${template.id}/edit`)}>
-                Bearbeiten
-              </Button>
-              <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
-                <Trash2 className="h-4 w-4 mr-1" /> Löschen
-              </Button>
-            </div>
-          </CardTitle>
+          <CardTitle>Vorlagen-Details</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-muted-foreground">Einträge:</span> {template.entryCount}
+            <span className="text-muted-foreground">Einträge:</span> {template.entryCount ?? entries.length}
           </div>
           <div>
             <span className="text-muted-foreground">Status:</span> {template.status ?? "–"}
@@ -108,19 +113,20 @@ export default function ScheduleTemplateDetailPage() {
               <span className="text-muted-foreground">Kurswoche:</span> {template.programWeekId}
             </div>
           )}
+          {template.notes && (
+            <div className="col-span-2">
+              <span className="text-muted-foreground">Beschreibung:</span> {template.notes}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Einträge</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            {template.entryCount} Vorlageneinträge. Bearbeitung von Vorlageneinträgen folgt in einer späteren Version.
-          </p>
-        </CardContent>
-      </Card>
+      <ScheduleGrid config={gridConfig} entries={entries} />
+      <WeeklyPlanLegend />
+      <p className="text-xs text-muted-foreground print:hidden">
+        Diese Vorlage wird im Plan-Editor als Ausgangsraster verwendet. Veröffentlichte Pläne
+        bleiben auch bei Rasteränderungen schreibgeschützt.
+      </p>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
@@ -141,4 +147,3 @@ export default function ScheduleTemplateDetailPage() {
     </div>
   );
 }
-

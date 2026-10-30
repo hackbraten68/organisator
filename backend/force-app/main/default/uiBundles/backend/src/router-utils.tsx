@@ -21,6 +21,7 @@ export interface NavigationItem {
   path: string;
   label: string;
   icon: LucideIcon;
+  children?: NavigationItem[];
 }
 
 const flatMapRoutes = (
@@ -88,9 +89,13 @@ export function navigationIcon(icon?: NavigationIcon): LucideIcon {
  * Shared navigation source of truth for header and sidebar: every route with
  * `handle: { showInNavigation: true, label }` becomes an entry. New routes
  * appear automatically once they carry such a handle.
+ *
+ * A route can declare `parentPath` to be rendered as an indented child of
+ * another navigation entry. The tree is assembled here so the sidebar stays
+ * flat-data driven and the mobile menu gets the same hierarchy.
  */
 export function getNavigationRoutes(): NavigationItem[] {
-  return getAllRoutes()
+  const entries = getAllRoutes()
     .filter(route => {
       const handle = route.handle as NavigationHandle | undefined;
       return (
@@ -105,6 +110,38 @@ export function getNavigationRoutes(): NavigationItem[] {
         path: route.fullPath,
         label: handle.label as string,
         icon: navigationIcon(handle.icon),
+        parentPath: handle.parentPath,
       };
     });
+
+  const nodes = new Map<string, NavigationItem>(
+    entries.map(entry => [
+      entry.path,
+      {
+        path: entry.path,
+        label: entry.label,
+        icon: entry.icon,
+      },
+    ])
+  );
+
+  const roots: NavigationItem[] = [];
+
+  for (const entry of entries) {
+    const node = nodes.get(entry.path);
+    if (!node) continue;
+
+    const parent = entry.parentPath
+      ? nodes.get(entry.parentPath)
+      : undefined;
+
+    if (parent) {
+      parent.children ??= [];
+      parent.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  return roots;
 }

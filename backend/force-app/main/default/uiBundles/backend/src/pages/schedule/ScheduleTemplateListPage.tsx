@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
-import { Copy, Trash2 } from "lucide-react";
+import { Copy, Download, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,16 +13,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/sonner";
-import { deleteScheduleTemplate, duplicateScheduleTemplate } from "@/api/schedule/scheduleEditorService";
+import { deleteScheduleTemplate, duplicateScheduleTemplate, importScheduleTemplate } from "@/api/schedule/scheduleEditorService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { listScheduleTemplates } from "@/api/schedule/scheduleEditorService";
+import { buildExampleTemplateImport } from "@/features/schedule-grid/exampleTemplateImport";
 
 export default function ScheduleTemplateListPage() {
   const navigate = useNavigate();
   const [reload, setReload] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const { data: templates, loading, error } = useAsyncData(
     () => listScheduleTemplates(),
@@ -45,6 +47,19 @@ export default function ScheduleTemplateListPage() {
     }
   };
 
+  const handleImportExample = async () => {
+    setImporting(true);
+    try {
+      const { id } = await importScheduleTemplate(buildExampleTemplateImport());
+      toast.success("Beispielvorlage importiert.");
+      navigate(`/wochenplan/vorlagen/${id}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Import fehlgeschlagen.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6 space-y-4">
@@ -61,9 +76,15 @@ export default function ScheduleTemplateListPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Wochenplan-Vorlagen</h1>
-        <Button size="sm" variant="outline" onClick={() => navigate("/wochenplan")}>
-          ← Wochenpläne
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={handleImportExample} disabled={importing}>
+            <Download className="mr-1 h-4 w-4" />
+            {importing ? "Importiere..." : "Beispielvorlage importieren"}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => navigate("/wochenplan")}>
+            ← Wochenpläne
+          </Button>
+        </div>
       </div>
 
       <p className="text-sm text-muted-foreground">

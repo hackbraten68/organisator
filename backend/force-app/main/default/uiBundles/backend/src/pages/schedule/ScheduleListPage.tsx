@@ -318,6 +318,11 @@ export default function ScheduleListPage() {
                                 ? plan.participantName ?? "–"
                                 : ""}
                           </span>
+                          {plan.scopeType === "Individual" && (
+                            <span className="text-xs text-muted-foreground">
+                              {plan.mergeMode === "Replace" ? "vollständiger Ersatz" : "Ergänzung"}
+                            </span>
+                          )}
                           {plan.coachName && (
                             <span className="text-xs text-muted-foreground">
                               Coach: {plan.coachName}
@@ -378,9 +383,13 @@ export default function ScheduleListPage() {
         defaultScope={selectedParticipantId ? "Individual" : "Course"}
         defaultParticipantId={selectedParticipantId || null}
         plan={planDialogPlan}
-        existingScopes={
-          weeks.find((w) => w.programWeekId === planDialogWeekId)?.plans.map((p) => p.scopeType) ?? []
-        }
+        existingScopes={(weeks.find((w) => w.programWeekId === planDialogWeekId)?.plans ?? [])
+          .filter(
+            (p) =>
+              p.scopeType !== "Individual" ||
+              (!!selectedParticipantId && p.participantId === selectedParticipantId),
+          )
+          .map((p) => p.scopeType)}
         onSaved={refresh}
       />
     </div>

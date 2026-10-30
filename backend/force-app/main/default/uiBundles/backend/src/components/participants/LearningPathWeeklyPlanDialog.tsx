@@ -87,7 +87,7 @@ export default function LearningPathWeeklyPlanDialog({ open, onOpenChange, learn
       if (result.code === "EXISTING_SCHEDULE_OPENED") {
         toast.info("Vorhandener Plan wurde geöffnet.");
       } else {
-        toast.success("Individueller Wochenplan als Entwurf angelegt.");
+        toast.success("Individueller Wochenplan (vollständiger Ersatz) als Entwurf angelegt.");
       }
       onCreated(result.planId);
       onOpenChange(false);
@@ -106,9 +106,9 @@ export default function LearningPathWeeklyPlanDialog({ open, onOpenChange, learn
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Wochenplan aus Vorlage</DialogTitle>
+          <DialogTitle>Individuellen Wochenplan aus Vorlage erstellen</DialogTitle>
           <DialogDescription>
-            Erstellt einen individuellen Wochenplan als Entwurf für den Teilnehmer.
+            Kopiert die Vorlage und ersetzt für diese Woche den Kurs- und Gruppenplan.
           </DialogDescription>
         </DialogHeader>
 
@@ -198,7 +198,7 @@ export default function LearningPathWeeklyPlanDialog({ open, onOpenChange, learn
             onClick={handleCreate}
             disabled={creating || !resolutionOk || !hasWeeks || !hasTemplates}
           >
-            {creating ? "Anlegen..." : "Entwurf anlegen"}
+            {creating ? "Anlegen..." : "Individuellen Plan anlegen"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, LayoutGrid, List, Plus, Printer, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -19,10 +19,14 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   getScheduleTemplate,
   deleteScheduleEntry,
+  saveScheduleGrid,
 } from "@/api/schedule/scheduleEditorService";
 import ScheduleEntryTable from "@/components/schedule/ScheduleEntryTable";
 import ScheduleEntryDialog from "@/components/schedule/ScheduleEntryDialog";
-import type { ScheduleEntry } from "@/types/schedule";
+import ScheduleGrid from "@/components/schedule/ScheduleGrid";
+import ScheduleGridSettingsDialog from "@/components/schedule/ScheduleGridSettingsDialog";
+import { normalizeGridConfig } from "@/features/schedule-grid/gridConfig";
+import type { GridConfig, GridSlot, ScheduleEntry, SchedulePlan } from "@/types/schedule";
 
 export default function ScheduleTemplateEditorPage() {
   const { templateId } = useParams<{ templateId: string }>();
@@ -37,12 +41,38 @@ export default function ScheduleTemplateEditorPage() {
 
   const [entryDialogOpen, setEntryDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ScheduleEntry | null>(null);
+  const [entryDefaults, setEntryDefaults] = useState<{
+    day?: string;
+    slot?: GridSlot | null;
+    order?: number | null;
+  }>({});
   const [deleteEntryTarget, setDeleteEntryTarget] = useState<ScheduleEntry | null>(null);
   const [deleting, setDeleting] = useState(false);
-
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const template = data?.plan ?? null;
   const entries: ScheduleEntry[] = data?.entries ?? [];
+  const gridConfig = useMemo(
+    () => normalizeGridConfig(template?.gridConfig),
+    [template?.gridConfig],
+  );
+
+  const openNewEntry = (day?: string, slot?: GridSlot | null) => {
+    setEditingEntry(null);
+    setEntryDefaults({
+      day,
+      slot,
+      order: slot ? gridConfig.slots.findIndex((item) => item.id === slot.id) + 1 : null,
+    });
+    setEntryDialogOpen(true);
+  };
+
+  const openEditEntry = (entry: ScheduleEntry) => {
+    setEditingEntry(entry);
+    setEntryDefaults({});
+    setEntryDialogOpen(true);
+  };
 
   const handleDeleteEntry = async () => {
     if (!deleteEntryTarget) return;
@@ -59,6 +89,18 @@ export default function ScheduleTemplateEditorPage() {
     }
   };
 
+  const handleSaveGrid = async (config: GridConfig) => {
+    if (!templateId) return;
+    try {
+      await saveScheduleGrid({ scheduleTemplateId: templateId, gridConfig: config });
+      toast.success("Zeitblöcke gespeichert.");
+      setSettingsOpen(false);
+      refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Fehler beim Speichern der Zeitblöcke.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6 space-y-4">
@@ -72,12 +114,13 @@ export default function ScheduleTemplateEditorPage() {
   }
 
   // Create a pseudo-plan for the entry dialog
-  const pseudoPlan = {
+  const pseudoPlan: SchedulePlan = {
     id: template.id,
     name: template.name,
-    programWeekId: null,
-    scopeType: "Course" as const,
-    status: "Draft" as const,
+    programId: template.programId,
+    programWeekId: template.programWeekId,
+    scopeType: "Course",
+    status: "Draft",
     startDate: null,
     endDate: null,
     participantGroupId: null,
@@ -92,11 +135,13 @@ export default function ScheduleTemplateEditorPage() {
     publishedAt: null,
     publishedBy: null,
     coachName: null,
+    mergeMode: "Overlay",
+    gridConfig: template.gridConfig,
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center gap-3">
+    <div className="space-y-6 p-6 print:space-y-3 print:p-0">
+      <div className="flex flex-wrap items-center gap-3 print:hidden">
         <Button variant="ghost" size="sm" onClick={() => navigate("/wochenplan/vorlagen")}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Zurück
         </Button>
@@ -104,23 +149,66 @@ export default function ScheduleTemplateEditorPage() {
         <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-800">
           Vorlage
         </span>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => window.print()}>
+            <Printer className="mr-1 h-4 w-4" /> Drucken
+          </Button>
+          <div className="inline-flex rounded-md border p-0.5">
+            <Button
+              size="sm"
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              className="h-7 px-2"
+              onClick={() => setViewMode("grid")}
+            >
+              <LayoutGrid className="mr-1 h-3.5 w-3.5" /> Raster
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              className="h-7 px-2"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="mr-1 h-3.5 w-3.5" /> Liste
+            </Button>
+          </div>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Einträge</span>
-            <Button size="sm" onClick={() => { setEditingEntry(null); setEntryDialogOpen(true); }}>
-              <Plus className="h-4 w-4 mr-1" /> Eintrag anlegen
-            </Button>
+      <Card className="print:border-0 print:shadow-none">
+        <CardHeader className="print:hidden">
+          <CardTitle className="flex flex-wrap items-center justify-between gap-2">
+            <span>{viewMode === "grid" ? "Wochenplan-Raster" : "Einträge"}</span>
+            <div className="flex gap-2">
+              {viewMode === "grid" && (
+                <Button size="sm" variant="outline" onClick={() => setSettingsOpen(true)}>
+                  <Settings2 className="mr-1 h-4 w-4" /> Zeitblöcke
+                </Button>
+              )}
+              <Button size="sm" onClick={() => openNewEntry()}>
+                <Plus className="h-4 w-4 mr-1" /> Eintrag anlegen
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <ScheduleEntryTable
-            entries={entries}
-            onEdit={(e) => { setEditingEntry(e); setEntryDialogOpen(true); }}
-            onDelete={(e) => setDeleteEntryTarget(e)}
-          />
+        <CardContent className="print:p-0">
+          {viewMode === "grid" ? (
+            <ScheduleGrid
+              config={gridConfig}
+              entries={entries}
+              editable
+              onAddEntry={openNewEntry}
+              onEditEntry={openEditEntry}
+              onDeleteEntry={(entry) => setDeleteEntryTarget(entry)}
+              onEditSlot={() => setSettingsOpen(true)}
+              onManageSlots={() => setSettingsOpen(true)}
+            />
+          ) : (
+            <ScheduleEntryTable
+              entries={entries}
+              onEdit={openEditEntry}
+              onDelete={(e) => setDeleteEntryTarget(e)}
+            />
+          )}
         </CardContent>
       </Card>
 
@@ -131,6 +219,18 @@ export default function ScheduleTemplateEditorPage() {
         entry={editingEntry}
         onSaved={refresh}
         templateId={templateId}
+        programId={template.programId ?? undefined}
+        defaultDay={entryDefaults.day}
+        defaultSlot={entryDefaults.slot}
+        defaultOrder={entryDefaults.order}
+        slots={gridConfig.slots}
+      />
+
+      <ScheduleGridSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        config={gridConfig}
+        onSave={handleSaveGrid}
       />
 
       <AlertDialog open={!!deleteEntryTarget} onOpenChange={(o) => !o && setDeleteEntryTarget(null)}>
@@ -152,4 +252,3 @@ export default function ScheduleTemplateEditorPage() {
     </div>
   );
 }
-

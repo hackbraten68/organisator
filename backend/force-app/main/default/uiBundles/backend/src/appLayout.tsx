@@ -13,8 +13,13 @@ import { KeyboardShortcutsDialog } from "./components/KeyboardShortcutsDialog";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useEffect, useState } from "react";
 
-function navigationLinkClass(isActive: boolean) {
-	return `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+function navigationLinkClass(isActive: boolean, depth = 0) {
+	const base =
+		depth === 0
+			? "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+			: "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors";
+
+	return `${base} ${
 		isActive
 			? "bg-accent text-accent-foreground"
 			: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -24,24 +29,49 @@ function navigationLinkClass(isActive: boolean) {
 function NavigationLinks({
 	items,
 	onNavigate,
+	depth = 0,
 }: {
 	items: NavigationItem[];
 	onNavigate?: () => void;
+	depth?: number;
 }) {
 	return (
-		<div className="flex flex-col gap-1">
+		<div
+			className={
+				depth === 0
+					? "flex flex-col gap-1"
+					: "mt-1 ml-4 flex flex-col gap-0.5 border-l border-border pl-3"
+			}
+		>
 			{items.map((item) => {
 				const Icon = item.icon;
 				return (
-					<NavLink
-						key={item.path}
-						to={item.path}
-						onClick={onNavigate}
-						className={({ isActive }) => navigationLinkClass(isActive)}
-					>
-						<Icon className="size-4 shrink-0" aria-hidden="true" />
-						{item.label}
-					</NavLink>
+					<div key={item.path}>
+						<NavLink
+							to={item.path}
+							onClick={onNavigate}
+							className={({ isActive }) =>
+								navigationLinkClass(isActive, depth)
+							}
+						>
+							{depth === 0 ? (
+								<Icon className="size-4 shrink-0" aria-hidden="true" />
+							) : (
+								<span
+									className="size-1.5 shrink-0 rounded-full bg-current opacity-60"
+									aria-hidden="true"
+								/>
+							)}
+							{item.label}
+						</NavLink>
+						{item.children && item.children.length > 0 && (
+							<NavigationLinks
+								items={item.children}
+								onNavigate={onNavigate}
+								depth={depth + 1}
+							/>
+						)}
+					</div>
 				);
 			})}
 		</div>
@@ -82,7 +112,7 @@ export default function AppLayout() {
 		<div className="min-h-screen bg-background">
 			<a
 				href="#main-content"
-				className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:outline-none"
+				className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:outline-none print:hidden"
 			>
 				Zum Hauptinhalt springen
 			</a>
@@ -91,7 +121,7 @@ export default function AppLayout() {
 				onChoose={actorInit.chooseUser}
 				onDismiss={actorInit.dismissPicker}
 			/>
-			<header className="bg-card border-b border-border sticky top-0 z-30">
+			<header className="bg-card border-b border-border sticky top-0 z-30 print:hidden">
 				<div className="px-4 sm:px-6 lg:px-8">
 					<div className="flex items-center gap-3 h-16">
 						<button
@@ -120,7 +150,7 @@ export default function AppLayout() {
 			</header>
 
 			<div className="flex">
-				<aside className="hidden lg:block w-64 shrink-0">
+				<aside className="hidden lg:block w-64 shrink-0 print:hidden">
 					<nav
 						aria-label="Main navigation"
 						className="sticky top-16 bg-card border-r border-border min-h-[calc(100vh-4rem)] p-3 flex flex-col"
@@ -141,11 +171,11 @@ export default function AppLayout() {
 				{mobileOpen && (
 					<>
 						<div
-							className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+							className="fixed inset-0 z-40 bg-black/40 lg:hidden print:hidden"
 							onClick={closeMobileMenu}
 							aria-hidden="true"
 						/>
-						<aside className="fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border p-3 lg:hidden flex flex-col">
+						<aside className="fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border p-3 lg:hidden flex flex-col print:hidden">
 							<div className="flex items-center justify-between px-1 pb-3">
 								<span className="text-lg font-semibold text-foreground">
 									Organisator

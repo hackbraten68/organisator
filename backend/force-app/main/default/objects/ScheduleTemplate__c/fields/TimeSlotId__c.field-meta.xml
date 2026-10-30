@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>TimeSlotId__c</fullName>
+    <description>Stabile ID des Zeitblocks aus der Rasterkonfiguration des Plans oder der Vorlage</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Stabile ID des Zeitblocks aus der Rasterkonfiguration des Plans oder der Vorlage</inlineHelpText>
+    <label>Zeitblock-ID</label>
+    <length>64</length>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

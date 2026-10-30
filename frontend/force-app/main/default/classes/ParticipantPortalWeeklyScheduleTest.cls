@@ -10,6 +10,145 @@ public class ParticipantPortalWeeklyScheduleTest {
         insert new ProgramWeek__c(Name = 'PW Week', Program__c = programId, Module__c = moduleId, Number__c = 1, Status__c = 'Draft');
     }
 
+    private static Participant__c createParticipant(Id programId, String email) {
+        Contact c = new Contact(FirstName = 'Portal', LastName = 'Test', Email = email);
+        insert c;
+        Participant__c p = new Participant__c(Name = 'Portal Test', Contact__c = c.Id, Program__c = programId);
+        insert p;
+        return p;
+    }
+
+    private static WeeklySchedule__c createPlan(
+            String name,
+            Id programWeekId,
+            Date startDate,
+            String scopeType,
+            Id participantGroupId,
+            Id participantId,
+            String mergeMode) {
+        WeeklySchedule__c plan = new WeeklySchedule__c(
+            Name = name,
+            ProgramWeek__c = programWeekId,
+            StartDate__c = startDate,
+            Status__c = 'Published',
+            ScopeType__c = scopeType,
+            ParticipantGroup__c = participantGroupId,
+            Participant__c = participantId,
+            MergeMode__c = mergeMode
+        );
+        insert plan;
+        return plan;
+    }
+
+    private static ScheduleEntry__c createEntry(
+            Id weeklyScheduleId,
+            String title,
+            String dayOfWeek,
+            Integer order,
+            String targetType,
+            Id participantGroupId,
+            Id participantId) {
+        ScheduleEntry__c entry = new ScheduleEntry__c(
+            Name = title,
+            WeeklySchedule__c = weeklyScheduleId,
+            EntryKind__c = 'Aktivität',
+            Type__c = 'Workshop',
+            DayOfWeek__c = dayOfWeek,
+            TargetType__c = targetType,
+            ParticipantGroup__c = participantGroupId,
+            Participant__c = participantId,
+            Order__c = order
+        );
+        insert entry;
+        return entry;
+    }
+
+    @IsTest
+    static void buildResponse_overlayMergesScopesAndMarksSource() {
+        Id programId = [SELECT Id FROM Program__c LIMIT 1].Id;
+        Id programWeekId = [SELECT Id FROM ProgramWeek__c LIMIT 1].Id;
+        Participant__c p = createParticipant(programId, 'overlay@example.invalid');
+        ParticipantGroup__c g = new ParticipantGroup__c(Name = 'Overlay Group', Program__c = programId);
+        insert g;
+        insert new ParticipantGroupMember__c(Participant__c = p.Id, ParticipantGroup__c = g.Id);
+
+        Date weekStart = Date.newInstance(2027, 3, 1);
+        WeeklySchedule__c course = createPlan('Course', programWeekId, weekStart, 'Course', null, null, 'Overlay');
+        WeeklySchedule__c groupPlan = createPlan('Group', programWeekId, weekStart, 'Group', g.Id, null, 'Overlay');
+        WeeklySchedule__c individual = createPlan('Individual', programWeekId, weekStart, 'Individual', null, p.Id, 'Overlay');
+
+        createEntry(course.Id, 'Course A', 'Monday', 1, 'Course', null, null);
+        createEntry(course.Id, 'Course B', 'Tuesday', 1, 'Course', null, null);
+        createEntry(groupPlan.Id, 'Group A', 'Monday', 1, 'Group', g.Id, null);
+        createEntry(groupPlan.Id, 'Group C', 'Wednesday', 1, 'Group', g.Id, null);
+        createEntry(individual.Id, 'Individual A', 'Monday', 1, 'Individual', null, p.Id);
+        createEntry(individual.Id, 'Individual B', 'Monday', 2, 'Individual', null, p.Id);
+        createEntry(individual.Id, 'Without slot', 'Thursday', null, 'Individual', null, p.Id);
+
+        ParticipantPortalWeeklySchedule.WeeklyScheduleResponse resp =
+            ParticipantPortalWeeklySchedule.buildResponse(p.Id, programId, new Set<Id>{g.Id}, weekStart);
+
+        System.assertEquals(5, resp.entries.size(), 'overlay merge result');
+        System.assertEquals('Individual', resp.effectiveScope, 'effective scope');
+        System.assert(resp.appliedScopes.contains('Course'), 'Course applied');
+        System.assert(resp.appliedScopes.contains('Group'), 'Group applied');
+        System.assert(resp.appliedScopes.contains('Individual'), 'Individual applied');
+
+        Map<String, String> sourceByTitle = new Map<String, String>();
+        for (ParticipantPortalWeeklySchedule.EntryView entry : resp.entries) {
+            sourceByTitle.put(entry.title, entry.sourceScope);
+        }
+        System.assertEquals('Individual', sourceByTitle.get('Individual A'), 'individual override source');
+        System.assertEquals('Individual', sourceByTitle.get('Individual B'), 'individual appended source');
+        System.assertEquals('Individual', sourceByTitle.get('Without slot'), 'order-null source');
+        System.assertEquals('Course', sourceByTitle.get('Course B'), 'course source');
+        System.assertEquals('Group', sourceByTitle.get('Group C'), 'group source');
+    }
+
+    @IsTest
+    static void buildResponse_replaceShowsOnlyIndividual() {
+        Id programId = [SELECT Id FROM Program__c LIMIT 1].Id;
+        Id programWeekId = [SELECT Id FROM ProgramWeek__c LIMIT 1].Id;
+        Participant__c p = createParticipant(programId, 'replace@example.invalid');
+
+        Date weekStart = Date.newInstance(2027, 3, 1);
+        WeeklySchedule__c course = createPlan('Course', programWeekId, weekStart, 'Course', null, null, 'Overlay');
+        WeeklySchedule__c individual = createPlan('Individual', programWeekId, weekStart, 'Individual', null, p.Id, 'Replace');
+
+        createEntry(course.Id, 'Course only', 'Monday', 1, 'Course', null, null);
+        createEntry(individual.Id, 'Replace only', 'Monday', 1, 'Individual', null, p.Id);
+
+        ParticipantPortalWeeklySchedule.WeeklyScheduleResponse resp =
+            ParticipantPortalWeeklySchedule.buildResponse(p.Id, programId, new Set<Id>(), weekStart);
+
+        System.assertEquals(1, resp.entries.size(), 'only replace entry');
+        System.assertEquals('Replace only', resp.entries[0].title, 'replace entry title');
+        System.assertEquals('Individual', resp.entries[0].sourceScope, 'replace entry source');
+        System.assertEquals('Individual', resp.effectiveScope, 'effective scope');
+        System.assertEquals(1, resp.appliedScopes.size(), 'only Individual applied');
+        System.assertEquals('Individual', resp.appliedScopes[0], 'applied scope');
+    }
+
+    @IsTest
+    static void buildResponse_duplicateIndividualFails() {
+        Id programId = [SELECT Id FROM Program__c LIMIT 1].Id;
+        Id programWeekId = [SELECT Id FROM ProgramWeek__c LIMIT 1].Id;
+        Participant__c p = createParticipant(programId, 'duplicate@example.invalid');
+
+        Date weekStart = Date.newInstance(2027, 3, 1);
+        createPlan('Individual 1', programWeekId, weekStart, 'Individual', null, p.Id, 'Overlay');
+        createPlan('Individual 2', programWeekId, weekStart, 'Individual', null, p.Id, 'Overlay');
+
+        try {
+            ParticipantPortalWeeklySchedule.buildResponse(p.Id, programId, new Set<Id>(), weekStart);
+            System.assert(false, 'duplicate individual plan must fail');
+        } catch (PortalIdentityException e) {
+            System.assertEquals(500, e.getStatusCode());
+            System.assertEquals('INTERNAL_ERROR', e.getCode());
+            System.assertEquals('Duplicate schedule instance.', e.getMessage());
+        }
+    }
+
     @IsTest
     static void isVisibleTo_allowsCourse() {
         ScheduleEntry__c e = new ScheduleEntry__c(TargetType__c = 'Course');

@@ -47,6 +47,7 @@ global without sharing class ParticipantPortalWeeklySchedule {
         public String endTime;
         public Integer durationMinutes;
         public String targetType;
+        public String sourceScope;
         public String coachName;
         public String location;
         public String meetingLink;
@@ -118,6 +119,7 @@ global without sharing class ParticipantPortalWeeklySchedule {
         }
     }
 
+    @TestVisible
     private static WeeklyScheduleResponse buildResponse(Id participantId, Id programId, Set<Id> groupIds, Date weekStart) {
         // Object/field permission gate (fail-closed).
         assertReadable();
@@ -374,8 +376,12 @@ global without sharing class ParticipantPortalWeeklySchedule {
         resp.appliedScopes = applied;
 
         // Map to DTO.
+        Map<Id, String> scopeByPlan = new Map<Id, String>();
+        for (WeeklySchedule__c inst : allInstances) {
+            scopeByPlan.put(inst.Id, inst.ScopeType__c);
+        }
         for (ScheduleEntry__c e : merged) {
-            resp.entries.add(toView(e, coachNames));
+            resp.entries.add(toView(e, coachNames, scopeByPlan.get(e.WeeklySchedule__c)));
         }
 
         resp.code = null;
@@ -420,7 +426,7 @@ global without sharing class ParticipantPortalWeeklySchedule {
         }
     }
 
-    private static EntryView toView(ScheduleEntry__c e, Map<Id, String> coachNames) {
+    private static EntryView toView(ScheduleEntry__c e, Map<Id, String> coachNames, String sourceScope) {
         EntryView v = new EntryView();
         v.key = slotKey(e);
         if (v.key == null) v.key = e.DayOfWeek__c + '|' + String.valueOf(e.Id);
@@ -435,6 +441,7 @@ global without sharing class ParticipantPortalWeeklySchedule {
         v.endTime = e.EndTime__c == null ? null : String.valueOf(e.EndTime__c);
         v.durationMinutes = e.DurationMinutes__c == null ? null : Integer.valueOf(e.DurationMinutes__c);
         v.targetType = e.TargetType__c;
+        v.sourceScope = sourceScope;
         v.coachName = e.Coach_Profile__c == null ? null : coachNames.get(e.Coach_Profile__c);
         v.location = e.Location__c;
         v.meetingLink = e.MeetingLink__c;

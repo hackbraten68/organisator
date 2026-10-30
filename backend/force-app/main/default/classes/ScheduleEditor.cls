@@ -68,6 +68,7 @@ global with sharing class ScheduleEditor {
     global class PlanView {
         global String id;
         global String name;
+        global String programId;
         global String programWeekId;
         global String scopeType;
         global String status;
@@ -85,6 +86,8 @@ global with sharing class ScheduleEditor {
         global String publishedAt;
         global String publishedBy;
         global String coachName;
+        global String mergeMode;
+        global String gridConfig;
     }
 
     global class EntryView {
@@ -109,6 +112,8 @@ global with sharing class ScheduleEditor {
         global String deviationReason;
         global String notes;
         global Boolean isCustomized;
+        global String timeSlotId;
+        global String category;
     }
 
     global class CoachView {
@@ -160,6 +165,7 @@ global with sharing class ScheduleEditor {
         global String status;
         global String deviationReason;
         global String notes;
+        global String mergeMode;
     }
 
     global class DuplicateTemplateInput {
@@ -204,6 +210,8 @@ global with sharing class ScheduleEditor {
         global String deviationReason;
         global String notes;
         global Boolean isCustomized;
+        global String timeSlotId;
+        global String category;
     }
 
     @HttpGet
@@ -274,6 +282,8 @@ global with sharing class ScheduleEditor {
                 saveEntry(resp, payload);
             } else if (action == 'deleteEntry') {
                 deleteEntry(resp, payload);
+            } else if (action == 'saveGrid') {
+                saveGrid(resp, payload);
             } else if (action == 'deletePlan') {
                 deletePlan(resp, payload);
             } else if (action == 'publish') {
@@ -290,6 +300,8 @@ global with sharing class ScheduleEditor {
                 deleteTemplate(resp, payload);
             } else if (action == 'duplicateTemplate') {
                 duplicateTemplate(resp, payload);
+            } else if (action == 'importTemplate') {
+                importTemplate(resp, payload);
             } else {
                 throw badRequest('Unbekannte Aktion.');
             }
@@ -391,10 +403,10 @@ global with sharing class ScheduleEditor {
         Map<Id, List<WeeklySchedule__c>> plansByWeek = new Map<Id, List<WeeklySchedule__c>>();
         if (!weekIds.isEmpty()) {
             for (WeeklySchedule__c plan : [
-                SELECT Id, Name, ProgramWeek__c, ScopeType__c, Status__c, StartDate__c, EndDate__c,
+                SELECT Id, Name, ProgramWeek__c, ProgramWeek__r.Program__c, ScopeType__c, Status__c, StartDate__c, EndDate__c,
                        ParticipantGroup__c, ParticipantGroup__r.Name, Participant__c, Participant__r.Name,
                        AppliedTemplate__c, AppliedTemplate__r.Name, Notes__c, DeviationReason__c,
-                       PublishedAt__c, PublishedBy__c, PublishedBy__r.Name
+                       PublishedAt__c, PublishedBy__c, PublishedBy__r.Name, MergeMode__c, GridConfig__c
                 FROM WeeklySchedule__c
                 WHERE ProgramWeek__c IN :weekIds
             ]) {
@@ -444,7 +456,8 @@ global with sharing class ScheduleEditor {
             SELECT Id, Name, ProgramWeek__c, ProgramWeek__r.Program__c, ScopeType__c, Status__c,
                    StartDate__c, EndDate__c, ParticipantGroup__c, ParticipantGroup__r.Name,
                    Participant__c, Participant__r.Name, AppliedTemplate__c, AppliedTemplate__r.Name,
-                   Notes__c, DeviationReason__c, PublishedAt__c, PublishedBy__c, PublishedBy__r.Name
+                   Notes__c, DeviationReason__c, PublishedAt__c, PublishedBy__c, PublishedBy__r.Name,
+                   MergeMode__c, GridConfig__c
             FROM WeeklySchedule__c
             WHERE Id = :planId
             LIMIT 1
@@ -462,7 +475,7 @@ global with sharing class ScheduleEditor {
             SELECT Id, Name, Description__c, EntryKind__c, Type__c, IsRequired__c, DayOfWeek__c,
                    StartTime__c, EndTime__c, DurationMinutes__c, TargetType__c, ParticipantGroup__c,
                    Participant__c, Coach_Profile__c, Coach_Profile__r.Name, Location__c, MeetingLink__c,
-                   Order__c, DeviationReason__c, Notes__c, IsCustomized__c
+                   Order__c, DeviationReason__c, Notes__c, IsCustomized__c, TimeSlotId__c, Category__c
             FROM ScheduleEntry__c
             WHERE WeeklySchedule__c = :planId
             ORDER BY DayOfWeek__c, Order__c, StartTime__c
@@ -789,7 +802,7 @@ global with sharing class ScheduleEditor {
             throw badRequest('templateId ist erforderlich.');
         }
         List<ScheduleTemplate__c> templates = [
-            SELECT Id, Name, Program__c, ProgramWeek__c, Status__c, Description__c
+            SELECT Id, Name, Program__c, ProgramWeek__c, ProgramWeek__r.Program__c, Status__c, Description__c, GridConfig__c
             FROM ScheduleTemplate__c
             WHERE Id = :templateId
             LIMIT 1
@@ -802,8 +815,12 @@ global with sharing class ScheduleEditor {
         PlanView pv = new PlanView();
         pv.id = tmpl.Id;
         pv.name = tmpl.Name;
+        pv.programId = tmpl.Program__c == null && tmpl.ProgramWeek__r != null
+            ? tmpl.ProgramWeek__r.Program__c : tmpl.Program__c;
+        pv.programWeekId = tmpl.ProgramWeek__c;
         pv.status = tmpl.Status__c;
         pv.notes = tmpl.Description__c;
+        pv.gridConfig = tmpl.GridConfig__c;
         resp.plan = pv;
 
         List<EntryView> entries = new List<EntryView>();
@@ -811,13 +828,14 @@ global with sharing class ScheduleEditor {
             SELECT Id, Name, Description__c, EntryKind__c, Type__c, IsRequired__c, DayOfWeek__c,
                    StartTime__c, EndTime__c, DurationMinutes__c, TargetType__c, ParticipantGroup__c,
                    Participant__c, Coach_Profile__c, Coach_Profile__r.Name, Location__c, MeetingLink__c,
-                   Order__c, DeviationReason__c, Notes__c, IsCustomized__c
+                   Order__c, DeviationReason__c, Notes__c, IsCustomized__c, TimeSlotId__c, Category__c
             FROM ScheduleEntry__c
             WHERE ScheduleTemplate__c = :templateId
             ORDER BY DayOfWeek__c, Order__c, StartTime__c
         ]) {
             entries.add(mapEntry(e));
         }
+        pv.entryCount = entries.size();
         resp.entries = entries;
     }
 
@@ -875,6 +893,7 @@ global with sharing class ScheduleEditor {
         PlanView pv = new PlanView();
         pv.id = plan.Id;
         pv.name = plan.Name;
+        pv.programId = plan.ProgramWeek__r == null ? null : plan.ProgramWeek__r.Program__c;
         pv.programWeekId = plan.ProgramWeek__c;
         pv.scopeType = plan.ScopeType__c;
         pv.status = plan.Status__c;
@@ -892,6 +911,8 @@ global with sharing class ScheduleEditor {
         pv.publishedAt = plan.PublishedAt__c == null ? null : String.valueOf(plan.PublishedAt__c);
         pv.publishedBy = plan.PublishedBy__c;
         pv.coachName = plan.PublishedBy__r == null ? null : plan.PublishedBy__r.Name;
+        pv.mergeMode = plan.MergeMode__c;
+        pv.gridConfig = plan.GridConfig__c;
         return pv;
     }
 
@@ -918,6 +939,8 @@ global with sharing class ScheduleEditor {
         ev.deviationReason = entry.DeviationReason__c;
         ev.notes = entry.Notes__c;
         ev.isCustomized = entry.IsCustomized__c;
+        ev.timeSlotId = entry.TimeSlotId__c;
+        ev.category = entry.Category__c;
         return ev;
     }
 
@@ -953,6 +976,7 @@ global with sharing class ScheduleEditor {
         req.status = input.status;
         req.deviationReason = input.deviationReason;
         req.notes = input.notes;
+        req.mergeMode = input.mergeMode;
 
         if (String.isNotBlank(req.id)) {
             List<WeeklySchedule__c> existing = [
@@ -998,6 +1022,8 @@ global with sharing class ScheduleEditor {
         req.deviationReason = input.deviationReason;
         req.notes = input.notes;
         req.isCustomized = input.isCustomized;
+        req.timeSlotId = input.timeSlotId;
+        req.category = input.category;
 
         if (String.isNotBlank(req.id)) {
             List<ScheduleEntry__c> existing = [
@@ -1038,6 +1064,31 @@ global with sharing class ScheduleEditor {
             if (!plans.isEmpty() && plans[0].Status__c == 'Published') {
                 SchedulePortalSharingService.synchronisePlan(saved.WeeklySchedule__c);
             }
+        }
+    }
+
+    private static void saveGrid(MutationResponse resp, Map<String, Object> payload) {
+        String planId = (String) payload.get('weeklyScheduleId');
+        String templateId = (String) payload.get('scheduleTemplateId');
+        String gridConfig = (String) payload.get('gridConfig');
+        if (String.isBlank(planId) && String.isBlank(templateId)) {
+            throw badRequest('weeklyScheduleId oder scheduleTemplateId ist erforderlich.');
+        }
+        if (String.isNotBlank(planId) && String.isNotBlank(templateId)) {
+            throw badRequest('Bitte nur einen Plan oder eine Vorlage uebergeben.');
+        }
+        if (String.isBlank(gridConfig)) {
+            throw badRequest('gridConfig ist erforderlich.');
+        }
+
+        if (String.isNotBlank(planId)) {
+            Integer changed = ScheduleGridService.saveForPlan(planId, gridConfig);
+            resp.id = planId;
+            resp.message = changed + ' Eintraege aktualisiert.';
+        } else {
+            Integer changed = ScheduleGridService.saveForTemplate(templateId, gridConfig);
+            resp.id = templateId;
+            resp.message = changed + ' Eintraege aktualisiert.';
         }
     }
 
@@ -1182,6 +1233,18 @@ global with sharing class ScheduleEditor {
         resp.success = true;
     }
 
+    private static void importTemplate(MutationResponse resp, Map<String, Object> payload) {
+        ScheduleTemplateService.ImportTemplateRequest input =
+            (ScheduleTemplateService.ImportTemplateRequest) JSON.deserialize(
+                JSON.serialize(payload),
+                ScheduleTemplateService.ImportTemplateRequest.class
+            );
+        ScheduleTemplate__c template = ScheduleTemplateService.importTemplate(input);
+        resp.id = template.Id;
+        resp.status = template.Status__c;
+        resp.success = true;
+    }
+
     private static void deleteTemplate(MutationResponse resp, Map<String, Object> payload) {
         String id = (String) payload.get('id');
         if (String.isBlank(id)) {
@@ -1197,6 +1260,10 @@ global with sharing class ScheduleEditor {
         String programWeekId = (String) payload.get('programWeekId');
         String startDate = (String) payload.get('startDate');
         String name = (String) payload.get('name');
+        String scopeType = (String) payload.get('scopeType');
+        String participantGroupId = (String) payload.get('participantGroupId');
+        String participantId = (String) payload.get('participantId');
+        String mergeMode = (String) payload.get('mergeMode');
 
         if (String.isBlank(programWeekId)) {
             throw badRequest('programWeekId ist erforderlich.');
@@ -1208,6 +1275,10 @@ global with sharing class ScheduleEditor {
         request.programWeekId = programWeekId;
         request.startDate = startDate;
         request.name = name;
+        request.scopeType = scopeType;
+        request.participantGroupId = participantGroupId;
+        request.participantId = participantId;
+        request.mergeMode = mergeMode;
 
         WeeklySchedule__c created = ScheduleTemplateService.applyTemplate(request);
         resp.id = created.Id;

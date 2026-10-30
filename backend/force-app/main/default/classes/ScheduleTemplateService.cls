@@ -42,6 +42,36 @@ global with sharing class ScheduleTemplateService {
         global String name;
     }
 
+    global class ImportEntry {
+        global String title;
+        global String description;
+        global String entryKind;
+        global String type;
+        global Boolean isRequired;
+        global String dayOfWeek;
+        global String startTime;
+        global String endTime;
+        global Integer durationMinutes;
+        global String category;
+        global String timeSlotId;
+        global Integer order;
+        global String location;
+        global String meetingLink;
+        global String notes;
+        global String deviationReason;
+        global String coachName;
+    }
+
+    global class ImportTemplateRequest {
+        global String name;
+        global String description;
+        global String status;
+        global String programId;
+        global String programWeekId;
+        global String gridConfig;
+        global List<ImportEntry> entries;
+    }
+
     public static WeeklySchedule__c applyTemplate(ApplyRequest request) {
         if (request == null || String.isBlank(request.templateId)) {
             throw badRequest('templateId ist erforderlich.');
@@ -54,7 +84,7 @@ global with sharing class ScheduleTemplateService {
         }
 
         List<ScheduleTemplate__c> templates = [
-            SELECT Id, Name, Status__c, Program__c, Module__c, ProgramWeek__c, Description__c
+            SELECT Id, Name, Status__c, Program__c, Module__c, ProgramWeek__c, Description__c, GridConfig__c
             FROM ScheduleTemplate__c
             WHERE Id = :request.templateId
             LIMIT 1
@@ -131,6 +161,10 @@ global with sharing class ScheduleTemplateService {
         }
 
         String scheduleName = String.isBlank(request.name) ? template.Name : request.name;
+        String mergeMode = String.isBlank(request.mergeMode) ? 'Overlay' : request.mergeMode;
+        if (mergeMode != 'Overlay' && mergeMode != 'Replace') {
+            throw badRequest('Unbekannter Merge-Modus.');
+        }
 
         WeeklySchedule__c schedule = new WeeklySchedule__c(
             Name = scheduleName,
@@ -142,7 +176,8 @@ global with sharing class ScheduleTemplateService {
             Status__c = 'Draft',
             AppliedTemplate__c = template.Id,
             TemplateAppliedAt__c = Datetime.now(),
-            MergeMode__c = String.isBlank(request.mergeMode) ? 'Overlay' : request.mergeMode
+            MergeMode__c = mergeMode,
+            GridConfig__c = template.GridConfig__c
         );
 
         Savepoint sp = Database.setSavepoint();
@@ -153,7 +188,8 @@ global with sharing class ScheduleTemplateService {
                 SELECT Id, Name, Description__c, EntryKind__c, Type__c, IsRequired__c,
                        DayOfWeek__c, StartTime__c, EndTime__c, DurationMinutes__c,
                        TargetType__c, ParticipantGroup__c, Participant__c, Coach_Profile__c,
-                       Location__c, MeetingLink__c, Order__c, DeviationReason__c, Notes__c
+                       Location__c, MeetingLink__c, Order__c, DeviationReason__c, Notes__c,
+                       TimeSlotId__c, Category__c
                 FROM ScheduleEntry__c
                 WHERE ScheduleTemplate__c = :template.Id
             ];
@@ -191,7 +227,9 @@ global with sharing class ScheduleTemplateService {
                     DeviationReason__c = src.DeviationReason__c,
                     Notes__c = src.Notes__c,
                     SourceTemplateEntry__c = src.Id,
-                    IsCustomized__c = false
+                    IsCustomized__c = false,
+                    TimeSlotId__c = src.TimeSlotId__c,
+                    Category__c = src.Category__c
                 );
                 copies.add(copy);
             }
@@ -227,7 +265,7 @@ global with sharing class ScheduleTemplateService {
         }
 
         List<WeeklySchedule__c> plans = [
-            SELECT Id, Name, ProgramWeek__c, ProgramWeek__r.Program__c, ProgramWeek__r.Module__c, Status__c
+            SELECT Id, Name, ProgramWeek__c, ProgramWeek__r.Program__c, ProgramWeek__r.Module__c, Status__c, GridConfig__c
             FROM WeeklySchedule__c
             WHERE Id = :request.weeklyScheduleId
             LIMIT 1
@@ -241,7 +279,8 @@ global with sharing class ScheduleTemplateService {
             SELECT Id, Name, Description__c, EntryKind__c, Type__c, IsRequired__c,
                    DayOfWeek__c, StartTime__c, EndTime__c, DurationMinutes__c,
                    TargetType__c, ParticipantGroup__c, Participant__c, Coach_Profile__c,
-                   Location__c, MeetingLink__c, Order__c, DeviationReason__c, Notes__c
+                   Location__c, MeetingLink__c, Order__c, DeviationReason__c, Notes__c,
+                   TimeSlotId__c, Category__c
             FROM ScheduleEntry__c
             WHERE WeeklySchedule__c = :plan.Id
         ];
@@ -254,7 +293,8 @@ global with sharing class ScheduleTemplateService {
                 Program__c = plan.ProgramWeek__r.Program__c,
                 Module__c = plan.ProgramWeek__r.Module__c,
                 Description__c = request.description,
-                Status__c = 'Active'
+                Status__c = 'Active',
+                GridConfig__c = plan.GridConfig__c
             );
             insert template;
 
@@ -280,7 +320,9 @@ global with sharing class ScheduleTemplateService {
                     Order__c = src.Order__c,
                     DeviationReason__c = src.DeviationReason__c,
                     Notes__c = src.Notes__c,
-                    IsCustomized__c = false
+                    IsCustomized__c = false,
+                    TimeSlotId__c = src.TimeSlotId__c,
+                    Category__c = src.Category__c
                 );
                 copies.add(copy);
             }
@@ -338,7 +380,7 @@ global with sharing class ScheduleTemplateService {
         }
 
         List<ScheduleTemplate__c> originals = [
-            SELECT Id, Name, Status__c, Program__c, Module__c, ProgramWeek__c, Description__c
+            SELECT Id, Name, Status__c, Program__c, Module__c, ProgramWeek__c, Description__c, GridConfig__c
             FROM ScheduleTemplate__c
             WHERE Id = :request.templateId
             LIMIT 1
@@ -354,7 +396,8 @@ global with sharing class ScheduleTemplateService {
             SELECT Id, Name, Description__c, EntryKind__c, Type__c, IsRequired__c,
                    DayOfWeek__c, StartTime__c, EndTime__c, DurationMinutes__c,
                    TargetType__c, ParticipantGroup__c, Participant__c, Coach_Profile__c,
-                   Location__c, MeetingLink__c, Order__c, DeviationReason__c, Notes__c
+                   Location__c, MeetingLink__c, Order__c, DeviationReason__c, Notes__c,
+                   TimeSlotId__c, Category__c
             FROM ScheduleEntry__c
             WHERE ScheduleTemplate__c = :original.Id
         ];
@@ -367,7 +410,8 @@ global with sharing class ScheduleTemplateService {
                 Program__c = original.Program__c,
                 Module__c = original.Module__c,
                 Description__c = original.Description__c,
-                Status__c = original.Status__c
+                Status__c = original.Status__c,
+                GridConfig__c = original.GridConfig__c
             );
             insert copy;
 
@@ -393,7 +437,9 @@ global with sharing class ScheduleTemplateService {
                     Order__c = src.Order__c,
                     DeviationReason__c = src.DeviationReason__c,
                     Notes__c = src.Notes__c,
-                    IsCustomized__c = false
+                    IsCustomized__c = false,
+                    TimeSlotId__c = src.TimeSlotId__c,
+                    Category__c = src.Category__c
                 );
                 entryCopies.add(c);
             }
@@ -410,6 +456,122 @@ global with sharing class ScheduleTemplateService {
 
             return copy;
         } catch (ScheduleTemplateServiceException e) {
+            throw e;
+        } catch (Exception e) {
+            Database.rollback(sp);
+            throw new ScheduleTemplateServiceException(500, CODE_INTERNAL, e.getMessage());
+        }
+    }
+
+    /**
+     * Legt eine Vorlage samt Eintraegen in einer Transaktion an. Wird fuer den
+     * einmaligen Import der statischen Beispielwoche verwendet. Eine bereits
+     * vorhandene Vorlage mit demselben Namen wird unveraendert zurueckgegeben.
+     */
+    public static ScheduleTemplate__c importTemplate(ImportTemplateRequest request) {
+        if (request == null || String.isBlank(request.name)) {
+            throw badRequest('name ist erforderlich.');
+        }
+        String name = request.name.trim();
+
+        List<ScheduleTemplate__c> existing = [
+            SELECT Id, Name, Status__c
+            FROM ScheduleTemplate__c
+            WHERE Name = :name
+            LIMIT 1
+        ];
+        if (!existing.isEmpty()) {
+            return existing[0];
+        }
+
+        if (String.isNotBlank(request.gridConfig)) {
+            ScheduleGridService.parse(request.gridConfig);
+        }
+
+        String status = String.isBlank(request.status) ? 'Active' : request.status;
+        if (status != 'Active' && status != 'Inactive') {
+            throw badRequest('Unbekannter Vorlagenstatus.');
+        }
+
+        if (String.isNotBlank(request.programWeekId)) {
+            ScheduleService.assertCoachAccess(request.programWeekId);
+        } else if (String.isNotBlank(request.programId)
+                && !ProgramCoachService.isStaffUser(UserInfo.getUserId())
+                && !ProgramCoachService.isAssignedToProgram(request.programId, UserInfo.getUserId())) {
+            throw new ScheduleTemplateServiceException(403, ScheduleService.CODE_NOT_ASSIGNED,
+                'Sie sind diesem Programm nicht zugeordnet.');
+        }
+
+        Map<String, Id> coachIdsByName = new Map<String, Id>();
+        for (Coach_Profile__c coach : [SELECT Id, Name FROM Coach_Profile__c]) {
+            coachIdsByName.put(coach.Name, coach.Id);
+        }
+
+        Savepoint sp = Database.setSavepoint();
+        try {
+            ScheduleTemplate__c template = new ScheduleTemplate__c(
+                Name = name,
+                Description__c = String.isBlank(request.description) ? null : request.description,
+                Program__c = String.isBlank(request.programId) ? null : request.programId,
+                ProgramWeek__c = String.isBlank(request.programWeekId) ? null : request.programWeekId,
+                Status__c = status,
+                GridConfig__c = String.isBlank(request.gridConfig) ? null : ScheduleGridService.serialize(ScheduleGridService.parse(request.gridConfig))
+            );
+            insert template;
+
+            List<ScheduleEntry__c> entries = new List<ScheduleEntry__c>();
+            for (ImportEntry input : request.entries == null ? new List<ImportEntry>() : request.entries) {
+                if (input == null || String.isBlank(input.title)) {
+                    continue;
+                }
+                ScheduleEntry__c entry = new ScheduleEntry__c(
+                    Name = input.title.trim(),
+                    ScheduleTemplate__c = template.Id,
+                    Description__c = String.isBlank(input.description) ? null : input.description,
+                    EntryKind__c = String.isBlank(input.entryKind) ? 'Aktivität' : input.entryKind,
+                    Type__c = String.isBlank(input.type) ? 'Workshop' : input.type,
+                    IsRequired__c = input.isRequired == null ? false : input.isRequired,
+                    DayOfWeek__c = String.isBlank(input.dayOfWeek) ? 'Monday' : input.dayOfWeek,
+                    StartTime__c = String.isBlank(input.startTime) ? null : ScheduleService.parseTime(input.startTime),
+                    EndTime__c = String.isBlank(input.endTime) ? null : ScheduleService.parseTime(input.endTime),
+                    DurationMinutes__c = input.durationMinutes,
+                    TargetType__c = 'Course',
+                    Coach_Profile__c = String.isBlank(input.coachName) ? null : coachIdsByName.get(input.coachName),
+                    Location__c = String.isBlank(input.location) ? null : input.location,
+                    MeetingLink__c = String.isBlank(input.meetingLink) ? null : input.meetingLink,
+                    Order__c = input.order,
+                    DeviationReason__c = String.isBlank(input.deviationReason) ? null : input.deviationReason,
+                    Notes__c = String.isBlank(input.notes) ? null : input.notes,
+                    IsCustomized__c = false,
+                    TimeSlotId__c = String.isBlank(input.timeSlotId) ? null : input.timeSlotId,
+                    Category__c = String.isBlank(input.category) ? null : input.category
+                );
+                if (entry.StartTime__c != null && entry.EndTime__c != null) {
+                    Integer minutes = (entry.EndTime__c.hour() * 60 + entry.EndTime__c.minute())
+                        - (entry.StartTime__c.hour() * 60 + entry.StartTime__c.minute());
+                    if (minutes > 0) {
+                        entry.DurationMinutes__c = minutes;
+                    }
+                }
+                ScheduleService.validateScheduleEntry(entry);
+                entries.add(entry);
+            }
+            if (!entries.isEmpty()) {
+                insert entries;
+            }
+
+            AuditEvent__c audit = buildAudit('schedule.template_imported', 'ScheduleTemplate__c', template.Id, null);
+            Database.SaveResult auditResult = Database.insert(audit, false);
+            if (!auditResult.isSuccess()) {
+                Database.rollback(sp);
+                throw new ScheduleTemplateServiceException(500, CODE_AUDIT_FAILED, 'Das Audit-Event konnte nicht geschrieben werden; die Aenderung wurde zurueckgerollt.');
+            }
+
+            return template;
+        } catch (ScheduleTemplateServiceException e) {
+            throw e;
+        } catch (ScheduleServiceException e) {
+            Database.rollback(sp);
             throw e;
         } catch (Exception e) {
             Database.rollback(sp);

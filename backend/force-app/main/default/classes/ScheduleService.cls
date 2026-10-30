@@ -56,6 +56,7 @@ global with sharing class ScheduleService {
         global String status;
         global String deviationReason;
         global String notes;
+        global String mergeMode;
     }
 
     global class ScheduleEntryRequest {
@@ -81,6 +82,8 @@ global with sharing class ScheduleService {
         global String deviationReason;
         global String notes;
         global Boolean isCustomized;
+        global String timeSlotId;
+        global String category;
     }
 
     global class ScheduleResponse {
@@ -173,6 +176,11 @@ global with sharing class ScheduleService {
         if (request.notes != null) {
             record.Notes__c = String.isBlank(request.notes) ? null : request.notes;
         }
+        if (String.isNotBlank(request.mergeMode)) {
+            record.MergeMode__c = request.mergeMode;
+        } else if (String.isBlank(request.id)) {
+            record.MergeMode__c = 'Overlay';
+        }
 
         validateWeeklySchedule(record);
         Id pwId = String.isNotBlank(request.id) ? record.ProgramWeek__c : (String.isNotBlank(request.programWeekId) ? request.programWeekId : null);
@@ -221,7 +229,7 @@ global with sharing class ScheduleService {
                        StartTime__c, EndTime__c, DurationMinutes__c, TargetType__c,
                        ParticipantGroup__c, Participant__c, Coach_Profile__c, Location__c,
                        MeetingLink__c, Order__c, DeviationReason__c, Notes__c, IsCustomized__c,
-                       SourceTemplateEntry__c
+                       SourceTemplateEntry__c, TimeSlotId__c, Category__c
                 FROM ScheduleEntry__c
                 WHERE Id = :request.id
                 LIMIT 1
@@ -346,6 +354,12 @@ global with sharing class ScheduleService {
         }
         if (request.isCustomized != null) {
             record.IsCustomized__c = request.isCustomized;
+        }
+        if (request.timeSlotId != null) {
+            record.TimeSlotId__c = String.isBlank(request.timeSlotId) ? null : request.timeSlotId;
+        }
+        if (request.category != null) {
+            record.Category__c = String.isBlank(request.category) ? null : request.category;
         }
 
         computeDateForEntry(record);
@@ -589,6 +603,12 @@ global with sharing class ScheduleService {
             throw badRequest('Unbekannter ScopeType__c.');
         }
 
+        if (String.isNotBlank(schedule.MergeMode__c)
+                && schedule.MergeMode__c != 'Overlay'
+                && schedule.MergeMode__c != 'Replace') {
+            throw badRequest('Unbekannter MergeMode__c.');
+        }
+
         if (schedule.ProgramWeek__c != null) {
             validateProgramWeekUnique(schedule);
         }
@@ -687,6 +707,17 @@ global with sharing class ScheduleService {
             }
         } else {
             throw badRequest('Unbekannter TargetType__c.');
+        }
+
+        if (String.isNotBlank(entry.Category__c)
+                && entry.Category__c != 'live'
+                && entry.Category__c != 'async'
+                && entry.Category__c != 'break'
+                && entry.Category__c != 'special') {
+            throw badRequest('Unbekannte Kategorie.');
+        }
+        if (String.isNotBlank(entry.TimeSlotId__c) && entry.TimeSlotId__c.length() > 64) {
+            throw badRequest('Die Zeitblock-ID ist zu lang.');
         }
 
         if (entry.StartTime__c != null && entry.EndTime__c == null) {

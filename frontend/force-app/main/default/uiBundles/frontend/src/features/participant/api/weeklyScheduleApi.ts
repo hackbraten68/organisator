@@ -36,6 +36,7 @@ export interface PortalScheduleEntry {
 	endTime: string | null;
 	durationMinutes: number | null;
 	targetType: string | null;
+	sourceScope: string | null;
 	coachName: string | null;
 	location: string | null;
 	meetingLink: string | null;

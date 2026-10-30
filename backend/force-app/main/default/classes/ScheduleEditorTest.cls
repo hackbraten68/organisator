@@ -105,6 +105,69 @@ private class ScheduleEditorTest {
     }
 
     @IsTest
+    static void savePlanPersistsMergeModeAndReturnsIt() {
+        Map<String, Object> body = new Map<String, Object>{
+            'action' => 'savePlan',
+            'name' => 'Individual Replace',
+            'programWeekId' => programWeekId(),
+            'scopeType' => 'Individual',
+            'participantId' => participantId(),
+            'startDate' => '2027-03-01',
+            'mergeMode' => 'Replace'
+        };
+        setPost(body);
+        ScheduleEditor.MutationResponse resp = ScheduleEditor.post();
+        System.assertEquals(true, resp.success);
+
+        WeeklySchedule__c saved = [SELECT MergeMode__c FROM WeeklySchedule__c WHERE Id = :resp.id];
+        System.assertEquals('Replace', saved.MergeMode__c, 'MergeMode persisted');
+
+        setGet('get', 'planId', resp.id);
+        ScheduleEditor.EditorResponse detail = ScheduleEditor.get();
+        System.assertEquals(true, detail.success);
+        System.assertEquals('Replace', detail.plan.mergeMode, 'MergeMode in PlanView');
+    }
+
+    @IsTest
+    static void applyTemplateForwardsScopeAndMergeMode() {
+        insert new ScheduleTemplate__c(Name = 'Editor Template', Status__c = 'Active');
+        Id templateId = [SELECT Id FROM ScheduleTemplate__c LIMIT 1].Id;
+        insert new ScheduleEntry__c(
+            Name = 'Template Entry',
+            ScheduleTemplate__c = templateId,
+            EntryKind__c = 'Aktivität',
+            Type__c = 'Workshop',
+            DayOfWeek__c = 'Monday',
+            TargetType__c = 'Course',
+            Order__c = 1
+        );
+
+        Map<String, Object> body = new Map<String, Object>{
+            'action' => 'applyTemplate',
+            'templateId' => templateId,
+            'programWeekId' => programWeekId(),
+            'startDate' => '2027-03-01',
+            'name' => 'Individual From Template',
+            'scopeType' => 'Individual',
+            'participantId' => participantId(),
+            'mergeMode' => 'Replace'
+        };
+        setPost(body);
+        ScheduleEditor.MutationResponse resp = ScheduleEditor.post();
+        System.assertEquals(true, resp.success);
+
+        WeeklySchedule__c plan = [
+            SELECT ScopeType__c, Participant__c, MergeMode__c, AppliedTemplate__c
+            FROM WeeklySchedule__c
+            WHERE Id = :resp.id
+        ];
+        System.assertEquals('Individual', plan.ScopeType__c, 'Scope forwarded');
+        System.assertEquals(participantId(), plan.Participant__c, 'Participant forwarded');
+        System.assertEquals('Replace', plan.MergeMode__c, 'MergeMode forwarded');
+        System.assertEquals(templateId, plan.AppliedTemplate__c, 'Template provenance');
+    }
+
+    @IsTest
     static void saveEntryCreatesAndUpdates() {
         ScheduleService.WeeklyScheduleRequest req = new ScheduleService.WeeklyScheduleRequest();
         req.name = 'Plan For Entry';

@@ -24,7 +24,7 @@ import {
   getScheduleOptions,
   applyScheduleTemplate,
 } from "@/api/schedule/scheduleEditorService";
-import type { ScheduleScope, SchedulePlan, PlanInput } from "@/types/schedule";
+import type { ScheduleScope, SchedulePlan, PlanInput, ScheduleMergeMode } from "@/types/schedule";
 import type { ScheduleOptions } from "@/types/schedule";
 
 interface Props {
@@ -52,6 +52,7 @@ export default function SchedulePlanDialog({
 }: Props) {
   const [name, setName] = useState("");
   const [scopeType, setScopeType] = useState<ScheduleScope>("Course");
+  const [mergeMode, setMergeMode] = useState<ScheduleMergeMode>("Overlay");
   const [participantGroupId, setParticipantGroupId] = useState<string>("");
   const [participantId, setParticipantId] = useState<string>("");
   const [startDate, setStartDate] = useState("");
@@ -76,6 +77,7 @@ export default function SchedulePlanDialog({
     if (plan) {
       setName(plan.name);
       setScopeType(plan.scopeType);
+      setMergeMode(plan.mergeMode);
       setParticipantGroupId(plan.participantGroupId ?? "");
       setParticipantId(plan.participantId ?? "");
       setStartDate(plan.startDate ?? "");
@@ -86,15 +88,16 @@ export default function SchedulePlanDialog({
     } else {
       setName("");
       setScopeType(defaultScope ?? "Course");
+      setMergeMode("Overlay");
       setParticipantGroupId("");
-      setParticipantId("");
+      setParticipantId(defaultParticipantId ?? "");
       setStartDate(new Date().toISOString().slice(0, 10));
       setEndDate("");
       setNotes("");
       setDeviationReason("");
       setTemplateId("");
     }
-  }, [open, plan]);
+  }, [open, plan, defaultScope, defaultParticipantId]);
 
   const availableScopes: ScheduleScope[] = (["Course", "Group", "Individual"] as ScheduleScope[]).filter(
     (s) => isEdit || !existingScopes.includes(s),
@@ -119,12 +122,18 @@ export default function SchedulePlanDialog({
     }
     setSaving(true);
     try {
-      if (!isEdit && templateId) {
+      const canUseTemplate =
+        scopeType === "Course" || (scopeType === "Individual" && mergeMode === "Replace");
+      if (!isEdit && templateId && canUseTemplate) {
         await applyScheduleTemplate({
           templateId,
           programWeekId,
           startDate,
           name: name.trim(),
+          scopeType,
+          participantGroupId: null,
+          participantId: scopeType === "Individual" ? participantId : null,
+          mergeMode: scopeType === "Individual" ? mergeMode : "Overlay",
         });
         toast.success("Plan aus Vorlage angelegt.");
       } else {
@@ -136,6 +145,7 @@ export default function SchedulePlanDialog({
           endDate: endDate || null,
           notes: notes || null,
           deviationReason: deviationReason || null,
+          mergeMode: scopeType === "Individual" ? mergeMode : null,
         };
         if (isEdit && plan) {
           input.id = plan.id;
@@ -179,8 +189,12 @@ export default function SchedulePlanDialog({
               onValueChange={(v) => {
                 const newScope = v as ScheduleScope;
                 setScopeType(newScope);
+                setTemplateId("");
                 if (newScope !== "Group") setParticipantGroupId("");
-                if (newScope !== "Individual") setParticipantId("");
+                if (newScope !== "Individual") {
+                  setParticipantId("");
+                  setMergeMode("Overlay");
+                }
               }}
             >
               <SelectTrigger>
@@ -195,7 +209,39 @@ export default function SchedulePlanDialog({
               </SelectContent>
             </Select>
           </div>
-          {(scopeType === "Course" || scopeType === "Individual") && !isEdit && (
+          {scopeType === "Individual" && (
+            <div>
+              <Label>Umgang mit bestehendem Plan</Label>
+              <Select
+                value={mergeMode}
+                onValueChange={(v) => {
+                  const next = v as ScheduleMergeMode;
+                  setMergeMode(next);
+                  if (next === "Overlay") setTemplateId("");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Overlay">Bestehenden Plan ergänzen</SelectItem>
+                  <SelectItem value="Replace">Bestehenden Plan vollständig ersetzen</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {mergeMode === "Overlay"
+                  ? "Kurs- und Gruppenplan bleiben sichtbar. Einträge mit gleichem Tag, Reihenfolge und Art überschreiben den bestehenden Slot."
+                  : "Nur die Einträge dieses Individualplans werden im Portal angezeigt."}
+              </p>
+              {isEdit && plan && plan.mergeMode !== mergeMode && (
+                <p className="mt-1 text-xs text-amber-700">
+                  Der Wechsel wirkt nach dem Speichern. Ein veröffentlichter Plan muss dafür zuerst zurückgezogen werden.
+                </p>
+              )}
+            </div>
+          )}
+          {!isEdit &&
+            (scopeType === "Course" || (scopeType === "Individual" && mergeMode === "Replace")) && (
             <div>
               <Label>Vorlage (optional)</Label>
               <Select value={templateId} onValueChange={setTemplateId}>
@@ -211,6 +257,11 @@ export default function SchedulePlanDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {scopeType === "Individual" && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Die Vorlage wird vollständig kopiert. Der Individualplan ersetzt anschließend Kurs- und Gruppenplan.
+                </p>
+              )}
             </div>
           )}
           {scopeType === "Group" && (

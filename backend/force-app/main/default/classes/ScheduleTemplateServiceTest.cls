@@ -40,6 +40,7 @@ public class ScheduleTemplateServiceTest {
         System.assertNotEquals(null, schedule.Id, 'Wochenplan erstellt');
         System.assertEquals('Applied Schedule', schedule.Name);
         System.assertEquals(templateId, schedule.AppliedTemplate__c, 'Provenienz gesetzt');
+        System.assertEquals('Overlay', schedule.MergeMode__c, 'MergeMode Default Overlay');
 
         List<ScheduleEntry__c> copies = [
             SELECT Id, SourceTemplateEntry__c, IsCustomized__c, ScheduleTemplate__c, WeeklySchedule__c
@@ -60,6 +61,42 @@ public class ScheduleTemplateServiceTest {
     }
 
     @IsTest
+    static void applySpeichertExplizitenMergeMode() {
+        Id templateId = [SELECT Id FROM ScheduleTemplate__c LIMIT 1].Id;
+        Id programWeekId = [SELECT Id FROM ProgramWeek__c LIMIT 1].Id;
+
+        ScheduleTemplateService.ApplyRequest req = new ScheduleTemplateService.ApplyRequest();
+        req.templateId = String.valueOf(templateId);
+        req.programWeekId = String.valueOf(programWeekId);
+        req.startDate = '2027-03-08';
+        req.name = 'Replace Schedule';
+        req.mergeMode = 'Replace';
+
+        WeeklySchedule__c schedule = ScheduleTemplateService.applyTemplate(req);
+        System.assertEquals('Replace', schedule.MergeMode__c, 'MergeMode Replace');
+    }
+
+    @IsTest
+    static void applyLehntUnbekanntenMergeModeAb() {
+        Id templateId = [SELECT Id FROM ScheduleTemplate__c LIMIT 1].Id;
+        Id programWeekId = [SELECT Id FROM ProgramWeek__c LIMIT 1].Id;
+
+        ScheduleTemplateService.ApplyRequest req = new ScheduleTemplateService.ApplyRequest();
+        req.templateId = String.valueOf(templateId);
+        req.programWeekId = String.valueOf(programWeekId);
+        req.startDate = '2027-03-15';
+        req.mergeMode = 'Append';
+
+        try {
+            ScheduleTemplateService.applyTemplate(req);
+            System.assert(false, 'unbekannter MergeMode muss abgelehnt werden');
+        } catch (ScheduleTemplateServiceException e) {
+            System.assertEquals(400, e.getStatusCode());
+            System.assertEquals('Unbekannter Merge-Modus.', e.getMessage());
+        }
+    }
+
+    @IsTest
     static void listTemplatesLiefertAktive() {
         List<ScheduleTemplate__c> templates = ScheduleTemplateService.listTemplates();
         System.assertEquals(1, templates.size(), 'eine aktive Vorlage');
@@ -70,6 +107,56 @@ public class ScheduleTemplateServiceTest {
         Id templateId = [SELECT Id FROM ScheduleTemplate__c LIMIT 1].Id;
         List<ScheduleEntry__c> preview = ScheduleTemplateService.preview(templateId);
         System.assertEquals(1, preview.size(), 'Vorschau hat einen Eintrag');
+    }
+
+    @IsTest
+    static void importTemplateLegtVorlageUndEintraegeAn() {
+        ScheduleTemplateService.ImportTemplateRequest request = new ScheduleTemplateService.ImportTemplateRequest();
+        request.name = 'Imported Example';
+        request.description = 'Beispiel';
+        request.status = 'Active';
+        request.gridConfig = JSON.serialize(new Map<String, Object>{
+            'version' => 1,
+            'slots' => new List<Object>{
+                new Map<String, Object>{
+                    'id' => 'slot-a',
+                    'start' => '08:30',
+                    'end' => '10:00',
+                    'format' => 'Synchron',
+                    'azav' => 'AZAV-Modul'
+                }
+            }
+        });
+
+        ScheduleTemplateService.ImportEntry entry = new ScheduleTemplateService.ImportEntry();
+        entry.title = 'Live-Unterricht';
+        entry.entryKind = 'Aktivität';
+        entry.type = 'Workshop';
+        entry.dayOfWeek = 'Monday';
+        entry.startTime = '08:30';
+        entry.endTime = '10:00';
+        entry.category = 'live';
+        entry.timeSlotId = 'slot-a';
+        entry.order = 1;
+        request.entries = new List<ScheduleTemplateService.ImportEntry>{ entry };
+
+        ScheduleTemplate__c created = ScheduleTemplateService.importTemplate(request);
+        System.assertNotEquals(null, created.Id, 'Vorlage importiert');
+
+        List<ScheduleEntry__c> entries = [
+            SELECT Name, Category__c, TimeSlotId__c, ScheduleTemplate__c
+            FROM ScheduleEntry__c
+            WHERE ScheduleTemplate__c = :created.Id
+        ];
+        System.assertEquals(1, entries.size(), 'ein importierter Eintrag');
+        System.assertEquals('live', entries[0].Category__c, 'Kategorie kopiert');
+        System.assertEquals('slot-a', entries[0].TimeSlotId__c, 'Slot-ID kopiert');
+
+        ScheduleTemplate__c again = ScheduleTemplateService.importTemplate(request);
+        System.assertEquals(created.Id, again.Id, 'Import ist idempotent');
+        System.assertEquals(1, [
+            SELECT COUNT() FROM ScheduleTemplate__c WHERE Name = 'Imported Example'
+        ], 'keine Dublette');
     }
 
     @IsTest

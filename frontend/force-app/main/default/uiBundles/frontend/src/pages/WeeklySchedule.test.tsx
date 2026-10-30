@@ -39,6 +39,7 @@ const schedule = (overrides: Record<string, unknown> = {}) => ({
 			endTime: "11:00:00.000Z",
 			durationMinutes: 60,
 			targetType: "Individual",
+			sourceScope: "Individual",
 			coachName: "Sabine Beispiel",
 			location: "Zoom",
 			meetingLink: "https://zoom.example.invalid/x",
@@ -69,6 +70,20 @@ describe("WeeklySchedule page", () => {
 		await waitFor(() => expect(screen.getByText("Einzelcoaching")).toBeInTheDocument());
 		expect(screen.getByText(/Sabine Beispiel/)).toBeInTheDocument();
 		expect(screen.getByText("Mein Wochenplan")).toBeInTheDocument();
+	});
+
+	it("zeigt angewendete Ebenen und die Herkunft je Eintrag", async () => {
+		fetchMock.mockResolvedValue(
+			schedule({
+				effectiveScope: "Individual",
+				appliedScopes: ["Course", "Group", "Individual"],
+			}),
+		);
+		render(<WeeklySchedule />);
+		await waitFor(() => expect(screen.getByText("Angewendet:")).toBeInTheDocument());
+		expect(screen.getAllByText("Kurs")).toHaveLength(1);
+		expect(screen.getAllByText("Gruppe")).toHaveLength(1);
+		expect(screen.getAllByText("Individuell")).toHaveLength(2);
 	});
 
 	it("zeigt leere Woche", async () => {
