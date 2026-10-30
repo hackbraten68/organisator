@@ -170,7 +170,7 @@ export default function ScheduleGrid({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border bg-white dark:bg-card shadow-sm print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
+      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
         <Table
           aria-label="Wochenplan-Raster"
           className="week-plan-table w-full min-w-[1180px] table-fixed border-collapse text-sm print:min-w-0 print:text-[8pt]"
@@ -186,23 +186,23 @@ export default function ScheduleGrid({
             {showFormatColumn && <col className="w-[168px]" />}
           </colgroup>
           <TableHeader className="print:table-header-group">
-            <TableRow className="border-0 bg-slate-800 hover:bg-slate-800">
-              <TableHead className="border-r border-white/20 px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-white">
+            <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
+              <TableHead className="whitespace-nowrap border-r border-border px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
                 Zeitraum
               </TableHead>
-              <TableHead className="border-r border-white/20 px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-white">
+              <TableHead className="whitespace-nowrap border-r border-border px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
                 Dauer
               </TableHead>
               {days.map((day) => (
                 <TableHead
                   key={day}
-                  className="border-r border-white/20 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-white"
+                  className="border-r border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground"
                 >
                   {GRID_DAY_LABELS[day] ?? day}
                 </TableHead>
               ))}
               {showFormatColumn && (
-                <TableHead className="border-r border-white/20 px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-white last:border-r-0">
+                <TableHead className="border-r border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground last:border-r-0">
                   Format / AZAV-Zuordnung
                 </TableHead>
               )}
@@ -219,12 +219,12 @@ export default function ScheduleGrid({
                 <TableRow key={slot.id} className="week-plan-row align-top hover:bg-transparent">
                   <th
                     scope="row"
-                    className="border-r border-border bg-slate-50 dark:bg-muted/40 px-3 py-3 text-left align-top"
+                    className="border-r border-border bg-muted/30 dark:bg-muted/40 px-3 py-3 text-left align-top"
                   >
-                    <span className="block whitespace-nowrap font-semibold text-slate-900 dark:text-white">{slot.start}</span>
+                    <span className="block whitespace-nowrap font-semibold text-foreground">{slot.start}</span>
                     <span className="block whitespace-nowrap text-xs text-muted-foreground">bis {slot.end}</span>
                     {slot.units && (
-                      <span className="mt-1 block text-[11px] font-medium text-slate-600 dark:text-white/80">
+                      <span className="mt-1 block text-[11px] font-medium text-muted-foreground">
                         {slot.units}
                       </span>
                     )}
@@ -241,7 +241,7 @@ export default function ScheduleGrid({
                       </Button>
                     )}
                   </th>
-                  <TableCell className="border-r border-border bg-slate-50/60 dark:bg-muted/40 px-2 py-3 align-top text-xs text-muted-foreground whitespace-nowrap">
+                  <TableCell className="border-r border-border bg-muted/20 dark:bg-muted/40 px-3 py-3 align-top text-xs text-muted-foreground">
                     {slotDurationMinutes(slot)} Min.
                   </TableCell>
 
@@ -296,7 +296,7 @@ export default function ScheduleGrid({
 
                   {showFormatColumn && (
                     <TableCell className="px-3 py-3 align-top whitespace-normal break-words">
-                      <p className="text-xs font-semibold text-slate-900 dark:text-white">{slot.format || '–'}</p>
+                      <p className="text-xs font-semibold text-foreground">{slot.format || '–'}</p>
                       {slot.azav && (
                         <p className="mt-1 text-[11px] text-muted-foreground">{slot.azav}</p>
                       )}
