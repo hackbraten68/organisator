@@ -182,7 +182,7 @@ export default function WeeklySchedule() {
 
 							{entries.length > 0 && (
 								<div className="overflow-x-auto">
-									<ScheduleGrid config={gridConfig} entries={gridEntries} />
+									<ScheduleGrid config={gridConfig} entries={gridEntries} showFormatColumn={false} />
 								</div>
 							)}
 						</>

@@ -32,6 +32,7 @@ interface Props {
   onDeleteEntry?: (entry: ScheduleEntry) => void;
   onEditSlot?: (slot: GridSlot) => void;
   onManageSlots?: () => void;
+  showFormatColumn?: boolean;
   className?: string;
 }
 
@@ -153,6 +154,7 @@ export default function ScheduleGrid({
   onDeleteEntry,
   onEditSlot,
   onManageSlots,
+  showFormatColumn = true,
   className,
 }: Props) {
   const { bySlotAndDay, unmatched } = groupEntriesForGrid(entries, config, days);
@@ -189,9 +191,11 @@ export default function ScheduleGrid({
                   {GRID_DAY_LABELS[day] ?? day}
                 </TableHead>
               ))}
-              <TableHead className="w-[15%] border-r border-white/20 px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-white last:border-r-0">
-                Format / AZAV-Zuordnung
-              </TableHead>
+              {showFormatColumn && (
+                <TableHead className="w-[15%] border-r border-white/20 px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-white last:border-r-0">
+                  Format / AZAV-Zuordnung
+                </TableHead>
+              )}
             </TableRow>
           </TableHeader>
 
@@ -205,7 +209,7 @@ export default function ScheduleGrid({
                 <TableRow key={slot.id} className="week-plan-row align-top hover:bg-transparent">
                   <th
                     scope="row"
-                    className="border-r border-border bg-slate-50 px-3 py-3 text-left align-top"
+                    className="border-r border-border bg-slate-50 dark:bg-muted/40 px-3 py-3 text-left align-top"
                   >
                     <span className="block font-semibold text-slate-900 dark:text-white">{slot.start}</span>
                     <span className="block text-xs text-muted-foreground">bis {slot.end}</span>
@@ -280,15 +284,17 @@ export default function ScheduleGrid({
                     </TableCell>
                   ))}
 
-                  <TableCell className="px-3 py-3 align-top whitespace-normal break-words">
-                    <p className="text-xs font-semibold text-slate-900 dark:text-white">{slot.format || '–'}</p>
-                    {slot.azav && (
-                      <p className="mt-1 text-[11px] text-muted-foreground">{slot.azav}</p>
-                    )}
-                    {slot.units && (
-                      <p className="mt-1 text-[11px] text-muted-foreground">{slot.units}</p>
-                    )}
-                  </TableCell>
+                  {showFormatColumn && (
+                    <TableCell className="px-3 py-3 align-top whitespace-normal break-words">
+                      <p className="text-xs font-semibold text-slate-900 dark:text-white">{slot.format || '–'}</p>
+                      {slot.azav && (
+                        <p className="mt-1 text-[11px] text-muted-foreground">{slot.azav}</p>
+                      )}
+                      {slot.units && (
+                        <p className="mt-1 text-[11px] text-muted-foreground">{slot.units}</p>
+                      )}
+                    </TableCell>
+                  )}
                 </TableRow>
               );
             })}
