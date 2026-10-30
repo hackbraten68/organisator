@@ -107,11 +107,10 @@ global with sharing class ScheduleTemplateService {
         if (template.Status__c != 'Active') {
             throw badRequest('Die Vorlage ist nicht aktiv.');
         }
-        if (template.ProgramWeek__c != null && template.ProgramWeek__c != request.programWeekId) {
-            throw badRequest('Die Vorlage passt nicht zur ausgewaehlten Kurswoche.');
-        }
-        if (template.ProgramWeek__c == null && template.Program__c != null
-                && template.Program__c != weeks[0].Program__c) {
+        // Vorlagen sind programmweit wiederverwendbar. Die urspruengliche
+        // Kurswoche ist nur Herkunft/Provenienz und darf die Anwendung auf
+        // eine andere Woche desselben Programms nicht blockieren.
+        if (template.Program__c != null && template.Program__c != weeks[0].Program__c) {
             throw badRequest('Die Vorlage passt nicht zum ausgewaehlten Programm.');
         }
 
@@ -289,7 +288,7 @@ global with sharing class ScheduleTemplateService {
         try {
             ScheduleTemplate__c template = new ScheduleTemplate__c(
                 Name = request.name,
-                ProgramWeek__c = plan.ProgramWeek__c,
+                ProgramWeek__c = null,
                 Program__c = plan.ProgramWeek__r.Program__c,
                 Module__c = plan.ProgramWeek__r.Module__c,
                 Description__c = request.description,
