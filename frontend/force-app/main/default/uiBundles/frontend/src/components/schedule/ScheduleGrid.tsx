@@ -160,7 +160,7 @@ export default function ScheduleGrid({
   const { bySlotAndDay, unmatched } = groupEntriesForGrid(entries, config, days);
 
   return (
-    <section className={cn('space-y-3', className)}>
+    <section className={cn('mx-2 space-y-3', className)}>
       {editable && onManageSlots && (
         <div className="flex justify-end print:hidden">
           <Button type="button" size="sm" variant="outline" onClick={onManageSlots}>
@@ -177,10 +177,10 @@ export default function ScheduleGrid({
         >
           <TableHeader className="print:table-header-group">
             <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
-              <TableHead className="w-[10%] border-r border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
+              <TableHead className="w-max whitespace-nowrap border-r border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
                 Zeitraum
               </TableHead>
-              <TableHead className="w-[6%] border-r border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
+              <TableHead className="w-max whitespace-nowrap border-r border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
                 Dauer
               </TableHead>
               {days.map((day) => (
