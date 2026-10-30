@@ -177,22 +177,22 @@ export default function ScheduleGrid({
         >
           <TableHeader className="print:table-header-group">
             <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
-              <TableHead className="w-[10%] border-r border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
+              <TableHead className="w-max whitespace-nowrap border-r border-border px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
                 Zeitraum
               </TableHead>
-              <TableHead className="w-[6%] border-r border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
+              <TableHead className="w-max whitespace-nowrap border-r border-border px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground">
                 Dauer
               </TableHead>
               {days.map((day) => (
                 <TableHead
                   key={day}
-                  className="w-[13%] border-r border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground"
+                  className="w-auto border-r border-border px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground"
                 >
                   {GRID_DAY_LABELS[day] ?? day}
                 </TableHead>
               ))}
               {showFormatColumn && (
-                <TableHead className="w-[15%] border-r border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground last:border-r-0">
+                <TableHead className="w-[140px] border-r border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground last:border-r-0">
                   Format / AZAV-Zuordnung
                 </TableHead>
               )}
@@ -211,8 +211,8 @@ export default function ScheduleGrid({
                     scope="row"
                     className="border-r border-border bg-muted/30 dark:bg-muted/40 px-3 py-3 text-left align-top"
                   >
-                    <span className="block font-semibold text-foreground">{slot.start}</span>
-                    <span className="block text-xs text-muted-foreground">bis {slot.end}</span>
+                    <span className="block whitespace-nowrap font-semibold text-foreground">{slot.start}</span>
+                    <span className="block whitespace-nowrap text-xs text-muted-foreground">bis {slot.end}</span>
                     {slot.units && (
                       <span className="mt-1 block text-[11px] font-medium text-muted-foreground">
                         {slot.units}
