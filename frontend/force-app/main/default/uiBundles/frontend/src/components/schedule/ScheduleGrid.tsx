@@ -118,7 +118,7 @@ function EntryCard({
               type="button"
               size="icon"
               variant="ghost"
-              className="size-6 bg-white/70"
+              className="size-6 bg-white/70 dark:bg-black/40"
               aria-label={`${entry.title} bearbeiten`}
               onClick={() => onEdit(entry)}
             >
@@ -130,7 +130,7 @@ function EntryCard({
               type="button"
               size="icon"
               variant="ghost"
-              className="size-6 bg-white/70 text-destructive"
+              className="size-6 bg-white/70 dark:bg-black/40 text-destructive"
               aria-label={`${entry.title} löschen`}
               onClick={() => onDelete(entry)}
             >
@@ -168,7 +168,7 @@ export default function ScheduleGrid({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border bg-white shadow-sm print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
+      <div className="overflow-hidden rounded-xl border bg-white dark:bg-card shadow-sm print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
         <Table
           aria-label="Wochenplan-Raster"
           className="week-plan-table w-full min-w-[1120px] table-fixed border-collapse text-sm print:min-w-0 print:text-[8pt]"
@@ -207,10 +207,10 @@ export default function ScheduleGrid({
                     scope="row"
                     className="border-r border-border bg-slate-50 px-3 py-3 text-left align-top"
                   >
-                    <span className="block font-semibold text-slate-900">{slot.start}</span>
+                    <span className="block font-semibold text-slate-900 dark:text-white">{slot.start}</span>
                     <span className="block text-xs text-muted-foreground">bis {slot.end}</span>
                     {slot.units && (
-                      <span className="mt-1 block text-[11px] font-medium text-slate-600">
+                      <span className="mt-1 block text-[11px] font-medium text-slate-600 dark:text-white/80">
                         {slot.units}
                       </span>
                     )}
@@ -227,7 +227,7 @@ export default function ScheduleGrid({
                       </Button>
                     )}
                   </th>
-                  <TableCell className="border-r border-border bg-slate-50/60 px-3 py-3 align-top text-xs text-muted-foreground">
+                  <TableCell className="border-r border-border bg-slate-50/60 dark:bg-muted/40 px-3 py-3 align-top text-xs text-muted-foreground">
                     {slotDurationMinutes(slot)} Min.
                   </TableCell>
 
@@ -281,7 +281,7 @@ export default function ScheduleGrid({
                   ))}
 
                   <TableCell className="px-3 py-3 align-top whitespace-normal break-words">
-                    <p className="text-xs font-semibold text-slate-900">{slot.format || '–'}</p>
+                    <p className="text-xs font-semibold text-slate-900 dark:text-white">{slot.format || '–'}</p>
                     {slot.azav && (
                       <p className="mt-1 text-[11px] text-muted-foreground">{slot.azav}</p>
                     )}
