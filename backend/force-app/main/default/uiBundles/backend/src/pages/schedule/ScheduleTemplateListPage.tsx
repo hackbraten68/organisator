@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
-import { Copy, Download, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Copy, Download, Pencil, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,7 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/sonner";
-import { deleteScheduleTemplate, duplicateScheduleTemplate, importScheduleTemplate } from "@/api/schedule/scheduleEditorService";
+import { deleteScheduleTemplate, duplicateScheduleTemplate, importScheduleTemplate, renameScheduleTemplate } from "@/api/schedule/scheduleEditorService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { listScheduleTemplates } from "@/api/schedule/scheduleEditorService";
@@ -25,6 +28,9 @@ export default function ScheduleTemplateListPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renaming, setRenaming] = useState(false);
 
   const { data: templates, loading, error } = useAsyncData(
     () => listScheduleTemplates(),
@@ -44,6 +50,21 @@ export default function ScheduleTemplateListPage() {
       toast.error(e instanceof Error ? e.message : "Fehler beim Löschen.");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleRename = async () => {
+    if (!renameTarget) return;
+    setRenaming(true);
+    try {
+      await renameScheduleTemplate(renameTarget.id, renameValue.trim());
+      toast.success("Vorlage umbenannt.");
+      setRenameTarget(null);
+      setReload((v) => v + 1);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Fehler beim Umbenennen.");
+    } finally {
+      setRenaming(false);
     }
   };
 
@@ -119,6 +140,17 @@ export default function ScheduleTemplateListPage() {
               <div className="flex gap-2">
                 <Button
                   size="sm"
+                  variant="ghost"
+                  title="Umbenennen"
+                  onClick={() => {
+                    setRenameTarget({ id: t.id, name: t.name });
+                    setRenameValue(t.name);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => navigate(`/wochenplan/vorlagen/${t.id}`)}
                 >
@@ -168,6 +200,36 @@ export default function ScheduleTemplateListPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!renameTarget} onOpenChange={(o) => !o && setRenameTarget(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Vorlage umbenennen</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="template-name">Name</Label>
+            <Input
+              id="template-name"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void handleRename();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameTarget(null)} disabled={renaming}>
+              Abbrechen
+            </Button>
+            <Button onClick={() => void handleRename()} disabled={renaming || !renameValue.trim()}>
+              {renaming ? "Speichern..." : "Speichern"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

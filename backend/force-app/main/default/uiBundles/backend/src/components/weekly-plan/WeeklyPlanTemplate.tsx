@@ -29,7 +29,7 @@ export default function WeeklyPlanTemplate({ plan, className }: Props) {
               Vorlage
             </span>
           </div>
-          <p className="max-w-2xl text-sm text-muted-foreground">{plan.subtitle}</p>
+          <p className="max-w-4xl text-sm text-muted-foreground">{plan.subtitle}</p>
         </div>
 
         <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:text-right">

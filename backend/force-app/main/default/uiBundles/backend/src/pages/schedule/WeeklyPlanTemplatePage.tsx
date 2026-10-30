@@ -62,7 +62,7 @@ export default function WeeklyPlanTemplatePage() {
     <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 p-6 text-center">
       <Loader2 className="size-6 animate-spin text-muted-foreground" />
       <p className="font-medium">Beispielvorlage wird importiert …</p>
-      <p className="max-w-md text-sm text-muted-foreground">
+      <p className="max-w-xl text-sm text-muted-foreground">
         Die statische AWS-Musterwoche wird einmalig als Vorlage gespeichert. Danach wird
         ausschließlich der Salesforce-Datensatz verwendet.
       </p>

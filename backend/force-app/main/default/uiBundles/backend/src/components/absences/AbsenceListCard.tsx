@@ -87,7 +87,7 @@ export function AbsenceListCard({
                 {formatDate(absence.startDate)} – {formatDate(absence.endDate)}
               </span>
               {absence.participantName && (
-                <span className="truncate max-w-xs flex items-center gap-1">
+                <span className="truncate max-w-xl flex items-center gap-1">
                   <User className="size-3.5" />
                   {absence.participantName}
                 </span>

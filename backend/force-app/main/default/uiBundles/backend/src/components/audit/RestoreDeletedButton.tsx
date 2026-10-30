@@ -71,7 +71,7 @@ export function RestoreDeletedButton({ event }: RestoreDeletedButtonProps) {
       </Button>
 
       <Dialog open={confirmOpen} onOpenChange={(open) => !working && setConfirmOpen(open)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Wiederherstellen?</DialogTitle>
             <DialogDescription>

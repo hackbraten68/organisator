@@ -579,6 +579,37 @@ global with sharing class ScheduleTemplateService {
         }
     }
 
+    public static ScheduleTemplate__c renameTemplate(String templateId, String name) {
+        if (String.isBlank(templateId)) {
+            throw badRequest('templateId ist erforderlich.');
+        }
+        if (String.isBlank(name)) {
+            throw badRequest('name ist erforderlich.');
+        }
+
+        List<ScheduleTemplate__c> templates = [
+            SELECT Id, Name, Status__c
+            FROM ScheduleTemplate__c
+            WHERE Id = :templateId
+            LIMIT 1
+        ];
+        if (templates.isEmpty()) {
+            throw notFound('Die Vorlage existiert nicht.');
+        }
+
+        ScheduleTemplate__c template = templates[0];
+        template.Name = name.trim();
+        update template;
+
+        AuditEvent__c audit = buildAudit('schedule.template_updated', 'ScheduleTemplate__c', template.Id, null);
+        Database.SaveResult auditResult = Database.insert(audit, false);
+        if (!auditResult.isSuccess()) {
+            throw new ScheduleTemplateServiceException(500, CODE_AUDIT_FAILED, 'Das Audit-Event konnte nicht geschrieben werden.');
+        }
+
+        return template;
+    }
+
     public static List<ScheduleTemplate__c> listTemplates() {
         return [
             SELECT Id, Name, Status__c, Program__c, Module__c, ProgramWeek__c, Description__c

@@ -226,7 +226,7 @@ export default function ProgramWeeksTab({ programId }: { programId: string }) {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) setEditing(null); setDialogOpen(o); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>
               {editing ? "Kurswoche bearbeiten" : "Kurswoche anlegen"}

@@ -64,7 +64,7 @@ export default function ProgramSettingsTab({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="max-w-xs space-y-2">
+        <div className="max-w-xl space-y-2">
           <Label>Status</Label>
           <Select
             value={status}

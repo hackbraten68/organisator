@@ -354,7 +354,7 @@ export default function ScheduleEditorPage() {
       />
 
       <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Als Vorlage speichern</DialogTitle>
             <DialogDescription>

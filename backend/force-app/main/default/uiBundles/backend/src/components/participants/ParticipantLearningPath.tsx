@@ -428,7 +428,7 @@ export default function ParticipantLearningPath({
     </Card>
     {assigningModuleId && (
       <Dialog open={!!assigningModuleId} onOpenChange={(o) => !o && setAssigningModuleId(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Modul zuordnen</DialogTitle>
             <DialogDescription>
@@ -472,7 +472,7 @@ export default function ParticipantLearningPath({
     )}
     {editingItemId && (
       <Dialog open={!!editingItemId} onOpenChange={(o) => !o && setEditingItemId(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Lernpfadeintrag bearbeiten</DialogTitle>
           </DialogHeader>

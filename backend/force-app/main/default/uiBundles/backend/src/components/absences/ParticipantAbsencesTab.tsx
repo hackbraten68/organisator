@@ -208,7 +208,7 @@ const handleStatusChange = (_newStatus: string) => {
 
       {/* Documents Dialog */}
       <Dialog open={!!viewDocumentsFor} onOpenChange={(open) => !open && setViewDocumentsFor(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
+        <DialogContent className="max-w-4xl max-h-[80vh]">
           <DialogHeader>
             <DialogTitle>Dokumente zur Abwesenheit</DialogTitle>
           </DialogHeader>
@@ -224,7 +224,7 @@ const handleStatusChange = (_newStatus: string) => {
       {/* Detail view with approval actions for coaches */}
       {canManage && (
         <Dialog open={!!editingAbsence} onOpenChange={(open) => !open && setEditingAbsence(null)}>
-          <DialogContent className="max-w-lg max-h-[80vh]">
+          <DialogContent className="max-w-4xl max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>Abwesenheit Details</DialogTitle>
             </DialogHeader>

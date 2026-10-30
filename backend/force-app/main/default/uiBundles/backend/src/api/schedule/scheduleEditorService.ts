@@ -558,6 +558,17 @@ export async function duplicateScheduleTemplate(id: string, name?: string): Prom
   return { id: raw.id, status: raw.status ?? "Active" };
 }
 
+export async function renameScheduleTemplate(id: string, name: string): Promise<void> {
+  const raw = await request<RawMutationResponse>(EDIT_PATH, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ action: "renameTemplate", templateId: id, name }),
+  });
+  if (!raw.success) {
+    throw new ScheduleEditorError(raw.code ?? "ERROR", raw.message ?? "Fehler", 400);
+  }
+}
+
 export async function importScheduleTemplate(input: ImportTemplateInput): Promise<{ id: string; status: string }> {
   const raw = await request<RawMutationResponse>(EDIT_PATH, {
     method: "POST",

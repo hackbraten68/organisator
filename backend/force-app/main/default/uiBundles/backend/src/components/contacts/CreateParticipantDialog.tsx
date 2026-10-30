@@ -78,7 +78,7 @@ export default function CreateParticipantDialog({
 
   return (
     <Dialog open={contact != null} onOpenChange={open => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Als Teilnehmer anlegen</DialogTitle>
           <DialogDescription>

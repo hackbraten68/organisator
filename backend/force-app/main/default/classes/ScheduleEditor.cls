@@ -173,6 +173,11 @@ global with sharing class ScheduleEditor {
         global String name;
     }
 
+    global class RenameTemplateInput {
+        global String templateId;
+        global String name;
+    }
+
     global class SaveAsTemplateInput {
         global String weeklyScheduleId;
         global String name;
@@ -300,6 +305,8 @@ global with sharing class ScheduleEditor {
                 deleteTemplate(resp, payload);
             } else if (action == 'duplicateTemplate') {
                 duplicateTemplate(resp, payload);
+            } else if (action == 'renameTemplate') {
+                renameTemplate(resp, payload);
             } else if (action == 'importTemplate') {
                 importTemplate(resp, payload);
             } else {
@@ -1230,6 +1237,20 @@ global with sharing class ScheduleEditor {
         ScheduleTemplate__c copy = ScheduleTemplateService.duplicateTemplate(req);
         resp.id = copy.Id;
         resp.status = copy.Status__c;
+        resp.success = true;
+    }
+
+    private static void renameTemplate(MutationResponse resp, Map<String, Object> payload) {
+        RenameTemplateInput input = (RenameTemplateInput) JSON.deserialize(JSON.serialize(payload), RenameTemplateInput.class);
+        if (String.isBlank(input.templateId)) {
+            throw badRequest('templateId ist erforderlich.');
+        }
+        if (String.isBlank(input.name)) {
+            throw badRequest('name ist erforderlich.');
+        }
+
+        ScheduleTemplate__c template = ScheduleTemplateService.renameTemplate(input.templateId, input.name);
+        resp.id = template.Id;
         resp.success = true;
     }
 

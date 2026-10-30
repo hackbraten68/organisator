@@ -104,7 +104,7 @@ export default function LearningPathWeeklyPlanDialog({ open, onOpenChange, learn
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>Individuellen Wochenplan aus Vorlage erstellen</DialogTitle>
           <DialogDescription>

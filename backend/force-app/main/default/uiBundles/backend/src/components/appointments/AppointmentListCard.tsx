@@ -146,7 +146,7 @@ export function AppointmentListCard({
                 </a>
               )}
               {appointment.coachName && (
-                <span className="truncate max-w-xs">
+                <span className="truncate max-w-xl">
                   Coach: {appointment.coachName}
                 </span>
               )}

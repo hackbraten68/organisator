@@ -76,7 +76,7 @@ export function ActorPicker({ isOpen, onChoose, onDismiss }: ActorPickerProps) {
       <DialogContent
         showCloseButton
         aria-describedby={undefined}
-        className="max-w-sm"
+        className="max-w-4xl"
       >
         <DialogHeader>
           <DialogTitle>Wer arbeitet hier?</DialogTitle>

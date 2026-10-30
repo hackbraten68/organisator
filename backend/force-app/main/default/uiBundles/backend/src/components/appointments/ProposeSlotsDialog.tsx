@@ -139,7 +139,7 @@ export function ProposeSlotsDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh]">
+      <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Terminvorschlag für {type}</DialogTitle>
         </DialogHeader>

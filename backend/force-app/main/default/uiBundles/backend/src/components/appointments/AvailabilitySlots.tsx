@@ -283,7 +283,7 @@ export function AvailabilitySlots({ currentUserId }: AvailabilitySlotsProps) {
 
       {/* Create/Edit Dialog */}
       <Dialog open={showForm} onOpenChange={(open) => { if (!open) { setEditingSlot(null); setShowForm(false); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>{editingSlot ? "Slot bearbeiten" : "Neuen Slot anlegen"}</DialogTitle>
           </DialogHeader>
