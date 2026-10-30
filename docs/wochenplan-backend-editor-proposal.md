@@ -1,14 +1,15 @@
 # Proposal: Wochenplan-Editor im Backoffice (Staff/Coach)
 
-Stand: 2026-10-26. Status: Entwurf / noch nicht implementiert.
+Stand: 2026-10-30. Status: Implementiert und deployt (Commit `3309756`).
 
 ## Ziel
 
-Staff (und zugeordnete Coaches) sollen Wochenpläne im Backoffice-Bundle
+Staff (und zugeordnete Coaches) können Wochenpläne im Backoffice-Bundle
 (`uiBundles/backend`) anlegen, bearbeiten, veröffentlichen und als Vorlage
-speichern können. Aktuell existieren nur die Apex-Services (`ScheduleService`,
-`ScheduleTemplateService`, `SchedulePublishService`,
-`ScheduleEntryMaterialisationService`); die UI fehlt vollständig.
+speichern. Die Apex-Services (`ScheduleService`, `ScheduleTemplateService`,
+`SchedulePublishService`, `ScheduleEntryMaterialisationService`,
+`ScheduleGridService`) und die UI sind implementiert; Einträge und Raster werden
+dialogbasiert bearbeitet (Drag/Drop und Inline-Editing bleiben Folgearbeit).
 
 ## Scope (v1)
 
@@ -43,12 +44,12 @@ speichern können. Aktuell existieren nur die Apex-Services (`ScheduleService`,
   `src/components/ui/` (Dialog, Table, Select, TimePicker).
 - **Tests**: Vitest (Unit) + Playwright (E2E) analog zu `core-flows.spec.ts`.
 
-## Offene Fragen
+## Offene Fragen (Status)
 
-1. Wo im Backoffice verankern — eigene Seite oder Tab in Programmdetail?
-2. Drag&Drop (react-dnd) oder reines Formular?
-3. Coach-Rechte: darf ein Coach veröffentlichen oder nur Entwurf bearbeiten?
-4. Audit-Events (`schedule.*`) im UI anzeigen (Verlauf)?
+1. Verankerung: implementiert als shared Grid in Plan-/Template-Editor, Template-Detail und Print; Sidebar-Nesting `Wochenplan → Vorlagen`.
+2. Drag&Drop: bewusst nicht in v1; Einträge und Raster werden dialogbasiert bearbeitet.
+3. Coach-Rechte: serverseitige Prüfung in `ScheduleService`; Frontend-Rechteprüfung bleibt offen.
+4. Audit-Events (`schedule.*`): Backend-Events vorhanden; UI-Verlauf nicht Teil dieses Scopes.
 
 ## Aufwand (grob)
 

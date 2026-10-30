@@ -7,10 +7,10 @@
 
 **Datum:** 2026-10-21
 **Branch:** `dev`, letzter Commit `43d3a8b` (Montagspaket committet, nicht deploybar)
-**Status:** Analyse abgeschlossen, am 2026-10-21 nach dem Fachgespräch (fachliche Seite / Infra)
-revidiert — **Abschnitt 0b** enthält die sechs Korrekturen am Datenmodell (maßgebliche Fassung).
-**Keine Implementierung** — dieser Plan ist die Rückmeldung vor der Umsetzung (Schritt 1–6 des
-Ausgangs-Prompts). Entscheidungen F1–F15 sind offen, siehe Abschnitt 12.
+**Status:** Implementiert und deployt — Commit `3309756` (`feat(wochenplan): shared DB-backed weekly plan grid`).
+Der shared DB-backed Grid-Editor, Dialog-Editing, Grid-Settings, AWS-Beispieltemplate-Import,
+Sidebar-Nesting `Wochenplan → Vorlagen` sowie Frontend-Tests/Lint und Backend-Deploy sind abgeschlossen.
+Dieses Dokument bleibt als fachlicher Feldvertrag/Architekturgrundlage erhalten.
 
 ---
 
@@ -249,19 +249,10 @@ Komponente → src/api/<domain>/<domain>Service.ts → src/api/<domain>/query/*.
 
 | Erwartet | Status |
 |---|---|
-| `Course` / `CourseWeek` / `ModuleWeek` | gibt es nicht; `Program__c` / `Module__c` ohne Wochenbezug |
-| Gruppe / Kohorte / Batch | **gibt es nicht** |
-| Gruppenzuordnung Teilnehmer↔Gruppe | **gibt es nicht** |
-| Vorlage / Template (persistiert) | **gibt es nicht** |
-| Publish-/Freigabemechanismus | **gibt es nicht** |
-| Kurswoche als Entität mit Datum | **gibt es nicht** |
-| Teilnehmer↔Kurswoche-Zuordnung | **gibt es nicht** (`Learning_Path__c.Estimated_Weeks__c` ist ein Zähler) |
-| Coach↔Programm (persistent) | **gibt es nicht** (flüchtiger Client-Seed) |
-| Wochenraster / Grid-Kalender | **gibt es nicht** |
-| Drag-and-drop-Baustein | **gibt es nicht** |
-| Serverseitige Rollenprüfung im Frontend | **gibt es nicht** |
-| `AuditEvent__c.Domain__c = 'schedule'` | **gibt es nicht** (restricted Picklist) |
-| Portaler Endpunkt für Wochen/Wochenplan | **gibt es nicht** |
+| Drag-and-drop-Baustein | **noch nicht** (Einträge werden dialogbasiert erstellt/bearbeitet; Inline-Editing und Drag/Drop bleiben Folgearbeit) |
+| Serverseitige Rollenprüfung im Frontend | **teilweise** (`ScheduleService`/Coach-Gate serverseitig; Frontend-Rechteprüfung weiterhin nicht vorhanden) |
+
+Umgesetzt und aus der Lückenliste entfernt: `ProgramWeek__c`, `WeeklySchedule__c`, `ScheduleEntry__c`, `ScheduleTemplate__c`, `ParticipantGroup__c`, `ParticipantGroupMember__c`, `TaskCompletion__c`, `ProgramCoach__c`, `Learning_Path__c.Module__c`, `Appointment__c.ScheduleEntry__c`, Publish/Unpublish, Deep-Copy-Vorlagen, Teilnehmer-Portalendpoint, `AuditEvent__c.Domain__c = 'schedule'`, shared `ScheduleGrid`, dialogbasierte Eintrags-/Rasterbearbeitung, `ScheduleGridService` und Grid-Settings-JSON.
 
 ---
 
@@ -622,6 +613,8 @@ nicht im Runtime-Schema) gilt für **alle** neuen Objekte und Felder:
 | Klasse | Zweck |
 |---|---|
 | `ScheduleService` | CRUD für `WeeklySchedule__c`/`ScheduleEntry__c`, Geschäftsregeln, Zielgruppenprüfung, Coach-Zuordnungsprüfung, Audit im selben Commit (Savepoint + Rollback) |
+| `ScheduleEditor` | Dialogbasierte Persistenz von Einträgen und Grid-Settings |
+| `ScheduleGridService` | Persistenz und Validierung der versionierten `GridConfig__c`-JSON für Plan und Template |
 | `ScheduleTemplateService` | `apply()` = Deep Copy, `listTemplates()`, `preview()` |
 | `SchedulePublishService` | `publish()`/`unpublish()` mit Vorprüfung + Audit |
 | `ScheduleEntryMaterialisationService` | Anlegen/Aktualisieren des `Appointment__c` aus einer Planzeile (serverseitig, transaktional), Typ-Mapping, Draft-Status |

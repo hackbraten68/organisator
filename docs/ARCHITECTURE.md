@@ -2,6 +2,16 @@
 
 Überblick über Aufbau, Ownership und Kernprinzipien des Organisator-Monorepos.
 
+## Wochenplan / shared Schedule Grid
+
+Der Wochenplan nutzt ein shared DB-backed Raster (`ScheduleGrid`), das von Plan-Editor,
+Template-Editor und Template-Detail/Print verwendet wird. Rasterkonfigurationen liegen
+versioniert als JSON in `GridConfig__c` (`WeeklySchedule__c`, `ScheduleTemplate__c`);
+Einträge referenzieren Zeitblöcke über `TimeSlotId__c` und werden über `Category__c`
+(`live`, `async`, `break`, `special`) dargestellt/gefiltert. `ScheduleGridService`
+persistiert Rasteränderungen transaktional; Entry-Editing erfolgt dialogbasiert.
+AWS-Beispieltemplate kann einmalig als echtes Template importiert werden.
+
 ## 1. Monorepo-Struktur
 
 Zwei separate **SFDX-Projekte** deployen in **dieselbe Salesforce-Org**:

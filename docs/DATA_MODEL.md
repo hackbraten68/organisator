@@ -113,13 +113,13 @@ Portal-API filtert **nie** nach clientseitiger ID. Identity basiert auf `User.Co
 `Program__c`, `Module__c`, `Number__c`, `Description__c`, `Status__c` (Draft/Active/Completed).
 
 ### WeeklySchedule__c (Wochenplan-Instanz)
-`ProgramWeek__c` (erf.), `ScopeType__c` (Course/Group/Individual), `ParticipantGroup__c`, `Participant__c`, `StartDate__c` (erf., Montag), `EndDate__c`, `Status__c` (Draft/Published), `PublishedAt__c`, `PublishedBy__c`, `AppliedTemplate__c`, `TemplateAppliedAt__c`, `DeviationReason__c`, `Notes__c`.
+`ProgramWeek__c` (erf.), `ScopeType__c` (Course/Group/Individual), `ParticipantGroup__c`, `Participant__c`, `StartDate__c` (erf., Montag), `EndDate__c`, `Status__c` (Draft/Published), `PublishedAt__c`, `PublishedBy__c`, `AppliedTemplate__c`, `TemplateAppliedAt__c`, `DeviationReason__c`, `Notes__c`, `GridConfig__c` (LongTextArea, versionierte JSON-Rasterkonfiguration mit Slots `{ id, start, end, durationMinutes, units, format, azav }`).
 
 ### ScheduleTemplate__c (Wochenplan-Vorlage)
-`ProgramWeek__c`, `Program__c`, `Module__c`, `Description__c`, `Status__c` (Active/Inactive).
+`ProgramWeek__c`, `Program__c`, `Module__c`, `Description__c`, `Status__c` (Active/Inactive), `Category__c` (live/async/break/special), `TimeSlotId__c` (Text, stabile Zeitblock-ID), `GridConfig__c` (LongTextArea, versionierte JSON-Rasterkonfiguration).
 
 ### ScheduleEntry__c (Planzeile)
-`WeeklySchedule__c`, `ScheduleTemplate__c` (genau eines), `Description__c`, `EntryKind__c` (Aktivität/Aufgabe), `Type__c` (8 Werte), `IsRequired__c`, `DayOfWeek__c`, `Date__c`, `StartTime__c`, `EndTime__c`, `DurationMinutes__c`, `TargetType__c` (Course/Group/Individual), `ParticipantGroup__c`, `Participant__c`, `Coach_Profile__c`, `Location__c`, `MeetingLink__c`, `SourceTemplateEntry__c`, `IsCustomized__c`, `Order__c`, `DeviationReason__c`, `Notes__c`.
+`WeeklySchedule__c`, `ScheduleTemplate__c` (genau eines), `Description__c`, `EntryKind__c` (Aktivität/Aufgabe), `Type__c` (8 Werte), `Category__c` (live/async/break/special), `TimeSlotId__c` (Text, stabile Zeitblock-ID), `IsRequired__c`, `DayOfWeek__c`, `Date__c`, `StartTime__c`, `EndTime__c`, `DurationMinutes__c`, `TargetType__c` (Course/Group/Individual), `ParticipantGroup__c`, `Participant__c`, `Coach_Profile__c`, `Location__c`, `MeetingLink__c`, `SourceTemplateEntry__c`, `IsCustomized__c`, `Order__c`, `DeviationReason__c`, `Notes__c`.
 
 ### TaskCompletion__c (Aufgabenerfüllung pro Teilnehmer, K5)
 `ScheduleEntry__c` (erf.), `Participant__c` (erf.), `Status__c` (Offen/Erfüllt/Entfällt), `CompletedAt__c`, `DeviationReason__c`.

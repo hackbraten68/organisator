@@ -23,7 +23,13 @@ Stand: 2026-10-26. Jede Zeile mit automatischem oder manuellem Nachweis.
 | — | Schema-Konsistenz | `npm run schema:check` (Apex-Probe) | ✅ |
 | — | Frontend-Build (beide Bundles) | `npm run build` | ✅ |
 | — | Lint (beide Bundles) | `npx eslint` (0 Errors) | ✅ |
-| — | Vitest (beide Bundles) | 418 + 70 Tests | ✅ |
+| — | Vitest (beide Bundles) | 437 Tests (55 Dateien) | ✅ |
+| 27 | Shared DB-backed `ScheduleGrid` (Plan/Template/Detail/Print) | `ScheduleGridServiceTest` + Frontend-Vitest | ✅ |
+| 28 | Dialogbasierte Eintrags- und Rastereinstellungen | Frontend-Vitest | ✅ |
+| 29 | AWS-Beispieltemplate-Import und Redirect auf Template-Detail | Frontend-Tests/Build | ✅ |
+| 30 | Frontend-Lint | 0 Errors, 27 Warnings | ✅ |
+| 31 | Backend-Deploy `hubSandbox` | Deploy erfolgreich | ✅ |
+| 32 | Runtime-Schema-Check | grün | ✅ |
 
 ## Manuell / Gate
 

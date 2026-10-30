@@ -1,5 +1,13 @@
 # Current UI Structure
 
+## Wochenplan / Schedule (implementiert)
+
+- Shared Grid: `src/components/schedule/ScheduleGrid.tsx`
+- Raster-Einstellungen: `src/components/schedule/ScheduleGridSettingsDialog.tsx`
+- Eintragsdialog: `src/components/schedule/ScheduleEntryDialog.tsx`
+- Template-Import: AWS-Beispieltemplate als echtes Template importierbar; Redirect auf Template-Detail.
+- Navigation: Sidebar-Nesting `Wochenplan → Vorlagen`.
+
 > Status note (2026-09-24): this was a pre-implementation planning snapshot.
 > Actual structure diverged — see below. The app now reads/writes live
 > Salesforce data (no mocks); details in `docs/AGENTS.md` finding 10.
