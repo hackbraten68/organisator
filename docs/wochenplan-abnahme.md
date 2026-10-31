@@ -55,6 +55,7 @@ Stand: 2026-10-26. Jede Zeile mit automatischem oder manuellem Nachweis.
 
 ## Offene Punkte vor Push
 
+- Teilnehmer-Termine-UI vorübergehend deaktiviert; technische Implementierung bleibt erhalten.
 - Slot-Eindeutigkeit (`Tag + Reihenfolge + Art`) bewusst offengelassen.
 - Drag & Drop / Inline-Editing bleibt Folgearbeit.
 - Frontend-Rollenprüfung bleibt bewusst außerhalb des MVP.
