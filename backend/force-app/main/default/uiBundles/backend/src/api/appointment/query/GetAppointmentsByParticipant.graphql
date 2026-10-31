@@ -21,6 +21,7 @@ query GetAppointmentsByParticipant($participantId: ID!, $first: Int) {
             Notes__c @optional { value }
             CancellationReason__c @optional { value }
             CorrelationId__c @optional { value }
+            ScheduleEntry__c @optional { value }
             ConfirmedAt__c @optional { value }
             CompletedAt__c @optional { value }
             CreatedDate @optional { value }

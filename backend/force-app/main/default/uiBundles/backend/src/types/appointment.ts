@@ -54,6 +54,7 @@ export interface Appointment {
   notes?: string;
   cancellationReason?: string;
   correlationId?: string;          // First-Class Booking Journey Tracker
+  scheduleEntryId?: string;        // Verknuepfte Planzeile aus dem Wochenplan
   confirmedAt?: string;
   completedAt?: string;
   createdAt: string;

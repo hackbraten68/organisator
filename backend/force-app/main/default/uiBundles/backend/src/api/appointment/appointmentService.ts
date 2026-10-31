@@ -56,6 +56,7 @@ interface AppointmentNode {
   Notes__c?: ScalarValue<string>;
   CancellationReason__c?: ScalarValue<string>;
   CorrelationId__c?: ScalarValue<string>;
+  ScheduleEntry__c?: ScalarValue<string>;
   ConfirmedAt__c?: ScalarValue<string>;
   CompletedAt__c?: ScalarValue<string>;
   CreatedDate?: ScalarValue<string>;
@@ -140,6 +141,7 @@ function mapGqlToAppointment(node: any): Appointment {
     notes: node.Notes__c?.value,
     cancellationReason: node.CancellationReason__c?.value,
     correlationId: node.CorrelationId__c?.value,
+    scheduleEntryId: node.ScheduleEntry__c?.value,
     confirmedAt: node.ConfirmedAt__c?.value,
     completedAt: node.CompletedAt__c?.value,
     createdAt: node.CreatedDate?.value || "",

@@ -8,6 +8,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { format, startOfWeek, endOfWeek, addWeeks } from "date-fns";
 import { de } from "date-fns/locale";
 import { listAppointments, createAppointment, confirmAppointment, completeAppointment, rescheduleAppointment, cancelAppointment, updateAppointmentAttendance, getAvailabilitySlots } from "@/api/appointment/appointmentService";
+import { getParticipant } from "@/api/participant/participantService";
+import { listScheduleBoard, getSchedulePlan } from "@/api/schedule/scheduleEditorService";
+import { executeGraphQL } from "@/api/graphqlClient";
 import { editAppointment } from "@/api/appointment/appointmentEditService";
 import { isServerWriteError } from "@/api/appointment/appointmentConflict";
 import { listAssignableUsers } from "@/api/user/userService";
@@ -23,6 +26,153 @@ import { EmptyState } from "@/components/ui/layout";
 import { useAuditActorInit } from "@/hooks/useAuditActor";
 import { toast } from "sonner";
 
+interface ParticipantGroupMemberNode {
+  ParticipantGroup__c?: { value?: string | null } | null;
+}
+
+interface ParticipantGroupMembersResponse {
+  uiapi?: {
+    query?: {
+      ParticipantGroupMember__c?: {
+        edges?: Array<{ node?: ParticipantGroupMemberNode | null } | null> | null;
+      } | null;
+    } | null;
+  } | null;
+}
+
+function toIsoDateTime(dateValue: string | null, timeValue: string | null): string | null {
+  if (!dateValue || !timeValue) return null;
+  const time = timeValue.includes("T") ? timeValue.split("T")[1] : timeValue;
+  const hhmm = time.slice(0, 5);
+  if (!/^\d{2}:\d{2}$/.test(hhmm)) return null;
+  return `${dateValue}T${hhmm}:00.000Z`;
+}
+
+
+const DAY_OFFSETS: Record<string, number> = {
+  Monday: 0,
+  Tuesday: 1,
+  Wednesday: 2,
+  Thursday: 3,
+  Friday: 4,
+  Saturday: 5,
+  Sunday: 6,
+};
+
+function addDaysIso(date: string, days: number): string {
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  parsed.setUTCDate(parsed.getUTCDate() + days);
+  return parsed.toISOString().slice(0, 10);
+}
+
+async function fetchParticipantGroupIds(participantId: string): Promise<Set<string>> {
+  try {
+    const response = await executeGraphQL<ParticipantGroupMembersResponse, { participantId: string }>(
+      `query GetParticipantGroups($participantId: ID!) {
+        uiapi {
+          query {
+            ParticipantGroupMember__c(where: { Participant__c: { eq: $participantId } }, first: 100) {
+              edges {
+                node {
+                  ParticipantGroup__c { value }
+                }
+              }
+            }
+          }
+        }
+      }`,
+      { participantId },
+    );
+    const edges = response?.uiapi?.query?.ParticipantGroupMember__c?.edges ?? [];
+    return new Set(
+      edges
+        .map((edge) => edge?.node?.ParticipantGroup__c?.value)
+        .filter((value): value is string => Boolean(value)),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+async function fetchWeeklyAgendaItems(
+  participantId: string,
+  weekStart: Date,
+): Promise<Appointment[]> {
+  try {
+    const participant = await getParticipant(participantId);
+    if (!participant?.programId) return [];
+
+    const groupIds = await fetchParticipantGroupIds(participantId);
+    const board = await listScheduleBoard(participant.programId);
+    const weekStartIso = weekStart.toISOString().slice(0, 10);
+    const applicablePlans = board.weeks
+      .flatMap((week) => week.plans ?? [])
+      .filter((plan) => plan.startDate === weekStartIso)
+      .filter((plan) => {
+      if (plan.scopeType === "Course") return true;
+      if (plan.scopeType === "Group") {
+        return Boolean(plan.participantGroupId && groupIds.has(plan.participantGroupId));
+      }
+      if (plan.scopeType === "Individual") {
+        return plan.participantId === participantId;
+      }
+      return false;
+    });
+
+    const details = await Promise.all(applicablePlans.map((plan) => getSchedulePlan(plan.id)));
+    const entries = details.flatMap((detail) =>
+      detail.entries.map((entry) => ({ entry, plan: detail.plan })),
+    );
+
+    const visibleEntries = entries.filter(({ entry }) => {
+      if (entry.participantId && entry.participantId !== participantId) return false;
+      if (entry.targetType === "Course") return true;
+      if (entry.targetType === "Group") {
+        return Boolean(entry.participantGroupId && groupIds.has(entry.participantGroupId));
+      }
+      if (entry.targetType === "Individual") {
+        return entry.participantId === participantId;
+      }
+      return false;
+    });
+
+    return visibleEntries
+      .map(({ entry, plan }) => {
+        const dateValue = plan.startDate ? addDaysIso(plan.startDate, DAY_OFFSETS[entry.dayOfWeek ?? 'Monday'] ?? 0) : null;
+        const startTime = toIsoDateTime(dateValue, entry.startTime);
+        const endTime = toIsoDateTime(dateValue, entry.endTime);
+        if (!startTime || !endTime) return null;
+
+        const type = (APPOINTMENT_TYPES.includes(entry.type as (typeof APPOINTMENT_TYPES)[number])
+          ? entry.type
+          : "Sonstiges") as Appointment["type"];
+
+        return {
+          id: `schedule:${entry.id}`,
+          name: entry.title || type,
+          participantId,
+          participantName: participant.name,
+          coachId: undefined,
+          coachName: entry.coachName ?? undefined,
+          type,
+          status: "Draft",
+          startTime,
+          endTime,
+          location: (entry.location as Appointment["location"]) ?? undefined,
+          meetingLink: entry.meetingLink ?? undefined,
+          notes: entry.description ?? entry.notes ?? undefined,
+          correlationId: undefined,
+          scheduleEntryId: entry.id,
+          createdAt: startTime,
+          updatedAt: startTime,
+        } as Appointment;
+      })
+      .filter((item): item is Appointment => item !== null);
+  } catch {
+    return [];
+  }
+}
+
 interface ParticipantAppointmentsTabProps {
   participantId: string;
   participantName?: string;
@@ -32,6 +182,7 @@ interface ParticipantAppointmentsTabProps {
 export function ParticipantAppointmentsTab({ participantId, participantName, canManage = false }: ParticipantAppointmentsTabProps) {
   const { actor } = useAuditActorInit();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [weeklyAgendaItems, setWeeklyAgendaItems] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<Appointment["status"] | "all">("all");
   const [filterType, setFilterType] = useState<Appointment["type"] | "all">("all");
@@ -57,8 +208,12 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
         startTimeFrom: adjustedStart.toISOString(),
         startTimeTo: weekEnd.toISOString(),
       };
-      const { appointments: fetched } = await listAppointments(currentFilters, 200);
-      setAppointments(fetched);
+      const [fetched, weeklyItems] = await Promise.all([
+        listAppointments(currentFilters, 200),
+        fetchWeeklyAgendaItems(participantId, adjustedStart),
+      ]);
+      setAppointments(fetched.appointments);
+      setWeeklyAgendaItems(weeklyItems);
     } catch (err) {
       console.error("Failed to load appointments", err);
       toast.error("Termine konnten nicht geladen werden");
@@ -257,17 +412,32 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
   const adjustedStart = addWeeks(weekStart, weekOffset);
   const weekEnd = endOfWeek(adjustedStart, { weekStartsOn: 1 });
 
-  const upcomingCount = appointments.filter((a) => new Date(a.startTime) >= new Date() && ["Confirmed", "Finding"].includes(a.status)).length;
-  const pastCount = appointments.filter((a) => new Date(a.startTime) < new Date() || ["Completed", "Cancelled", "NoShow"].includes(a.status)).length;
+  const agendaItems = useMemo(() => {
+    const linkedScheduleIds = new Set(
+      weeklyAgendaItems
+        .map((item) => item.scheduleEntryId)
+        .filter((id): id is string => Boolean(id)),
+    );
+    const standaloneAppointments = appointments.filter(
+      (appointment) =>
+        !appointment.scheduleEntryId || !linkedScheduleIds.has(appointment.scheduleEntryId),
+    );
+    return [...weeklyAgendaItems, ...standaloneAppointments].sort(
+      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+    );
+  }, [appointments, weeklyAgendaItems]);
+
+  const upcomingCount = agendaItems.filter((a) => new Date(a.startTime) >= new Date() && ["Confirmed", "Finding", "Draft"].includes(a.status)).length;
+  const pastCount = agendaItems.filter((a) => new Date(a.startTime) < new Date() || ["Completed", "Cancelled", "NoShow"].includes(a.status)).length;
 
   const filteredAppointments = useMemo(() => {
-    return appointments.filter((a) => {
+    return agendaItems.filter((a) => {
       if (filterStatus !== "all" && a.status !== filterStatus) return false;
       if (filterType !== "all" && a.type !== filterType) return false;
       if (onlyMine && actor?.id && a.coachId !== actor.id) return false;
       return true;
     });
-  }, [appointments, filterStatus, filterType, onlyMine, actor]);
+  }, [agendaItems, filterStatus, filterType, onlyMine, actor]);
 
   const upcomingAppointments = useMemo(() => {
     return filteredAppointments
