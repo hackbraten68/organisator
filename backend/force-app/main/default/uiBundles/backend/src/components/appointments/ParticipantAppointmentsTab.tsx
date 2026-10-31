@@ -35,6 +35,7 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<Appointment["status"] | "all">("all");
   const [filterType, setFilterType] = useState<Appointment["type"] | "all">("all");
+  const [onlyMine, setOnlyMine] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -263,9 +264,10 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
     return appointments.filter((a) => {
       if (filterStatus !== "all" && a.status !== filterStatus) return false;
       if (filterType !== "all" && a.type !== filterType) return false;
+      if (onlyMine && actor?.id && a.coachId !== actor.id) return false;
       return true;
     });
-  }, [appointments, filterStatus, filterType]);
+  }, [appointments, filterStatus, filterType, onlyMine, actor]);
 
   const upcomingAppointments = useMemo(() => {
     return filteredAppointments
@@ -310,7 +312,7 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
         <div>
           <h2 className="text-h2 font-semibold">Termine</h2>
           <p className="text-small text-muted-foreground">
-            {participantName ? `von ${participantName}` : "Übersicht aller Termine"}
+            {participantName ? `Individuelle und teilnehmerbezogene Termine von ${participantName}` : "Übersicht aller Termine"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -358,8 +360,17 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
                 ))}
               </SelectContent>
             </Select>
-            {(filterStatus !== "all" || filterType !== "all") && (
-              <Button variant="ghost" size="icon" onClick={() => { setFilterStatus("all"); setFilterType("all"); }} aria-label="Filter zurücksetzen">
+            <Select value={onlyMine ? "mine" : "all"} onValueChange={(v) => setOnlyMine(v === "mine")}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Zuständigkeit" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle Termine</SelectItem>
+                <SelectItem value="mine">Nur meine Termine</SelectItem>
+              </SelectContent>
+            </Select>
+            {(filterStatus !== "all" || filterType !== "all" || onlyMine) && (
+              <Button variant="ghost" size="icon" onClick={() => { setFilterStatus("all"); setFilterType("all"); setOnlyMine(false); }} aria-label="Filter zurücksetzen">
                 <X className="size-4" />
               </Button>
             )}
@@ -389,13 +400,14 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
               <EmptyState
                 icon={<Calendar className="size-12" />}
                 title="Keine anstehenden Termine"
-                description={canManage ? "Erstellen Sie den ersten Termin" : "Keine Termine geplant"}
+                description="Für diesen Teilnehmer sind aktuell keine individuellen Termine geplant."
                 action={canManage ? <Button onClick={() => setShowForm(true)}><Plus className="size-4 mr-2" /> Ersten Termin anlegen</Button> : undefined}
               />
             ) : (
               upcomingAppointments.map((appointment) => (
                 <AppointmentListCard
                   key={appointment.id}
+                  currentUserId={actor?.id}
                   appointment={appointment}
                   onEdit={canManage ? handleEdit : undefined}
                   onReschedule={canManage ? handleReschedule : undefined}
@@ -434,6 +446,7 @@ export function ParticipantAppointmentsTab({ participantId, participantName, can
                       {apps.map((appointment) => (
                         <AppointmentListCard
                           key={appointment.id}
+                          currentUserId={actor?.id}
                           appointment={appointment}
                           onEdit={canManage ? handleEdit : undefined}
                           showActions={canManage}

@@ -41,6 +41,7 @@ const LOCATION_ICON_FALLBACK = <MapPin className="size-3.5" />;
 
 interface AppointmentListCardProps {
   appointment: Appointment;
+  currentUserId?: string | null;
   /** Bearbeiten. Wird nur bei `Draft` angeboten — serverseitig ist Draft der
    *  einzige bearbeitbare Zustand (Entscheidung D1). Der Client blendet den
    *  Eintrag nur aus Bequemlichkeit aus; die eigentliche Sperre steht im
@@ -59,6 +60,7 @@ interface AppointmentListCardProps {
 
 export function AppointmentListCard({
   appointment,
+  currentUserId,
   onEdit,
   onReschedule,
   onCancel,
@@ -116,6 +118,9 @@ export function AppointmentListCard({
                   {statusConfig.icon}
                   {statusConfig.label}
                 </Badge>
+                {currentUserId && appointment.coachId === currentUserId && (
+                  <Badge variant="outline" className="text-xs">Mein Termin</Badge>
+                )}
                 {appointment.correlationId && highlightCorrelation && (
                   <Badge variant="outline" className="gap-1 text-xs">
                     <Hash className="size-3" />
