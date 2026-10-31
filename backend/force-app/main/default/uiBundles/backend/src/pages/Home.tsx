@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -52,6 +53,30 @@ function formatDate(value?: string): string {
   });
 }
 
+function MetricCard({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: number;
+  icon: LucideIcon;
+}) {
+  return (
+    <Card>
+      <CardContent className="flex items-center justify-between gap-4 p-5">
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-muted-foreground">{label}</p>
+          <p className="text-3xl font-bold tracking-tight">{value}</p>
+        </div>
+        <div className="rounded-lg bg-muted p-2.5 text-muted-foreground">
+          <Icon className="size-5" aria-hidden="true" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Home() {
   const { data, loading, error } = useAsyncData(async () => {
     const [participants, recentParticipants] = await Promise.all([
@@ -89,22 +114,32 @@ export default function Home() {
   );
 
   return (
-    <div className="container mx-auto max-w-[1500px] p-6">
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
+    <div className="container mx-auto max-w-7xl space-y-8 p-6">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-1">
           <p className="text-sm text-muted-foreground">Operations overview</p>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         </div>
-
-        <Button asChild variant="outline">
+        <Button asChild>
           <Link to="/participants">
             Open participant list
             <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
         </Button>
-      </div>
+      </header>
 
-      {loading && <DashboardSkeleton />}
+      {loading && (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Card key={index}>
+              <CardContent className="p-5">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="mt-3 h-8 w-16" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {error && (
         <Alert variant="destructive" role="alert">
@@ -136,7 +171,7 @@ export default function Home() {
 
       {!loading && !error && participants.length > 0 && (
         <>
-          <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               label="Total participants"
               value={participants.length}
@@ -157,35 +192,15 @@ export default function Home() {
               value={statusCounts.Onboarding}
               icon={CalendarClock}
             />
-          </div>
+          </section>
 
-          <div className="mb-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-            <Card>
-              <CardHeader>
-                <CardTitle>Lifecycle overview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {PARTICIPANT_STATUSES.map((status) => (
-                    <div
-                      key={status}
-                      className="rounded-lg border bg-muted/30 p-3"
-                    >
-                      <div className="mb-2 flex items-center justify-between gap-3">
-                        <span className="text-sm font-medium text-muted-foreground">
-                          {status}
-                        </span>
-                        <span className="text-lg font-semibold">{statusCounts[status]}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
+          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
             <Card>
               <CardHeader>
                 <CardTitle>Needs attention</CardTitle>
+                <CardDescription>
+                  Participants with missing onboarding data.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {attentionList.length === 0 ? (
@@ -201,7 +216,7 @@ export default function Home() {
                     return (
                       <div
                         key={participant.id}
-                        className="rounded-lg border bg-muted/30 p-3"
+                        className="rounded-lg border bg-muted/30 p-4"
                       >
                         <div className="flex items-center justify-between gap-3">
                           <p className="font-medium">{participant.name}</p>
@@ -218,11 +233,44 @@ export default function Home() {
                 )}
               </CardContent>
             </Card>
-          </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Lifecycle overview</CardTitle>
+                <CardDescription>
+                  Participant status distribution.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {PARTICIPANT_STATUSES.map((status) => (
+                    <div
+                      key={status}
+                      className="rounded-lg border bg-muted/30 p-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-medium text-muted-foreground">
+                          {status}
+                        </span>
+                        <span className="text-lg font-semibold">
+                          {statusCounts[status]}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </section>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4">
-              <CardTitle>Recent participants</CardTitle>
+              <div>
+                <CardTitle>Recent participants</CardTitle>
+                <CardDescription>
+                  Recently created or started participants.
+                </CardDescription>
+              </div>
               <Button asChild variant="outline" size="sm">
                 <Link to="/participants">View all</Link>
               </Button>
@@ -237,7 +285,7 @@ export default function Home() {
                   {recentParticipants.map((participant) => (
                     <li
                       key={participant.id}
-                      className="flex items-center justify-between gap-4 rounded-lg border bg-muted/30 p-3"
+                      className="flex items-center justify-between gap-4 rounded-lg border bg-muted/30 p-4"
                     >
                       <div>
                         <p className="font-medium">{participant.name}</p>
@@ -256,69 +304,6 @@ export default function Home() {
           </Card>
         </>
       )}
-    </div>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string;
-  value: number;
-  icon: LucideIcon;
-}) {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {label}
-        </CardTitle>
-        <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function DashboardSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {[0, 1, 2, 3].map((index) => (
-          <Card key={index}>
-            <CardHeader>
-              <Skeleton className="h-4 w-24" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-8 w-12" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-5 w-40" />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-5 w-32" />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
