@@ -42,7 +42,7 @@ export const routes: RouteObject[] = [
         element: <Home />,
         handle: {
           showInNavigation: true,
-          label: 'Dashboard',
+          label: 'Übersicht',
           icon: 'reports',
         } satisfies NavigationHandle,
       },
@@ -60,7 +60,7 @@ export const routes: RouteObject[] = [
           />
         ),
         handle: {
-          showInNavigation: true,
+          showInNavigation: false,
           label: 'Search',
           icon: 'search',
         } satisfies NavigationHandle,
@@ -74,7 +74,7 @@ export const routes: RouteObject[] = [
         ),
         handle: {
           showInNavigation: true,
-          label: 'Participants',
+          label: 'Teilnehmer',
           icon: 'users',
         } satisfies NavigationHandle,
       },
@@ -94,7 +94,7 @@ export const routes: RouteObject[] = [
           </Suspense>
         ),
         handle: {
-          showInNavigation: true,
+          showInNavigation: false,
           label: 'Contacts',
           icon: 'contact',
         } satisfies NavigationHandle,
@@ -119,7 +119,7 @@ export const routes: RouteObject[] = [
             ),
             handle: {
               showInNavigation: true,
-              label: 'Programs',
+              label: 'Programme',
               icon: 'book',
             } satisfies NavigationHandle,
           },
