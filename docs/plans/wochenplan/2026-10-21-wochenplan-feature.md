@@ -959,3 +959,17 @@ Teilnehmeransicht sichtbar und steuerbar:
   `sourceScheduleId` wird nicht ausgeliefert.
 - Bestehende Pläne werden nicht migriert. Ein veröffentlichter Plan muss zum Ändern des
   Merge-Modus zuerst zurückgezogen werden.
+
+---
+
+## 16. Bewusst offene Entscheidungen
+
+- **Slot-Eindeutigkeit (`Tag + Reihenfolge + Art`):** Bewusst noch nicht aufgelöst.
+  Aktuell verhindert sie Doppelbelegungen beim Merge von Kurs-, Gruppen- und
+  Individualplänen. Ob mehrere Einträge im selben Slot erlaubt sein sollen, bleibt eine
+  fachliche Entscheidung für eine spätere Iteration.
+- **Drag & Drop / Inline-Editing:** Noch nicht implementiert; Entry-Editing erfolgt
+  dialogbasiert.
+- **Frontend-Rollenprüfung:** Weiterhin kein clientseitiges Rechte-Gate; Sicherheit liegt
+  serverseitig.
+- **Coach-Gate in `ScheduleService`:** Noch nicht vollständig verdrahtet.

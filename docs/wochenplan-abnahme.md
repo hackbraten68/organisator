@@ -55,6 +55,9 @@ Stand: 2026-10-26. Jede Zeile mit automatischem oder manuellem Nachweis.
 
 ## Offene Punkte vor Push
 
+- Slot-Eindeutigkeit (`Tag + Reihenfolge + Art`) bewusst offengelassen.
+- Drag & Drop / Inline-Editing bleibt Folgearbeit.
+- Frontend-Rollenprüfung bleibt bewusst außerhalb des MVP.
 - S22-Gate (Coach-Zuordnung in ScheduleService) verdrahten, falls gewünscht
 - Playwright-Suiten lokal/CI ausführen und Ergebnisse festhalten
 - Push nach Remote erst nach separater Freigabe

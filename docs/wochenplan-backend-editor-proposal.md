@@ -59,6 +59,9 @@ dialogbasiert bearbeitet (Drag/Drop und Inline-Editing bleiben Folgearbeit).
 - Tests + Polish: 1 Tag
 - **Gesamt: ~5 Tage**
 
-## Nächster Schritt
+## Bewusst offene Punkte
 
-Entscheidung zur Frage 1 (Verankerung), dann Scaffold der Seite + API-Client.
+- Slot-Eindeutigkeit (`Tag + Reihenfolge + Art`) ist absichtlich noch nicht aufgelöst.
+- Drag & Drop / Inline-Editing bleibt Folgearbeit.
+- Coach-Gate in `ScheduleService` ist noch nicht vollständig verdrahtet.
+- Frontend-Rollenprüfung bleibt bewusst außerhalb des MVP.
