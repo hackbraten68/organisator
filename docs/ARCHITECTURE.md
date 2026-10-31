@@ -2,6 +2,14 @@
 
 Überblick über Aufbau, Ownership und Kernprinzipien des Organisator-Monorepos.
 
+## Workbook vs. Klassenbuch
+
+- **Workbook:** teilnehmergeführte operative Lernumgebung (Arbeit, Ergebnisse, Fortschritt, Unterstützung).
+- **Klassenbuch:** standardisierter, bestätigter Durchführungsnachweis (Datum, Inhalt, Umfang, Dozent).
+- **Wochenplan:** geplante Lern- und Kursstruktur.
+- **Lernpfad:** fachliche Reihenfolge.
+- Das Workbook darf den Klassenbuchentwurf vorschlagen, aber nicht ungeprüft den Nachweis setzen.
+
 ## Wochenplan / shared Schedule Grid
 
 Der Wochenplan nutzt ein shared DB-backed Raster (`ScheduleGrid`), das von Plan-Editor,
