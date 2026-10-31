@@ -29,6 +29,7 @@ import {
 import { listPrograms } from "@/api/program/programService";
 import { listCoaches } from "@/api/coach/coachService";
 import { type Participant } from "@/types/participant";
+import { participantFeatures } from "@/config/participantFeatures";
 
 const NONE = "__none";
 
@@ -49,6 +50,9 @@ const PARTICIPANT_TABS: ParticipantTab[] = [
 
 function tabFromParams(params: URLSearchParams): ParticipantTab {
   const tab = params.get("tab");
+  if (tab === "termine" && !participantFeatures.appointments) {
+    return "uebersicht";
+  }
   if (PARTICIPANT_TABS.includes(tab as ParticipantTab)) return tab as ParticipantTab;
   // A deep-linked event implies the verlauf tab even without ?tab=.
   if (params.get("event")) return "verlauf";
@@ -334,7 +338,9 @@ export default function ParticipantPage() {
                     <TabsTrigger value="verlauf" aria-label="Verlauf anzeigen" className="flex-shrink-0">Verlauf</TabsTrigger>
                     <TabsTrigger value="lernpfad" aria-label="Lernpfad anzeigen" className="flex-shrink-0">Lernpfad</TabsTrigger>
                     <TabsTrigger value="abwesenheiten" aria-label="Abwesenheiten anzeigen" className="flex-shrink-0">Abwesenheiten</TabsTrigger>
-                    <TabsTrigger value="termine" aria-label="Termine anzeigen" className="flex-shrink-0">Termine</TabsTrigger>
+                    {participantFeatures.appointments && (
+                      <TabsTrigger value="termine" aria-label="Termine anzeigen" className="flex-shrink-0">Termine</TabsTrigger>
+                    )}
                   </TabsList>
 
                   <TabsContent value="uebersicht" className={`grid gap-6 ${getCompletion(participant).state === "ready" ? "" : "lg:grid-cols-2"}`}>
@@ -384,15 +390,17 @@ export default function ParticipantPage() {
                     )}
                   </TabsContent>
 
-                  <TabsContent value="termine">
-                    {tab === "termine" && (
-                      <ParticipantAppointmentsTab
-                        participantId={participant.id}
-                        participantName={participant.name}
-                        canManage={true}
-                      />
-                    )}
-                  </TabsContent>
+                  {participantFeatures.appointments && (
+                    <TabsContent value="termine">
+                      {tab === "termine" && (
+                        <ParticipantAppointmentsTab
+                          participantId={participant.id}
+                          participantName={participant.name}
+                          canManage={true}
+                        />
+                      )}
+                    </TabsContent>
+                  )}
                 </Tabs>
               </div>
             ) : (
