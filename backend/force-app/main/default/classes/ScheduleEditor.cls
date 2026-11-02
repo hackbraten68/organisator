@@ -641,8 +641,10 @@ global with sharing class ScheduleEditor {
                   AND (Program__c = :lpo.programId OR ProgramWeek__c IN :weekIds)
                 ORDER BY Name
             ]) {
-                // If template has a Module__c, it must match the learning path module
-                if (t.ProgramWeek__c != null && !weekIds.contains(t.ProgramWeek__c)) {
+                // Vorlagen sind programmweit wiederverwendbar. Eine Vorlage darf
+                // daher auch dann angeboten werden, wenn sie aus einer anderen
+                // Kurswoche oder einem anderen Modul desselben Programms stammt.
+                if (t.Program__c != null && t.Program__c != lpo.programId) {
                     continue;
                 }
                 TemplateView tv = new TemplateView();
@@ -743,15 +745,11 @@ global with sharing class ScheduleEditor {
         if (template.Status__c != 'Active') {
             throw badRequest('Die Vorlage ist nicht aktiv.');
         }
-        if (template.ProgramWeek__c != null && template.ProgramWeek__c != programWeekId) {
-            throw badRequest('Die Vorlage passt nicht zur ausgewaehlten Kurswoche.');
-        }
-        if (template.ProgramWeek__c == null && template.Program__c != null
+        // Vorlagen sind programmweit wiederverwendbar; Herkunftskurswoche und
+        // Modul blockieren die Anwendung auf eine andere Kurswoche nicht.
+        if (template.Program__c != null
                 && template.Program__c != lp.Participant__r.Program__c) {
             throw badRequest('Die Vorlage passt nicht zum ausgewaehlten Programm.');
-        }
-        if (template.Module__c != null && template.Module__c != lp.Module__c) {
-            throw badRequest('Die Vorlage passt nicht zum Modul des Lernpfadeintrags.');
         }
 
         // Validate start date is Monday
