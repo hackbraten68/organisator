@@ -5,6 +5,8 @@ import {
   ArrowRight,
   CalendarClock,
   CheckCircle2,
+  FileText,
+  GraduationCap,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -32,6 +34,7 @@ import {
 import {
   PARTICIPANT_STATUSES,
 } from "@/types/participant";
+import WorkbookSupportWidget from "@/components/workbook/WorkbookSupportWidget";
 
 const FIELD_LABELS: Record<string, string> = {
   program: "Program",
@@ -53,6 +56,34 @@ function formatDate(value?: string): string {
   });
 }
 
+function QuickLink({
+  to,
+  icon: Icon,
+  title,
+  description,
+}: {
+  to: string;
+  icon: LucideIcon;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className="group flex items-center gap-3 rounded-lg border bg-card p-4 transition-colors hover:bg-muted/40"
+    >
+      <div className="rounded-lg bg-muted p-2.5 text-muted-foreground">
+        <Icon className="size-5" aria-hidden="true" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+    </Link>
+  );
+}
+
 function MetricCard({
   label,
   value,
@@ -64,13 +95,13 @@ function MetricCard({
 }) {
   return (
     <Card>
-      <CardContent className="flex items-center justify-between gap-4 p-5">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">{label}</p>
-          <p className="text-3xl font-bold tracking-tight">{value}</p>
+      <CardContent className="flex items-center justify-between gap-4 p-4">
+        <div className="space-y-0.5">
+          <p className="text-xs font-medium text-muted-foreground">{label}</p>
+          <p className="text-2xl font-bold tracking-tight">{value}</p>
         </div>
-        <div className="rounded-lg bg-muted p-2.5 text-muted-foreground">
-          <Icon className="size-5" aria-hidden="true" />
+        <div className="rounded-lg bg-muted p-2 text-muted-foreground">
+          <Icon className="size-4" aria-hidden="true" />
         </div>
       </CardContent>
     </Card>
@@ -114,7 +145,7 @@ export default function Home() {
   );
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-8 p-6">
+    <div className="container mx-auto max-w-7xl space-y-6 p-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground">Operations overview</p>
@@ -122,19 +153,21 @@ export default function Home() {
         </div>
         <Button asChild>
           <Link to="/participants">
-            Open participant list
+            Teilnehmer öffnen
             <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
         </Button>
       </header>
 
+      <WorkbookSupportWidget />
+
       {loading && (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
             <Card key={index}>
-              <CardContent className="p-5">
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="mt-3 h-8 w-16" />
+              <CardContent className="p-4">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="mt-3 h-6 w-12" />
               </CardContent>
             </Card>
           ))}
@@ -145,25 +178,25 @@ export default function Home() {
         <Alert variant="destructive" role="alert">
           <AlertCircle />
           <AlertTitle>
-            <h2>Failed to load dashboard</h2>
+            <h2>Dashboard konnte nicht geladen werden</h2>
           </AlertTitle>
           <AlertDescription>
-            Something went wrong while loading the participant dashboard. Please
-            try again later.
+            Beim Laden der Dashboard-Daten ist ein Fehler aufgetreten. Bitte
+            versuche es später erneut.
           </AlertDescription>
         </Alert>
       )}
 
       {!loading && !error && participants.length === 0 && (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <Users className="mb-4 size-12 text-muted-foreground" />
-            <h2 className="mb-1 text-lg font-semibold">No participants yet</h2>
-            <p className="mb-6 text-sm text-muted-foreground">
-              Add the first participant to begin tracking onboarding and status.
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Users className="mb-3 size-10 text-muted-foreground" />
+            <h2 className="mb-1 text-lg font-semibold">Noch keine Teilnehmer</h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Lege den ersten Teilnehmer an, um loszulegen.
             </p>
             <Button asChild variant="outline">
-              <Link to="/participants">Review participants</Link>
+              <Link to="/participants">Teilnehmer verwalten</Link>
             </Button>
           </CardContent>
         </Card>
@@ -173,17 +206,17 @@ export default function Home() {
         <>
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
-              label="Total participants"
+              label="Teilnehmer gesamt"
               value={participants.length}
               icon={Users}
             />
             <MetricCard
-              label="Active"
+              label="Aktiv"
               value={statusCounts.Active}
               icon={CheckCircle2}
             />
             <MetricCard
-              label="Needs attention"
+              label="Braucht Aufmerksamkeit"
               value={onboardingCounts.needsAttention}
               icon={AlertCircle}
             />
@@ -194,18 +227,55 @@ export default function Home() {
             />
           </section>
 
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
+          <section>
+            <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
+              Schnellzugriff
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <QuickLink
+                to="/participants"
+                icon={Users}
+                title="Teilnehmer"
+                description="Liste, Onboarding, Status"
+              />
+              <QuickLink
+                to="/wochenplan"
+                icon={CalendarClock}
+                title="Wochenplan"
+                description="Soll-Plan erstellen und verwalten"
+              />
+              <QuickLink
+                to="/programs"
+                icon={GraduationCap}
+                title="Programme"
+                description="Programme und Module"
+              />
+              <QuickLink
+                to="/wochenplan/vorlagen"
+                icon={FileText}
+                title="Vorlagen"
+                description="Wochenplan-Vorlagen"
+              />
+            </div>
+          </section>
+
+          <section className="grid gap-4 lg:grid-cols-3">
             <Card>
-              <CardHeader>
-                <CardTitle>Needs attention</CardTitle>
-                <CardDescription>
-                  Participants with missing onboarding data.
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
+                <div>
+                  <CardTitle className="text-sm">Braucht Aufmerksamkeit</CardTitle>
+                  <CardDescription className="text-xs">
+                    Teilnehmer mit fehlenden Onboarding-Daten.
+                  </CardDescription>
+                </div>
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/participants">Alle</Link>
+                </Button>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-2">
                 {attentionList.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Everything looks healthy. No onboarding gaps right now.
+                  <p className="text-xs text-muted-foreground">
+                    Alles in Ordnung – keine Onboarding-Lücken.
                   </p>
                 ) : (
                   attentionList.map((participant) => {
@@ -216,16 +286,16 @@ export default function Home() {
                     return (
                       <div
                         key={participant.id}
-                        className="rounded-lg border bg-muted/30 p-4"
+                        className="rounded-md border bg-muted/30 px-3 py-2"
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="font-medium">{participant.name}</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium">{participant.name}</p>
                           <span className="text-xs text-muted-foreground">
                             {participant.status}
                           </span>
                         </div>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {missing || "Check required fields"}
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {missing || "Felder prüfen"}
                         </p>
                       </div>
                     );
@@ -235,24 +305,24 @@ export default function Home() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Lifecycle overview</CardTitle>
-                <CardDescription>
-                  Participant status distribution.
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Lifecycle-Übersicht</CardTitle>
+                <CardDescription className="text-xs">
+                  Status-Verteilung der Teilnehmer.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2">
                   {PARTICIPANT_STATUSES.map((status) => (
                     <div
                       key={status}
-                      className="rounded-lg border bg-muted/30 p-3"
+                      className="rounded-md border bg-muted/30 px-3 py-2"
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-sm font-medium text-muted-foreground">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-muted-foreground">
                           {status}
                         </span>
-                        <span className="text-lg font-semibold">
+                        <span className="text-sm font-semibold">
                           {statusCounts[status]}
                         </span>
                       </div>
@@ -261,47 +331,47 @@ export default function Home() {
                 </div>
               </CardContent>
             </Card>
-          </section>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-4">
-              <div>
-                <CardTitle>Recent participants</CardTitle>
-                <CardDescription>
-                  Recently created or started participants.
-                </CardDescription>
-              </div>
-              <Button asChild variant="outline" size="sm">
-                <Link to="/participants">View all</Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {recentParticipants.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No recent participants available.
-                </p>
-              ) : (
-                <ul className="space-y-3">
-                  {recentParticipants.map((participant) => (
-                    <li
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
+                <div>
+                  <CardTitle className="text-sm">Zuletzt hinzugefügt</CardTitle>
+                  <CardDescription className="text-xs">
+                    Kürzlich erstellte Teilnehmer.
+                  </CardDescription>
+                </div>
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/participants">Alle</Link>
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {recentParticipants.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Keine aktuellen Teilnehmer.
+                  </p>
+                ) : (
+                  recentParticipants.map((participant) => (
+                    <div
                       key={participant.id}
-                      className="flex items-center justify-between gap-4 rounded-lg border bg-muted/30 p-4"
+                      className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2"
                     >
-                      <div>
-                        <p className="font-medium">{participant.name}</p>
-                        <p className="text-sm text-muted-foreground">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {participant.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
                           {participant.status}
                         </p>
                       </div>
-                      <time className="text-sm text-muted-foreground">
+                      <time className="shrink-0 text-xs text-muted-foreground">
                         {formatDate(participant.createdAt ?? participant.startDate)}
                       </time>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </section>
         </>
       )}
     </div>

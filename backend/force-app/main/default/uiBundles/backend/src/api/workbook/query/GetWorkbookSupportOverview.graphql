@@ -1,0 +1,102 @@
+query GetWorkbookSupportOverview($today: Date, $checkInLimit: Int, $supportLimit: Int, $feedbackLimit: Int) {
+  uiapi {
+    query {
+      checkIns: Workbook_Day__c(
+        where: { Date__c: { eq: { value: $today } } }
+        orderBy: { CheckInAt__c: { order: DESC } }
+        first: $checkInLimit
+      ) {
+        edges {
+          node {
+            Id
+            Date__c {
+              value
+            }
+            Status__c {
+              value
+            }
+            CheckInAt__c {
+              value
+            }
+            CheckInSource__c {
+              value
+            }
+            SupportStatus__c {
+              value
+            }
+            SupportNote__c {
+              value
+            }
+            Participant__c {
+              value
+            }
+            Participant__r {
+              Name {
+                value
+              }
+            }
+          }
+        }
+      }
+      supportTasks: Workbook_Task__c(
+        where: { NeedsSupport__c: { eq: true }, Status__c: { ne: "Dropped" } }
+        orderBy: { PlannedDate__c: { order: DESC } }
+        first: $supportLimit
+      ) {
+        edges {
+          node {
+            Id
+            Title__c {
+              value
+            }
+            Status__c {
+              value
+            }
+            PlannedDate__c {
+              value
+            }
+            SupportNote__c {
+              value
+            }
+            Participant__c {
+              value
+            }
+            Participant__r {
+              Name {
+                value
+              }
+            }
+          }
+        }
+      }
+      feedbackEvidence: Workbook_Evidence__c(
+        where: { FeedbackStatus__c: { eq: "Requested" } }
+        orderBy: { CreatedDate: { order: DESC } }
+        first: $feedbackLimit
+      ) {
+        edges {
+          node {
+            Id
+            Title__c {
+              value
+            }
+            Type__c {
+              value
+            }
+            CreatedDate {
+              value
+            }
+            Participant__c {
+              value
+            }
+            Participant__r {
+              Name {
+                value
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

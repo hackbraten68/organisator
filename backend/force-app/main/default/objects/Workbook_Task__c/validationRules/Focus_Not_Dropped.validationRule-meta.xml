@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Focus_Not_Dropped</fullName>
+    <active>true</active>
+    <errorConditionFormula>AND(
+  IsFocus__c,
+  ISPICKVAL(Status__c, &quot;Dropped&quot;)
+)</errorConditionFormula>
+    <errorMessage>A focus task cannot be dropped. Remove the focus flag or choose another status.</errorMessage>
+</ValidationRule>

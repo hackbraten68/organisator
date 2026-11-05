@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Review_End_After_Start</fullName>
+    <active>true</active>
+    <errorConditionFormula>WeekEndDate__c &lt;= WeekStartDate__c</errorConditionFormula>
+    <errorMessage>Week end date must be after week start date.</errorMessage>
+</ValidationRule>

@@ -12,6 +12,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { PageContainer, PageHeader } from "@/components/ui/layout";
 import ParticipantLearningPath from "@/components/participants/ParticipantLearningPath";
 import ParticipantActivity from "@/components/participants/ParticipantActivity";
+import ParticipantWorkbookTab from "@/components/workbook/ParticipantWorkbookTab";
 import ParticipantListCard from "@/components/participants/ParticipantListCard";
 import ParticipantStickyHeader from "@/components/participants/ParticipantStickyHeader";
 import ParticipantSummaryCard from "@/components/participants/ParticipantSummaryCard";
@@ -36,6 +37,7 @@ const NONE = "__none";
 type ParticipantTab =
   | "uebersicht"
   | "verlauf"
+  | "lernen"
   | "lernpfad"
   | "abwesenheiten"
   | "termine";
@@ -43,6 +45,7 @@ type ParticipantTab =
 const PARTICIPANT_TABS: ParticipantTab[] = [
   "uebersicht",
   "verlauf",
+  "lernen",
   "lernpfad",
   "abwesenheiten",
   "termine",
@@ -336,6 +339,7 @@ export default function ParticipantPage() {
                   <TabsList variant="line" className="mb-4 overflow-x-auto flex-nowrap pb-1 -mb-1">
                     <TabsTrigger value="uebersicht" aria-label="Übersicht anzeigen" className="flex-shrink-0">Übersicht</TabsTrigger>
                     <TabsTrigger value="verlauf" aria-label="Verlauf anzeigen" className="flex-shrink-0">Verlauf</TabsTrigger>
+                    <TabsTrigger value="lernen" aria-label="Lernen anzeigen" className="flex-shrink-0">Lernen</TabsTrigger>
                     <TabsTrigger value="lernpfad" aria-label="Lernpfad anzeigen" className="flex-shrink-0">Lernpfad</TabsTrigger>
                     <TabsTrigger value="abwesenheiten" aria-label="Abwesenheiten anzeigen" className="flex-shrink-0">Abwesenheiten</TabsTrigger>
                     {participantFeatures.appointments && (
@@ -365,6 +369,16 @@ export default function ParticipantPage() {
                         participantId={participant.id}
                         refreshKey={reload}
                         highlightEventId={searchParams.get("event")}
+                      />
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="lernen">
+                    {tab === "lernen" && (
+                      <ParticipantWorkbookTab
+                        key={participant.id}
+                        participantId={participant.id}
+                        participantName={participant.name}
                       />
                     )}
                   </TabsContent>

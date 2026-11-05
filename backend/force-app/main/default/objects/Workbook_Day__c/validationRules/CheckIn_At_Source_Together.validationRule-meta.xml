@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>CheckIn_At_Source_Together</fullName>
+    <active>true</active>
+    <errorConditionFormula>OR(
+  AND(
+    NOT(ISBLANK(CheckInAt__c)),
+    ISPICKVAL(CheckInSource__c, &quot;&quot;)
+  ),
+  AND(
+    ISBLANK(CheckInAt__c),
+    NOT(ISPICKVAL(CheckInSource__c, &quot;&quot;))
+  )
+)</errorConditionFormula>
+    <errorMessage>Check-in timestamp and check-in source must be set together.</errorMessage>
+</ValidationRule>

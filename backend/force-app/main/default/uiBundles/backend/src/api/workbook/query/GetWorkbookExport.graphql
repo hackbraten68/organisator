@@ -1,0 +1,123 @@
+query GetWorkbookExport {
+  uiapi {
+    query {
+      days: Workbook_Day__c(
+        orderBy: { Date__c: { order: DESC } }
+        first: 2000
+      ) {
+        edges {
+          node {
+            Id
+            Date__c {
+              value
+            }
+            Status__c {
+              value
+            }
+            CheckInAt__c {
+              value
+            }
+            CheckInSource__c {
+              value
+            }
+            SupportStatus__c {
+              value
+            }
+            SupportNote__c {
+              value
+            }
+            Focus__c {
+              value
+            }
+            NextStep__c {
+              value
+            }
+            ClosedAt__c {
+              value
+            }
+            Participant__c {
+              value
+            }
+            Participant__r {
+              Name {
+                value
+              }
+            }
+          }
+        }
+      }
+      tasks: Workbook_Task__c(
+        orderBy: { PlannedDate__c: { order: DESC } }
+        first: 5000
+      ) {
+        edges {
+          node {
+            Id
+            Title__c {
+              value
+            }
+            Status__c {
+              value
+            }
+            IsFocus__c {
+              value
+            }
+            NeedsSupport__c {
+              value
+            }
+            SupportNote__c {
+              value
+            }
+            PlannedDate__c {
+              value
+            }
+            Source__c {
+              value
+            }
+            CompletedAt__c {
+              value
+            }
+            Participant__c {
+              value
+            }
+            Participant__r {
+              Name {
+                value
+              }
+            }
+          }
+        }
+      }
+      evidence: Workbook_Evidence__c(
+        orderBy: { CreatedDate: { order: DESC } }
+        first: 5000
+      ) {
+        edges {
+          node {
+            Id
+            Title__c {
+              value
+            }
+            Type__c {
+              value
+            }
+            FeedbackStatus__c {
+              value
+            }
+            CreatedDate {
+              value
+            }
+            Participant__c {
+              value
+            }
+            Participant__r {
+              Name {
+                value
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

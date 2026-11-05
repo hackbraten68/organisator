@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Link_Requires_Title_URL</fullName>
+    <active>true</active>
+    <errorConditionFormula>AND(
+  ISPICKVAL(Type__c, &quot;Link&quot;),
+  OR(
+    ISBLANK(Title__c),
+    ISBLANK(URL__c)
+  )
+)</errorConditionFormula>
+    <errorMessage>Link evidence requires both a title and a URL.</errorMessage>
+</ValidationRule>

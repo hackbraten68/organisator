@@ -1,0 +1,126 @@
+query GetParticipantWorkbook($participantId: ID!) {
+  uiapi {
+    query {
+      days: Workbook_Day__c(
+        where: { Participant__c: { eq: $participantId } }
+        orderBy: { Date__c: { order: DESC } }
+        first: 21
+      ) {
+        edges {
+          node {
+            Id
+            Date__c {
+              value
+            }
+            Status__c {
+              value
+            }
+            CheckInAt__c {
+              value
+            }
+            CheckInSource__c {
+              value
+            }
+            SupportStatus__c {
+              value
+            }
+            SupportNote__c {
+              value
+            }
+            Focus__c {
+              value
+            }
+            SelfRating__c {
+              value
+            }
+            NextStep__c {
+              value
+            }
+            ClosedAt__c {
+              value
+            }
+            LastReopenedAt__c {
+              value
+            }
+          }
+        }
+      }
+      tasks: Workbook_Task__c(
+        where: { Participant__c: { eq: $participantId } }
+        orderBy: { PlannedDate__c: { order: DESC } }
+        first: 50
+      ) {
+        edges {
+          node {
+            Id
+            Title__c {
+              value
+            }
+            Status__c {
+              value
+            }
+            PlannedDate__c {
+              value
+            }
+            IsFocus__c {
+              value
+            }
+            NeedsSupport__c {
+              value
+            }
+            SupportNote__c {
+              value
+            }
+            Source__c {
+              value
+            }
+            CompletedAt__c {
+              value
+            }
+            CreatedDate {
+              value
+            }
+          }
+        }
+      }
+      evidence: Workbook_Evidence__c(
+        where: { Participant__c: { eq: $participantId } }
+        orderBy: { CreatedDate: { order: DESC } }
+        first: 20
+      ) {
+        edges {
+          node {
+            Id
+            Title__c {
+              value
+            }
+            Type__c {
+              value
+            }
+            URL__c {
+              value
+            }
+            Note__c {
+              value
+            }
+            FeedbackStatus__c {
+              value
+            }
+            CoachFeedback__c {
+              value
+            }
+            CoachFeedbackAt__c {
+              value
+            }
+            CreatedDate {
+              value
+            }
+            Task__c {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

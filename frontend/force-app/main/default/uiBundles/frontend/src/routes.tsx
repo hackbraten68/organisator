@@ -1,5 +1,6 @@
 import type { RouteObject } from 'react-router';
 import Dashboard from './pages/Dashboard';
+import WeekView from './pages/WeekView';
 import LearningPath from './pages/LearningPath';
 import Appointments from './pages/Appointments';
 import WeeklySchedule from './pages/WeeklySchedule';
@@ -34,7 +35,12 @@ export const routes: RouteObject[] = [
           {
             index: true,
             element: <Dashboard />,
-            handle: { showInNavigation: true, label: "Dashboard", icon: "dashboard" }
+            handle: { showInNavigation: true, label: "Heute", icon: "dashboard" }
+          },
+          {
+            path: "woche",
+            element: <WeekView />,
+            handle: { showInNavigation: true, label: "Woche", icon: "calendar" }
           },
           {
             path: "learning-path",

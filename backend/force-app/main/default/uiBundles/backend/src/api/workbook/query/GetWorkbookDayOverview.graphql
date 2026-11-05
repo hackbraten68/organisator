@@ -1,0 +1,131 @@
+query GetWorkbookDayOverview($today: Date, $start: DateTime, $end: DateTime) {
+  uiapi {
+    query {
+      days: Workbook_Day__c(
+        where: { Date__c: { eq: { value: $today } } }
+        orderBy: { Date__c: { order: ASC } }
+        first: 500
+      ) {
+        edges {
+          node {
+            Id
+            Date__c {
+              value
+            }
+            Status__c {
+              value
+            }
+            CheckInAt__c {
+              value
+            }
+            CheckInSource__c {
+              value
+            }
+            SupportStatus__c {
+              value
+            }
+            SupportNote__c {
+              value
+            }
+            Focus__c {
+              value
+            }
+            SelfRating__c {
+              value
+            }
+            NextStep__c {
+              value
+            }
+            ClosedAt__c {
+              value
+            }
+            LastReopenedAt__c {
+              value
+            }
+            Participant__c {
+              value
+            }
+            Participant__r {
+              Name {
+                value
+              }
+            }
+          }
+        }
+      }
+      tasks: Workbook_Task__c(
+        where: { PlannedDate__c: { eq: { value: $today } } }
+        orderBy: { PlannedDate__c: { order: ASC } }
+        first: 1000
+      ) {
+        edges {
+          node {
+            Id
+            Title__c {
+              value
+            }
+            Status__c {
+              value
+            }
+            IsFocus__c {
+              value
+            }
+            NeedsSupport__c {
+              value
+            }
+            SupportNote__c {
+              value
+            }
+            PlannedDate__c {
+              value
+            }
+            Participant__c {
+              value
+            }
+            Participant__r {
+              Name {
+                value
+              }
+            }
+          }
+        }
+      }
+      evidence: Workbook_Evidence__c(
+        where: {
+          and: [
+            { CreatedDate: { gte: { value: $start } } }
+            { CreatedDate: { lte: { value: $end } } }
+          ]
+        }
+        orderBy: { CreatedDate: { order: ASC } }
+        first: 1000
+      ) {
+        edges {
+          node {
+            Id
+            Title__c {
+              value
+            }
+            Type__c {
+              value
+            }
+            FeedbackStatus__c {
+              value
+            }
+            CreatedDate {
+              value
+            }
+            Participant__c {
+              value
+            }
+            Participant__r {
+              Name {
+                value
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

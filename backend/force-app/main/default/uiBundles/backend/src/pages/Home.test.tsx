@@ -6,14 +6,25 @@ import {
   listParticipants,
   listRecentParticipants,
 } from "@/api/participant/participantService";
+import {
+  getWorkbookSupportOverview,
+  getWorkbookDayOverview,
+} from "@/api/workbook/workbookService";
 
 vi.mock("@/api/participant/participantService", () => ({
   listParticipants: vi.fn(),
   listRecentParticipants: vi.fn(),
 }));
 
+vi.mock("@/api/workbook/workbookService", () => ({
+  getWorkbookSupportOverview: vi.fn(),
+  getWorkbookDayOverview: vi.fn(),
+}));
+
 const mockedListParticipants = vi.mocked(listParticipants);
 const mockedListRecentParticipants = vi.mocked(listRecentParticipants);
+const mockedGetWorkbookSupportOverview = vi.mocked(getWorkbookSupportOverview);
+const mockedGetWorkbookDayOverview = vi.mocked(getWorkbookDayOverview);
 
 describe("Home dashboard", () => {
   it("renders the dashboard overview and recent participant list", async () => {
@@ -42,6 +53,26 @@ describe("Home dashboard", () => {
         createdAt: "2026-09-20T10:00:00.000Z",
       },
     ]);
+    mockedGetWorkbookSupportOverview.mockResolvedValue({
+      checkIns: [],
+      supportTasks: [],
+      feedbackEvidence: [],
+    });
+    mockedGetWorkbookDayOverview.mockResolvedValue({
+      date: "2026-09-20",
+      totalDays: 0,
+      closedDays: 0,
+      openDays: 0,
+      checkedInCount: 0,
+      taskCount: 0,
+      doneTaskCount: 0,
+      focusTaskCount: 0,
+      supportTaskCount: 0,
+      evidenceCount: 0,
+      days: [],
+      tasks: [],
+      evidence: [],
+    });
 
     render(
       <MemoryRouter>
@@ -50,8 +81,8 @@ describe("Home dashboard", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
-    expect(screen.getByText("Lifecycle overview")).toBeInTheDocument();
-    expect(screen.getByText("Recent participants")).toBeInTheDocument();
-    expect(screen.getAllByText("Needs attention").length).toBeGreaterThan(0);
+    expect(screen.getByText("Lifecycle-Übersicht")).toBeInTheDocument();
+    expect(screen.getByText("Zuletzt hinzugefügt")).toBeInTheDocument();
+    expect(screen.getAllByText("Braucht Aufmerksamkeit").length).toBeGreaterThan(0);
   });
 });

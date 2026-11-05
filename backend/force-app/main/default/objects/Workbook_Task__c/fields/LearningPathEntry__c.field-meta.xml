@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>LearningPathEntry__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <label>Learning Path Entry</label>
+    <referenceTo>Learning_Path__c</referenceTo>
+    <relationshipLabel>Workbook Tasks</relationshipLabel>
+    <relationshipName>Workbook_Tasks</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

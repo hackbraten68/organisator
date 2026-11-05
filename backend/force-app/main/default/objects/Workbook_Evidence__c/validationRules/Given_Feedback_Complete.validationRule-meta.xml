@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Given_Feedback_Complete</fullName>
+    <active>true</active>
+    <errorConditionFormula>AND(
+  ISPICKVAL(FeedbackStatus__c, &quot;Given&quot;),
+  OR(
+    ISBLANK(CoachFeedback__c),
+    ISBLANK(CoachFeedbackAt__c),
+    ISBLANK(CoachFeedbackBy__c)
+  )
+)</errorConditionFormula>
+    <errorMessage>Given feedback requires feedback text, timestamp and coach.</errorMessage>
+</ValidationRule>

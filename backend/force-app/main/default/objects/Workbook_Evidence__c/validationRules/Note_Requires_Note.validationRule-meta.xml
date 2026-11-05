@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Note_Requires_Note</fullName>
+    <active>true</active>
+    <errorConditionFormula>AND(
+  ISPICKVAL(Type__c, &quot;Note&quot;),
+  ISBLANK(Note__c)
+)</errorConditionFormula>
+    <errorMessage>Note evidence requires a note.</errorMessage>
+</ValidationRule>
