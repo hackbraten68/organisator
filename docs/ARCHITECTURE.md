@@ -87,6 +87,10 @@ REST-Pfade (Portal):
 - `GET /services/apexrest/participant-portal/me` (Picasso-Prefix `/organisatorv1/sf/api/...`)
 - `GET /services/apexrest/participant-portal/me/learning-path`
 
+REST-Pfade (Workbook / „Mein Lernen“):
+- `ParticipantPortalWorkbook.cls` → `/services/apexrest/participant-workbook/...`
+  (heute, woche, check-in, tagesabschluss, focus, nächste-schritt, selbstbewertung, aufgaben, carry-over)
+
 Auth/Login/Logout: siehe [`frontend/AGENTS.md`](../frontend/AGENTS.md#login-and-logout-paths).
 
 ## 4. Experience Cloud – URL-Architektur

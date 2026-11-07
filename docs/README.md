@@ -10,6 +10,7 @@ Zentrale Übersicht aller Projekt-Dokumentationen.
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | Git-Workflow, Code-Style, Tests, Lint, Commit-Regeln, Salesforce-Guidelines |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | High-Level-Architektur, Ownership, Identity, Sharing, Experience Cloud, UI-Bundles, Deployment |
 | [DATA_MODEL.md](DATA_MODEL.md) | Datenmodell, Objekte, Felder, Relationen, Kardinalitäten |
+| [WORKBOOK.md](WORKBOOK.md) | „Mein Lernen“ Workbook MVP: Teilnehmer-Portal, Coach-Backoffice, Wochenansicht (Mo–Fr), Check-in, Aufgaben, Nachweise, Wochenrückblick |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Häufige Stolperfallen & Lösungen (Runtime-Schema, Deploy, Experience Cloud, Playwright, Cache) |
 
 ## Tiefgreifende Referenz (Agent/Deep-Dive)

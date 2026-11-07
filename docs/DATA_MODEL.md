@@ -81,7 +81,9 @@ Modul (z. B. IT Fundamentals, Linux, Azure).
 
 ## Weitere Objekte (Auszug)
 
-Weitere Custom Objects im Repo/Org (abhängig von Deploy-Status): `Absence__c`, `Appointment__c`, `AvailabilitySlot__c`, `AuditEvent__c`, `AuditOutbox__c`.
+Weitere Custom Objects im Repo/Org (abhängig von Deploy-Status): `Absence__c`, `Appointment__c`, `AvailabilitySlot__c`, `AuditEvent__c`, `AuditOutbox__c`, `Workbook_Day__c`, `Workbook_Task__c`, `Workbook_Evidence__c`, `Workbook_Week_Review__c`.
+
+Details zum Workbook-Datenmodell siehe [`docs/WORKBOOK.md`](WORKBOOK.md#2-datenmodell-vier-objekte).
 
 Detaillierte Feldlisten inkl. exakter API-Names siehe [`backend/docs/AGENTS.md`](../backend/docs/AGENTS.md#current-state) (Felder, Typen). Für neue Felder immer manuell anlegen → retrieven → [`schema:check`](../backend/scripts/schema-check.mjs).
 
