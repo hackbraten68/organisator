@@ -123,10 +123,16 @@ global with sharing class ScheduleGridService {
             throw invalid('Die Rasterkonfiguration fehlt.');
         }
 
-        Map<String, Object> parsed = (Map<String, Object>) JSON.deserializeUntyped(rawConfig);
-        if (parsed == null) {
-            throw invalid('Die Rasterkonfiguration fehlt.');
+        Object parsedValue;
+        try {
+            parsedValue = JSON.deserializeUntyped(rawConfig);
+        } catch (Exception e) {
+            throw invalid('Die Rasterkonfiguration ist nicht lesbar.');
         }
+        if (!(parsedValue instanceof Map<String, Object>)) {
+            throw invalid('Die Rasterkonfiguration ist nicht lesbar.');
+        }
+        Map<String, Object> parsed = (Map<String, Object>) parsedValue;
 
         Object versionValue = parsed.get('version');
         if (versionValue == null) {

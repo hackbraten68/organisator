@@ -292,5 +292,287 @@ public class ScheduleServiceTest {
         System.assertEquals(0, ScheduleService.dayOffset('Monday'));
         System.assertEquals(6, ScheduleService.dayOffset('Sunday'));
         System.assertEquals(4, ScheduleService.dayOffset('Friday'));
+        System.assertEquals(0, ScheduleService.dayOffset(''));
+        System.assertEquals(0, ScheduleService.dayOffset('Unbekannt'));
+    }
+
+    @IsTest
+    static void scheduleResponseKonstruktoren() {
+        ScheduleService.ScheduleResponse ok = new ScheduleService.ScheduleResponse('a00000000000000AAA');
+        System.assertEquals(true, ok.success);
+        System.assertEquals('a00000000000000AAA', ok.id);
+
+        ScheduleService.ScheduleResponse error = new ScheduleService.ScheduleResponse('CODE', 'Nachricht');
+        System.assertEquals(false, error.success);
+        System.assertEquals('CODE', error.code);
+        System.assertEquals('Nachricht', error.message);
+    }
+
+    @IsTest
+    static void upsertWeeklyScheduleOhneRequestWirdAbgelehnt() {
+        try {
+            ScheduleService.upsertWeeklySchedule(null);
+            System.assert(false, 'null-Request muss abgelehnt werden');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(400, error.getStatusCode());
+            System.assertEquals(ScheduleService.CODE_BAD_REQUEST, error.getCode());
+        }
+    }
+
+    @IsTest
+    static void upsertWeeklyScheduleUnbekannterPlanWirdAbgelehnt() {
+        ScheduleService.WeeklyScheduleRequest request = new ScheduleService.WeeklyScheduleRequest();
+        request.id = 'a00000000000000AAA';
+        try {
+            ScheduleService.upsertWeeklySchedule(request);
+            System.assert(false, 'unbekannter Plan muss abgelehnt werden');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(404, error.getStatusCode());
+        }
+    }
+
+    @IsTest
+    static void upsertWeeklySchedulePflichtfelderWerdenGeprueft() {
+        ScheduleService.WeeklyScheduleRequest ohneProgramm = new ScheduleService.WeeklyScheduleRequest();
+        ohneProgramm.name = 'Ohne Woche';
+        ohneProgramm.startDate = '2027-03-01';
+        try {
+            ScheduleService.upsertWeeklySchedule(ohneProgramm);
+            System.assert(false, 'programWeekId fehlt');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(400, error.getStatusCode());
+        }
+
+        ScheduleService.WeeklyScheduleRequest ohneStart = new ScheduleService.WeeklyScheduleRequest();
+        ohneStart.name = 'Ohne Start';
+        ohneStart.programWeekId = programWeekId();
+        try {
+            ScheduleService.upsertWeeklySchedule(ohneStart);
+            System.assert(false, 'startDate fehlt');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(400, error.getStatusCode());
+        }
+
+        ScheduleService.WeeklyScheduleRequest ohneName = new ScheduleService.WeeklyScheduleRequest();
+        ohneName.programWeekId = programWeekId();
+        ohneName.startDate = '2027-03-01';
+        try {
+            ScheduleService.upsertWeeklySchedule(ohneName);
+            System.assert(false, 'name fehlt');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(400, error.getStatusCode());
+        }
+    }
+
+    @IsTest
+    static void veroeffentlichterPlanBlockiertStrukturelleAenderungen() {
+        ScheduleService.WeeklyScheduleRequest create = new ScheduleService.WeeklyScheduleRequest();
+        create.name = 'Strukturgeschuetzt';
+        create.programWeekId = programWeekId();
+        create.scopeType = 'Course';
+        create.startDate = '2027-03-01';
+        create.endDate = '2027-03-05';
+        WeeklySchedule__c plan = ScheduleService.upsertWeeklySchedule(create);
+        SchedulePublishService.publish(plan.Id);
+
+        assertPlanNotEditable(plan.Id, 'status', 'Draft');
+        assertPlanNotEditable(plan.Id, 'scopeType', 'Group');
+        assertPlanNotEditable(plan.Id, 'startDate', '2027-03-08');
+        assertPlanNotEditable(plan.Id, 'endDate', '2027-03-06');
+        assertPlanNotEditable(plan.Id, 'participantGroupId', String.valueOf(groupId()));
+        assertPlanNotEditable(plan.Id, 'participantId', String.valueOf(participantId()));
+    }
+
+    private static void assertPlanNotEditable(Id planId, String field, String value) {
+        ScheduleService.WeeklyScheduleRequest request = new ScheduleService.WeeklyScheduleRequest();
+        request.id = planId;
+        if (field == 'status') request.status = value;
+        else if (field == 'scopeType') request.scopeType = value;
+        else if (field == 'startDate') request.startDate = value;
+        else if (field == 'endDate') request.endDate = value;
+        else if (field == 'participantGroupId') request.participantGroupId = value;
+        else if (field == 'participantId') request.participantId = value;
+        try {
+            ScheduleService.upsertWeeklySchedule(request);
+            System.assert(false, 'Feld ' + field + ' darf auf veroeffentlichtem Plan nicht geaendert werden');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(409, error.getStatusCode());
+            System.assertEquals(ScheduleService.CODE_PLAN_NOT_EDITABLE, error.getCode());
+        }
+    }
+
+    private static Id groupId() {
+        insert new ParticipantGroup__c(Name = 'Svc Struktur-Gruppe', Program__c = [SELECT Id FROM Program__c LIMIT 1].Id);
+        return [SELECT Id FROM ParticipantGroup__c ORDER BY CreatedDate DESC LIMIT 1].Id;
+    }
+
+    @IsTest
+    static void upsertScheduleEntryOhneRequestWirdAbgelehnt() {
+        try {
+            ScheduleService.upsertScheduleEntry(null);
+            System.assert(false, 'null-Request muss abgelehnt werden');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(400, error.getStatusCode());
+        }
+    }
+
+    @IsTest
+    static void upsertScheduleEntryUnbekannterEintragWirdAbgelehnt() {
+        ScheduleService.ScheduleEntryRequest request = new ScheduleService.ScheduleEntryRequest();
+        request.id = 'a00000000000000AAA';
+        try {
+            ScheduleService.upsertScheduleEntry(request);
+            System.assert(false, 'unbekannter Eintrag muss abgelehnt werden');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(404, error.getStatusCode());
+        }
+    }
+
+    @IsTest
+    static void upsertScheduleEntryOhneTitelWirdAbgelehnt() {
+        ScheduleService.ScheduleEntryRequest request = new ScheduleService.ScheduleEntryRequest();
+        request.weeklyScheduleId = createDraftPlan().Id;
+        try {
+            ScheduleService.upsertScheduleEntry(request);
+            System.assert(false, 'Titel fehlt');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(400, error.getStatusCode());
+        }
+    }
+
+    @IsTest
+    static void deleteScheduleEntryOhneIdWirdAbgelehnt() {
+        try {
+            ScheduleService.deleteScheduleEntry(null);
+            System.assert(false, 'ohne id muss fehlschlagen');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(400, error.getStatusCode());
+        }
+    }
+
+    @IsTest
+    static void deleteScheduleEntryUnbekanntWirdAbgelehnt() {
+        try {
+            ScheduleService.deleteScheduleEntry('a00000000000000AAA');
+            System.assert(false, 'unbekannter Eintrag muss fehlschlagen');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(404, error.getStatusCode());
+        }
+    }
+
+    @IsTest
+    static void deleteWeeklyScheduleOhneIdWirdAbgelehnt() {
+        try {
+            ScheduleService.deleteWeeklySchedule(null);
+            System.assert(false, 'ohne id muss fehlschlagen');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(400, error.getStatusCode());
+        }
+    }
+
+    @IsTest
+    static void deleteWeeklyScheduleUnbekanntWirdAbgelehnt() {
+        try {
+            ScheduleService.deleteWeeklySchedule('a00000000000000AAA');
+            System.assert(false, 'unbekannter Plan muss fehlschlagen');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(404, error.getStatusCode());
+        }
+    }
+
+    @IsTest
+    static void validateWeeklySchedulePrueftStartUndScope() {
+        WeeklySchedule__c ohneStart = new WeeklySchedule__c(ScopeType__c = 'Course');
+        try {
+            ScheduleService.validateWeeklySchedule(ohneStart);
+            System.assert(false, 'Startdatum fehlt');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(400, error.getStatusCode());
+        }
+
+        WeeklySchedule__c keinMontag = new WeeklySchedule__c(
+            ScopeType__c = 'Course',
+            StartDate__c = Date.newInstance(2027, 3, 2)
+        );
+        try {
+            ScheduleService.validateWeeklySchedule(keinMontag);
+            System.assert(false, 'Startdatum ist kein Montag');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(ScheduleService.CODE_INVALID_WEEK_START, error.getCode());
+        }
+
+        WeeklySchedule__c ohneScope = new WeeklySchedule__c(StartDate__c = Date.newInstance(2027, 3, 1));
+        try {
+            ScheduleService.validateWeeklySchedule(ohneScope);
+            System.assert(false, 'Scope fehlt');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(400, error.getStatusCode());
+        }
+    }
+
+    @IsTest
+    static void validateScheduleEntryPrueftPflichtfelderUndWerte() {
+        Id planId = createDraftPlan().Id;
+
+        assertEntryInvalid(entryFor(planId, 'EntryKind__c', null), ScheduleService.CODE_BAD_REQUEST);
+        assertEntryInvalid(entryFor(planId, 'Type__c', null), ScheduleService.CODE_BAD_REQUEST);
+        assertEntryInvalid(entryFor(planId, 'DayOfWeek__c', null), ScheduleService.CODE_BAD_REQUEST);
+        assertEntryInvalid(entryFor(planId, 'TargetType__c', null), ScheduleService.CODE_BAD_REQUEST);
+        assertEntryInvalid(entryFor(planId, 'TargetType__c', 'Bogus'), ScheduleService.CODE_BAD_REQUEST);
+        assertEntryInvalid(entryFor(planId, 'Category__c', 'bogus'), ScheduleService.CODE_BAD_REQUEST);
+        assertEntryInvalid(entryFor(planId, 'TimeSlotId__c', 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'), ScheduleService.CODE_BAD_REQUEST);
+        assertEntryInvalid(entryFor(planId, 'StartTime__c', Time.newInstance(10, 0, 0, 0)), ScheduleService.CODE_INVALID_INTERVAL);
+        assertEntryInvalid(entryFor(planId, 'EndTime__c', Time.newInstance(10, 0, 0, 0)), ScheduleService.CODE_INVALID_INTERVAL);
+
+        ScheduleEntry__c zeroDuration = entry(planId);
+        zeroDuration.DurationMinutes__c = 0;
+        assertEntryInvalid(zeroDuration, ScheduleService.CODE_INVALID_INTERVAL);
+
+        ScheduleEntry__c inverted = entry(planId);
+        inverted.StartTime__c = Time.newInstance(11, 0, 0, 0);
+        inverted.EndTime__c = Time.newInstance(10, 0, 0, 0);
+        assertEntryInvalid(inverted, ScheduleService.CODE_INVALID_INTERVAL);
+    }
+
+    private static void assertEntryInvalid(ScheduleEntry__c entry, String expectedCode) {
+        try {
+            ScheduleService.validateScheduleEntry(entry);
+            System.assert(false, 'ungueltiger Eintrag muss abgelehnt werden');
+        } catch (ScheduleServiceException error) {
+            System.assertEquals(expectedCode, error.getCode());
+        }
+    }
+
+    private static ScheduleEntry__c entryFor(Id planId, String field, Object value) {
+        ScheduleEntry__c entry = entry(planId);
+        if (field == 'EntryKind__c') entry.EntryKind__c = (String) value;
+        else if (field == 'Type__c') entry.Type__c = (String) value;
+        else if (field == 'DayOfWeek__c') entry.DayOfWeek__c = (String) value;
+        else if (field == 'TargetType__c') entry.TargetType__c = (String) value;
+        else if (field == 'Category__c') entry.Category__c = (String) value;
+        else if (field == 'TimeSlotId__c') entry.TimeSlotId__c = (String) value;
+        else if (field == 'StartTime__c') entry.StartTime__c = (Time) value;
+        else if (field == 'EndTime__c') entry.EndTime__c = (Time) value;
+        return entry;
+    }
+
+    private static ScheduleEntry__c entry(Id planId) {
+        return new ScheduleEntry__c(
+            Name = 'Validierungseintrag',
+            WeeklySchedule__c = planId,
+            EntryKind__c = 'Aktivität',
+            Type__c = 'Workshop',
+            DayOfWeek__c = 'Monday',
+            TargetType__c = 'Course'
+        );
+    }
+
+    private static WeeklySchedule__c createDraftPlan() {
+        ScheduleService.WeeklyScheduleRequest request = new ScheduleService.WeeklyScheduleRequest();
+        request.name = 'Validierungsplan';
+        request.programWeekId = programWeekId();
+        request.scopeType = 'Course';
+        request.startDate = '2027-03-01';
+        return ScheduleService.upsertWeeklySchedule(request);
     }
 }

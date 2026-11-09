@@ -20,6 +20,15 @@ private class ScheduleEditorTest {
     private static Id groupId() { return [SELECT Id FROM ParticipantGroup__c LIMIT 1].Id; }
     private static Id participantId() { return [SELECT Id FROM Participant__c LIMIT 1].Id; }
 
+    private static WeeklySchedule__c createCoursePlan(String name) {
+        ScheduleService.WeeklyScheduleRequest req = new ScheduleService.WeeklyScheduleRequest();
+        req.name = name;
+        req.programWeekId = programWeekId();
+        req.scopeType = 'Course';
+        req.startDate = '2027-03-01';
+        return ScheduleService.upsertWeeklySchedule(req);
+    }
+
     private static void setGet(String action, String param, String value) {
         RestContext.request = new RestRequest();
         RestContext.response = new RestResponse();
@@ -315,5 +324,125 @@ private class ScheduleEditorTest {
         ScheduleEditor.MutationResponse resp = ScheduleEditor.post();
         System.assertEquals(false, resp.success);
         System.assertEquals(409, RestContext.response.statusCode);
+    }
+
+    @IsTest
+    static void saveEntryOnPublishedPlanIsAllowed() {
+        WeeklySchedule__c plan = createCoursePlan('Published Entry Plan');
+        SchedulePublishService.publish(plan.Id);
+
+        Map<String, Object> body = new Map<String, Object>{
+            'action' => 'saveEntry',
+            'weeklyScheduleId' => plan.Id,
+            'title' => 'Live-Eintrag',
+            'entryKind' => 'Aktivität',
+            'type' => 'Workshop',
+            'dayOfWeek' => 'Tuesday',
+            'targetType' => 'Course',
+            'order' => 2
+        };
+        setPost(body);
+        ScheduleEditor.MutationResponse resp = ScheduleEditor.post();
+        System.assertEquals(true, resp.success, 'saveEntry auf veroeffentlichtem Plan: ' + resp.code + ' / ' + resp.message);
+        System.assertNotEquals(null, resp.id, 'neuer Eintrag auf veroeffentlichtem Plan');
+
+        ScheduleEntry__c saved = [
+            SELECT Name, WeeklySchedule__c
+            FROM ScheduleEntry__c
+            WHERE Id = :resp.id
+        ];
+        System.assertEquals('Live-Eintrag', saved.Name);
+        System.assertEquals(plan.Id, saved.WeeklySchedule__c);
+    }
+
+    @IsTest
+    static void updateEntryOnPublishedPlanIsAllowed() {
+        WeeklySchedule__c plan = createCoursePlan('Published Update Plan');
+        ScheduleService.ScheduleEntryRequest er = new ScheduleService.ScheduleEntryRequest();
+        er.weeklyScheduleId = plan.Id;
+        er.title = 'Vorher';
+        er.entryKind = 'Aktivität';
+        er.type = 'Workshop';
+        er.dayOfWeek = 'Monday';
+        er.targetType = 'Course';
+        er.order = 1;
+        ScheduleEntry__c entry = ScheduleService.upsertScheduleEntry(er);
+        SchedulePublishService.publish(plan.Id);
+
+        Map<String, Object> body = new Map<String, Object>{
+            'action' => 'saveEntry',
+            'id' => entry.Id,
+            'title' => 'Nachher'
+        };
+        setPost(body);
+        ScheduleEditor.MutationResponse resp = ScheduleEditor.post();
+        System.assertEquals(true, resp.success, 'updateEntry auf veroeffentlichtem Plan: ' + resp.code + ' / ' + resp.message);
+        System.assertEquals('Nachher', [
+            SELECT Name FROM ScheduleEntry__c WHERE Id = :entry.Id
+        ].Name);
+    }
+
+    @IsTest
+    static void deleteEntryOnPublishedPlanIsAllowed() {
+        WeeklySchedule__c plan = createCoursePlan('Published Delete Entry Plan');
+        ScheduleService.ScheduleEntryRequest er = new ScheduleService.ScheduleEntryRequest();
+        er.weeklyScheduleId = plan.Id;
+        er.title = 'Live loeschen';
+        er.entryKind = 'Aktivität';
+        er.type = 'Workshop';
+        er.dayOfWeek = 'Wednesday';
+        er.targetType = 'Course';
+        er.order = 1;
+        ScheduleEntry__c entry = ScheduleService.upsertScheduleEntry(er);
+        SchedulePublishService.publish(plan.Id);
+
+        Map<String, Object> body = new Map<String, Object>{ 'action' => 'deleteEntry', 'id' => entry.Id };
+        setPost(body);
+        ScheduleEditor.MutationResponse resp = ScheduleEditor.post();
+        System.assertEquals(true, resp.success, 'deleteEntry auf veroeffentlichtem Plan: ' + resp.code + ' / ' + resp.message);
+        System.assertEquals(0, [SELECT COUNT() FROM ScheduleEntry__c WHERE Id = :entry.Id], 'Eintrag geloescht');
+    }
+
+    @IsTest
+    static void updatePublishedPlanContentFieldsIsAllowed() {
+        WeeklySchedule__c plan = createCoursePlan('Alter Name');
+        SchedulePublishService.publish(plan.Id);
+
+        Map<String, Object> body = new Map<String, Object>{
+            'action' => 'savePlan',
+            'id' => plan.Id,
+            'name' => 'Neuer Name',
+            'notes' => 'Hinweis im laufenden Betrieb'
+        };
+        setPost(body);
+        ScheduleEditor.MutationResponse resp = ScheduleEditor.post();
+        System.assertEquals(true, resp.success, 'savePlan auf veroeffentlichtem Plan: ' + resp.code + ' / ' + resp.message);
+        System.assertEquals('Published', resp.status, 'Status bleibt Published');
+
+        WeeklySchedule__c saved = [
+            SELECT Name, Notes__c, Status__c
+            FROM WeeklySchedule__c
+            WHERE Id = :plan.Id
+        ];
+        System.assertEquals('Neuer Name', saved.Name);
+        System.assertEquals('Hinweis im laufenden Betrieb', saved.Notes__c);
+        System.assertEquals('Published', saved.Status__c);
+    }
+
+    @IsTest
+    static void statusChangeOnPublishedPlanIsRejected() {
+        WeeklySchedule__c plan = createCoursePlan('Published Status Plan');
+        SchedulePublishService.publish(plan.Id);
+
+        Map<String, Object> body = new Map<String, Object>{
+            'action' => 'savePlan',
+            'id' => plan.Id,
+            'status' => 'Draft'
+        };
+        setPost(body);
+        ScheduleEditor.MutationResponse resp = ScheduleEditor.post();
+        System.assertEquals(false, resp.success);
+        System.assertEquals(409, RestContext.response.statusCode);
+        System.assertEquals(ScheduleService.CODE_PLAN_NOT_EDITABLE, resp.code);
     }
 }

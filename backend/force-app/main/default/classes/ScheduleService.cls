@@ -116,7 +116,8 @@ global with sharing class ScheduleService {
             List<WeeklySchedule__c> existing = [
                 SELECT Id, Name, ProgramWeek__c, ScopeType__c, ParticipantGroup__c, Participant__c,
                        StartDate__c, EndDate__c, Status__c, PublishedAt__c, PublishedBy__c,
-                       AppliedTemplate__c, TemplateAppliedAt__c, DeviationReason__c, Notes__c
+                       AppliedTemplate__c, TemplateAppliedAt__c, DeviationReason__c, Notes__c,
+                       MergeMode__c
                 FROM WeeklySchedule__c
                 WHERE Id = :request.id
                 LIMIT 1
