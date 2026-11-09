@@ -196,6 +196,7 @@ export default function ScheduleTemplateEditorPage() {
               config={gridConfig}
               entries={entries}
               editable
+              editableContent
               onAddEntry={openNewEntry}
               onEditEntry={openEditEntry}
               onDeleteEntry={(entry) => setDeleteEntryTarget(entry)}
