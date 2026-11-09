@@ -507,8 +507,6 @@ export async function getWorkbookExportData(): Promise<WorkbookExportData> {
       focus: value(node.Focus__c),
       nextStep: value(node.NextStep__c),
       closedAt: value(node.ClosedAt__c),
-      offDay: null,
-      offDayReason: null,
     })),
     tasks: nodes(query?.tasks).map((node) => ({
       id: node.Id,

@@ -243,16 +243,6 @@
          API rejects entries for required fields. Everything the service reads
          or writes is listed below. -->
     <fieldPermissions>
-        <editable>false</editable>
-        <field>Workbook_Day__c.OffDay__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Workbook_Day__c.OffDayReason__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
         <editable>true</editable>
         <field>Workbook_Day__c.CheckInAt__c</field>
         <readable>true</readable>
