@@ -1,5 +1,7 @@
 import { useEffect } from "react";
-import { recordSessionLogin, SESSION_LOGIN_DEDUPE_KEY } from "@/api/audit/sessionAudit";
+import { auditService } from "@/api/audit/auditService";
+
+export const SESSION_LOGIN_DEDUPE_KEY = "organisator.login-audited";
 import { getAuditActor } from "@/api/audit/actorContext";
 
 /**
@@ -15,7 +17,7 @@ export function useSessionLoginAudit(enabled = true): void {
     if (!enabled) return;
     if (sessionStorage.getItem(SESSION_LOGIN_DEDUPE_KEY) !== null) return;
     sessionStorage.setItem(SESSION_LOGIN_DEDUPE_KEY, new Date().toISOString());
-    recordSessionLogin(getAuditActor()).catch((err) => {
+    auditService.recordSessionLogin(getAuditActor()).catch((err) => {
       console.error("Failed to write audit event authentication.created", err);
     });
   }, [enabled]);

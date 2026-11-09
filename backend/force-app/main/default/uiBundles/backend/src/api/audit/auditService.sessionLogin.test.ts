@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { executeGraphQL } from "../graphqlClient";
-import { recordSessionLogin, SESSION_LOGIN_DEDUPE_KEY } from "./sessionAudit";
+import { auditService } from "./auditService";
+import { SESSION_LOGIN_DEDUPE_KEY } from "@/hooks/useSessionLoginAudit";
 import { useSessionLoginAudit } from "@/hooks/useSessionLoginAudit";
 
 vi.mock("../graphqlClient", () => ({
@@ -51,7 +52,7 @@ describe("session login audit", () => {
   });
 
   it("writes one restricted authentication.created event without identity", async () => {
-    const event = await recordSessionLogin();
+    const event = await auditService.recordSessionLogin();
 
     expect(event.eventType).toBe("authentication.created");
     expect(event.domain).toBe("authentication");

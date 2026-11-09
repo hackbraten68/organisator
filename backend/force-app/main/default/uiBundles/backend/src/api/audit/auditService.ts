@@ -23,7 +23,9 @@ import {
   DEFAULT_DOMAIN_SENSITIVITY,
   METADATA_ALLOWLISTS,
 } from '@/types/audit';
+import { EVENT_TYPES } from '@/types/audit';
 import { createAuditEventRecord, getParticipantActivity } from './auditApiService';
+import { SYSTEM_ACTOR } from './actorContext';
 import { enqueueOutboxEntry } from './auditOutbox';
 
 /**
@@ -339,6 +341,29 @@ export const auditService = {
       await enqueueOutboxEntry({ ...input, correlationId, requestId }, err);
       throw new Error(`Audit event recording failed: ${err instanceof Error ? err.message : 'unknown error'}`);
     }
+  },
+
+  /**
+   * Record a session start (one `authentication.created` event per browser session).
+   * Thin wrapper over `record` kept as a named seam so callers don't assemble
+   * the fixed payload. The dedupe key lives in `useSessionLoginAudit`.
+   */
+  async recordSessionLogin(
+    actor: import('@/types/audit').ActorInfo = SYSTEM_ACTOR,
+  ): Promise<AuditEvent> {
+    return this.record({
+      eventType: EVENT_TYPES.AUTHENTICATION_LOGIN,
+      domain: 'authentication',
+      action: 'created',
+      actorType: actor.type,
+      actorId: actor.id,
+      actorDisplayNameSnapshot: actor.displayName,
+      subjectType: 'User',
+      subjectId: actor.id ?? 'SYSTEM',
+      source: 'web',
+      changes: [],
+      metadata: { authMethod: 'session' },
+    });
   },
 
   /**
