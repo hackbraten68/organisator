@@ -125,8 +125,8 @@ export default function WeekView() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <Skeleton className="mb-2 h-8 w-72" />
         <Skeleton className="mb-8 h-4 w-96" />
-        <div className="grid gap-4 md:grid-cols-7">
-          {Array.from({ length: 7 }).map((_, i) => (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-40 w-full" />
           ))}
         </div>
@@ -176,11 +176,11 @@ export default function WeekView() {
           <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-lg border bg-muted/30 p-4">
               <p className="text-xs font-medium text-muted-foreground">Check-ins</p>
-              <p className="mt-1 text-2xl font-bold">{week.checkedInDays}/7</p>
+              <p className="mt-1 text-2xl font-bold">{week.checkedInDays}/{week.days.length}</p>
             </div>
             <div className="rounded-lg border bg-muted/30 p-4">
               <p className="text-xs font-medium text-muted-foreground">Tagesabschlüsse</p>
-              <p className="mt-1 text-2xl font-bold">{week.closedDays}/7</p>
+              <p className="mt-1 text-2xl font-bold">{week.closedDays}/{week.days.length}</p>
             </div>
             <div className="rounded-lg border bg-muted/30 p-4">
               <p className="text-xs font-medium text-muted-foreground">Tasks erledigt</p>
