@@ -1087,6 +1087,13 @@ global with sharing class ScheduleEditor {
         }
 
         if (String.isNotBlank(planId)) {
+            List<WeeklySchedule__c> planRows = [
+                SELECT Status__c FROM WeeklySchedule__c WHERE Id = :planId LIMIT 1
+            ];
+            if (!planRows.isEmpty() && planRows[0].Status__c == 'Published') {
+                throw new ScheduleServiceException(409, ScheduleService.CODE_PLAN_NOT_EDITABLE,
+                    'Das Zeitblock-Raster eines veroeffentlichten Plans kann nicht geaendert werden. Bitte zuerst zurueckziehen.');
+            }
             Integer changed = ScheduleGridService.saveForPlan(planId, gridConfig);
             resp.id = planId;
             resp.message = changed + ' Eintraege aktualisiert.';

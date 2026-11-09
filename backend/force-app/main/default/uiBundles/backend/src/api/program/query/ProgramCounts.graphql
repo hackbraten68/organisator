@@ -21,6 +21,19 @@ query ProgramCounts {
           }
         }
       }
+      learningPaths: Learning_Path__c(first: 1000) {
+        edges {
+          node {
+            Id
+            Program__c @optional {
+              value
+            }
+            Status__c @optional {
+              value
+            }
+          }
+        }
+      }
     }
   }
 }

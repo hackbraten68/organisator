@@ -161,7 +161,8 @@ export default function ScheduleEditorPage() {
     return <div className="p-6 text-destructive">{error ?? "Plan nicht gefunden."}</div>;
   }
 
-  const editable = plan.status === "Draft";
+  const canEditContent = true;
+  const canEditStructure = plan.status === "Draft";
 
   return (
     <div className="space-y-6 p-6 print:space-y-3 print:p-0">
@@ -276,10 +277,9 @@ export default function ScheduleEditorPage() {
         </CardContent>
       </Card>
 
-      {plan.status === "Published" && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 print:hidden">
-          Dieser Plan ist veröffentlicht und schreibgeschützt. Für Änderungen bitte zuerst
-          zurückziehen.
+      {plan.status === "Draft" && (
+        <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-900 print:hidden">
+          Dieser Plan ist ein Entwurf und kann bearbeitet werden. Änderungen werden sofort gespeichert.
         </div>
       )}
 
@@ -288,12 +288,12 @@ export default function ScheduleEditorPage() {
           <CardTitle className="flex flex-wrap items-center justify-between gap-2">
             <span>{viewMode === "grid" ? "Wochenplan-Raster" : "Einträge"}</span>
             <div className="flex gap-2">
-              {editable && viewMode === "grid" && (
+              {canEditStructure && viewMode === "grid" && (
                 <Button size="sm" variant="outline" onClick={() => setSettingsOpen(true)}>
                   <Settings2 className="mr-1 h-4 w-4" /> Zeitblöcke
                 </Button>
               )}
-              {editable && (
+              {canEditContent && (
                 <Button size="sm" onClick={() => openNewEntry()}>
                   <Plus className="h-4 w-4 mr-1" /> Eintrag anlegen
                 </Button>
@@ -306,7 +306,7 @@ export default function ScheduleEditorPage() {
             <ScheduleGrid
               config={gridConfig}
               entries={entries}
-              editable={editable}
+              editable={canEditStructure}
               onAddEntry={openNewEntry}
               onEditEntry={openEditEntry}
               onDeleteEntry={(entry) => setDeleteEntryTarget(entry)}

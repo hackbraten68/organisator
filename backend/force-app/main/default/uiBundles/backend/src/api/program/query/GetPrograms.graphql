@@ -17,6 +17,12 @@ query GetPrograms {
             Status__c @optional {
               value
             }
+            CreatedDate @optional {
+              value
+            }
+            LastModifiedDate @optional {
+              value
+            }
           }
         }
       }

@@ -127,8 +127,35 @@ global with sharing class ScheduleService {
             record = existing[0];
             oldProgramWeekId = record.ProgramWeek__c;
             if (record.Status__c == 'Published') {
-                throw new ScheduleServiceException(409, CODE_PLAN_NOT_EDITABLE,
-                    'Ein veroffentlichter Wochenplan kann nicht bearbeitet werden. Bitte zuerst zurueckziehen.');
+                // Bei veroeffentlichten Plaenen nur strukturelle Felder blockieren.
+                // Content-Felder (Name, Notizen, Abweichungsgrund, MergeMode) bleiben
+                // editierbar, sodass der Plan im laufenden Betrieb gepflegt werden kann,
+                // ohne zuerst zurueckgezogen werden zu muessen.
+                if (String.isNotBlank(request.status)) {
+                    throw new ScheduleServiceException(409, CODE_PLAN_NOT_EDITABLE,
+                        'Der Status eines veroeffentlichten Plans kann nicht direkt geaendert werden. Bitte veroeffentlichen bzw. zurueckziehen.');
+                }
+                if (String.isNotBlank(request.scopeType) && request.scopeType != record.ScopeType__c) {
+                    throw new ScheduleServiceException(409, CODE_PLAN_NOT_EDITABLE,
+                        'Der Geltungsbereich eines veroeffentlichten Plans kann nicht geaendert werden.');
+                }
+                if (request.startDate != null && request.startDate != String.valueOf(record.StartDate__c)) {
+                    throw new ScheduleServiceException(409, CODE_PLAN_NOT_EDITABLE,
+                        'Das Startdatum eines veroeffentlichten Plans kann nicht geaendert werden.');
+                }
+                if (request.endDate != null && String.isNotBlank(request.endDate)
+                        && record.EndDate__c != null && request.endDate != String.valueOf(record.EndDate__c)) {
+                    throw new ScheduleServiceException(409, CODE_PLAN_NOT_EDITABLE,
+                        'Das Enddatum eines veroeffentlichten Plans kann nicht geaendert werden.');
+                }
+                if (request.participantGroupId != null && request.participantGroupId != record.ParticipantGroup__c) {
+                    throw new ScheduleServiceException(409, CODE_PLAN_NOT_EDITABLE,
+                        'Die Teilnehmergruppe eines veroeffentlichten Plans kann nicht geaendert werden.');
+                }
+                if (request.participantId != null && request.participantId != record.Participant__c) {
+                    throw new ScheduleServiceException(409, CODE_PLAN_NOT_EDITABLE,
+                        'Der Teilnehmer eines veroeffentlichten Plans kann nicht geaendert werden.');
+                }
             }
         } else {
             if (String.isBlank(request.programWeekId)) {
@@ -244,8 +271,7 @@ global with sharing class ScheduleService {
                     SELECT Status__c FROM WeeklySchedule__c WHERE Id = :record.WeeklySchedule__c LIMIT 1
                 ];
                 if (!parentPlans.isEmpty() && parentPlans[0].Status__c == 'Published') {
-                    throw new ScheduleServiceException(409, CODE_PLAN_NOT_EDITABLE,
-                        'Eintraege eines veroffentlichten Plans koennen nicht bearbeitet werden. Bitte zuerst zurueckziehen.');
+                    // Eintraege auf veroeffentlichten Plaenen bleiben bearbeitbar.
                 }
             }
         } else {
@@ -259,8 +285,7 @@ global with sharing class ScheduleService {
                     SELECT Status__c FROM WeeklySchedule__c WHERE Id = :request.weeklyScheduleId LIMIT 1
                 ];
                 if (!parentPlans.isEmpty() && parentPlans[0].Status__c == 'Published') {
-                    throw new ScheduleServiceException(409, CODE_PLAN_NOT_EDITABLE,
-                        'Eintraege eines veroffentlichten Plans koennen nicht angelegt werden. Bitte zuerst zurueckziehen.');
+                    // Eintraege auf veroeffentlichten Plaenen koennen angelegt werden.
                 }
             }
             if (String.isNotBlank(request.scheduleTemplateId)) {
@@ -418,8 +443,7 @@ global with sharing class ScheduleService {
                 SELECT Status__c FROM WeeklySchedule__c WHERE Id = :entries[0].WeeklySchedule__c LIMIT 1
             ];
             if (!parentPlans.isEmpty() && parentPlans[0].Status__c == 'Published') {
-                throw new ScheduleServiceException(409, CODE_PLAN_NOT_EDITABLE,
-                    'Eintraege eines veroffentlichten Plans koennen nicht geloescht werden. Bitte zuerst zurueckziehen.');
+                                // Eintraege auf veroeffentlichten Plaenen koennen geloescht werden.
             }
         }
         Savepoint sp = Database.setSavepoint();

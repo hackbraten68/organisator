@@ -67,6 +67,8 @@ export interface ProgramWithCounts extends Program {
   participantCount: number;
   coachCount: number;
   moduleCount: number;
+  learningPathTotal: number;
+  learningPathCompleted: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -81,6 +83,8 @@ interface ProgramNode {
   Description__c?: ScalarValue<string>;
   DurationWeeks__c?: ScalarValue<number>;
   Status__c?: ScalarValue<string>;
+  CreatedDate?: ScalarValue<string>;
+  LastModifiedDate?: ScalarValue<string>;
 }
 
 interface ProgramsResponse {
@@ -121,6 +125,15 @@ interface CountsResponse {
           node?: { Id: string; Program__c?: ScalarValue<string> } | null;
         } | null> | null;
       } | null;
+      learningPaths?: {
+        edges?: Array<{
+          node?: {
+            Id: string;
+            Program__c?: ScalarValue<string>;
+            Status__c?: ScalarValue<string>;
+          } | null;
+        } | null> | null;
+      } | null;
     } | null;
   } | null;
 }
@@ -148,6 +161,8 @@ function mapProgram(node: ProgramNode, coachIds: string[]): Program {
         : undefined,
     status: toProgramStatus(node.Status__c?.value),
     coachIds: [...coachIds],
+    createdAt: node.CreatedDate?.value ?? undefined,
+    updatedAt: node.LastModifiedDate?.value ?? undefined,
   };
 }
 
@@ -208,11 +223,32 @@ export async function listProgramsWithCounts(): Promise<ProgramWithCounts[]> {
     }
   }
 
+  const lpLinks = counts.uiapi?.query?.learningPaths?.edges ?? [];
+  const lpTotalByProgram = new Map<string, number>();
+  const lpCompletedByProgram = new Map<string, number>();
+  for (const edge of lpLinks) {
+    const programId = edge?.node?.Program__c?.value;
+    if (programId) {
+      lpTotalByProgram.set(
+        programId,
+        (lpTotalByProgram.get(programId) ?? 0) + 1,
+      );
+      if (edge?.node?.Status__c?.value === "Completed") {
+        lpCompletedByProgram.set(
+          programId,
+          (lpCompletedByProgram.get(programId) ?? 0) + 1,
+        );
+      }
+    }
+  }
+
   return programsList.map((program) => ({
     ...program,
     participantCount: participantCountByProgram.get(program.id) ?? 0,
     coachCount: program.coachIds.length,
     moduleCount: moduleCountByProgram.get(program.id) ?? 0,
+    learningPathTotal: lpTotalByProgram.get(program.id) ?? 0,
+    learningPathCompleted: lpCompletedByProgram.get(program.id) ?? 0,
   }));
 }
 

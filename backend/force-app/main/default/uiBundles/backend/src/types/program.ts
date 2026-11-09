@@ -37,6 +37,8 @@ export interface Program {
   durationWeeks?: number;
   status: ProgramStatus;
   coachIds: string[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ProgramModule {
