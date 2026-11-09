@@ -315,8 +315,12 @@ test.describe("appointments page (live)", () => {
       return r.json();
     });
 
-    expect(me.coachName).toBe('Ghaith Saidani');
-    expect(me.programName).toBe('IT Pro Advanced');
+    // The concrete values follow the participant's current master data (Mehmet
+    // Kaya is linked to Sam Dillenburg / IT Pro at the time of writing). The
+    // regression this guards is a null caused by a missing share, not a
+    // different name, so assert resolution instead of pinning the values.
+    expect(me.coachName).toBeTruthy();
+    expect(me.programName).toBeTruthy();
   });
 
   test("a participant id in the query string changes nothing", async ({ page }) => {
@@ -349,13 +353,30 @@ test.describe("appointments page (live)", () => {
     );
   });
 
-  test("the dashboard shows the next appointment rather than a placeholder", async ({ page }) => {
+  test("the dashboard renders today's learning loop rather than a placeholder", async ({ page }) => {
     test.skip(!PORTAL_USER || !PORTAL_PASSWORD, 'PORTAL_USER / PORTAL_PASSWORD not set');
 
     await signIn(page, PORTAL_USER!, PORTAL_PASSWORD!);
     await page.goto('/organisatorv1/');
 
-    await expect(page.getByRole('link', { name: 'Alle Termine' })).toBeVisible({ timeout: 30_000 });
+    // The start page is "Heute" (Mein Lernen), not the old appointment card.
+    // Appointments have their own route; this asserts the workbook shell loads
+    // with real participant data instead of the "Daten konnten nicht geladen
+    // werden" placeholder.
+    await expect(page.getByRole('heading', { name: /Guten Tag/ })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('Anwesenheit heute')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Wochenplan ansehen/ })).toBeVisible();
+  });
+
+  test("the week view shows five workdays and no weekend", async ({ page }) => {
+    test.skip(!PORTAL_USER || !PORTAL_PASSWORD, 'PORTAL_USER / PORTAL_PASSWORD not set');
+
+    await signIn(page, PORTAL_USER!, PORTAL_PASSWORD!);
+    await page.goto('/organisatorv1/woche');
+
+    await expect(page.getByText('Wochenrückblick', { exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('link', { name: /Heute ansehen/ })).toHaveCount(5);
+    await expect(page.getByText(/\b(Sa|So)\./)).toHaveCount(0);
   });
 
   test("the navigation offers the appointments route", async ({ page }) => {
