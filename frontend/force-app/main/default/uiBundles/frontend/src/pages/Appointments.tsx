@@ -117,9 +117,14 @@ export default function AppointmentsPage() {
 
 	if (loading) {
 		return (
-			<main className="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8">
+			<main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
 				<title>Meine Termine | Organisator</title>
-				<h1 className="mb-6 text-2xl font-bold">Meine Termine</h1>
+				<header className="mb-8">
+					<h1 className="text-3xl font-bold tracking-tight">Meine Termine</h1>
+					<p className="mt-1 text-sm text-muted-foreground">
+						Deine freigegebenen Termine im Überblick.
+					</p>
+				</header>
 				<Card>
 					<CardHeader>
 						<CardTitle>Deine Termine</CardTitle>
@@ -137,9 +142,14 @@ export default function AppointmentsPage() {
 	if (error) {
 		const notProvisioned = error.code === "NO_PARTICIPANT" || error.code === "NO_CONTACT_IDENTITY";
 		return (
-			<main className="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8">
+			<main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
 				<title>Meine Termine | Organisator</title>
-				<h1 className="mb-6 text-2xl font-bold">Meine Termine</h1>
+				<header className="mb-8">
+					<h1 className="text-3xl font-bold tracking-tight">Meine Termine</h1>
+					<p className="mt-1 text-sm text-muted-foreground">
+						Deine freigegebenen Termine im Überblick.
+					</p>
+				</header>
 				<StatusAlert variant="error">
 					<span className="font-medium">
 						{notProvisioned ? "Noch kein Portalzugang" : "Daten konnten nicht geladen werden"}
@@ -153,17 +163,26 @@ export default function AppointmentsPage() {
 	}
 
 	return (
-		<main className="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8">
+		<main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
 			<title>Meine Termine | Organisator</title>
-			<h1 className="mb-6 text-2xl font-bold">Meine Termine</h1>
+			<header className="mb-8">
+				<h1 className="text-3xl font-bold tracking-tight">Meine Termine</h1>
+				<p className="mt-1 text-sm text-muted-foreground">
+					Deine freigegebenen Termine im Überblick.
+				</p>
+			</header>
 
 			{items && items.length === 0 ? (
-				<StatusAlert variant="info">
-					<span className="font-medium">Noch keine Termine hinterlegt</span>{" "}
-					Sobald deine Kursleitung einen Termin anlegt, findest du ihn hier.
-				</StatusAlert>
+				<Card>
+					<CardContent className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+						<p className="font-medium">Noch keine Termine hinterlegt</p>
+						<p className="text-sm text-muted-foreground">
+							Sobald deine Kursleitung einen Termin anlegt, findest du ihn hier.
+						</p>
+					</CardContent>
+				</Card>
 			) : (
-				<div className="space-y-4">
+				<div className="space-y-6">
 					{items?.map((appointment) => (
 						<Card key={appointment.appointmentId} data-testid="appointment-row">
 							<CardHeader>

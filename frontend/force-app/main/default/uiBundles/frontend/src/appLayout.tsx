@@ -44,6 +44,16 @@ export default function AppLayout() {
 
 	const navigationRoutes = getNavigationRoutes();
 
+	const routeLabels: Record<string, string> = {
+		"/": "Heute",
+		"/woche": "Woche",
+		"/learning-path": "Lernpfad",
+		"/termine": "Meine Termine",
+		"/wochenplan": "Mein Wochenplan",
+		"/mein-konto": "Mein Konto",
+	};
+	const currentLabel = routeLabels[location.pathname] ?? "";
+
 	// The guest menu offers only "Log In" and no participant routes. Hiding the
 	// navigation behind a closed disclosure is not enough on its own: e2e
 	// asserts an anonymous visitor finds no trace of "Mein Konto".
@@ -136,6 +146,12 @@ export default function AppLayout() {
 				<PortalSidebar items={navigationRoutes} />
 
 				<div id="main-content" ref={outletWrapperRef} className="min-w-0 flex-1">
+					<div className="mb-4 rounded-md bg-red-600 px-4 py-2 text-white font-bold">DEBUG: frontend bundle loaded (hubSandbox)</div>
+					{isAuthenticated && currentLabel && (
+						<nav aria-label="Breadcrumb" className="mb-4 text-sm text-muted-foreground">
+							<span className="font-medium text-foreground">{currentLabel}</span>
+						</nav>
+					)}
 					<Outlet />
 				</div>
 			</div>
