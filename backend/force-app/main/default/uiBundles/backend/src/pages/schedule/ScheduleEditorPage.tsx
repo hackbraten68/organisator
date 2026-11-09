@@ -307,6 +307,7 @@ export default function ScheduleEditorPage() {
               config={gridConfig}
               entries={entries}
               editable={canEditStructure}
+              editableContent={canEditContent}
               onAddEntry={openNewEntry}
               onEditEntry={openEditEntry}
               onDeleteEntry={(entry) => setDeleteEntryTarget(entry)}

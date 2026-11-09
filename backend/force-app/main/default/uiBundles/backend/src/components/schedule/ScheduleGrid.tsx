@@ -27,25 +27,25 @@ interface Props {
   entries: ScheduleEntry[];
   days?: readonly string[];
   editable?: boolean;
+  editableContent?: boolean;
   onAddEntry?: (day: string, slot: GridSlot) => void;
   onEditEntry?: (entry: ScheduleEntry) => void;
   onDeleteEntry?: (entry: ScheduleEntry) => void;
   onEditSlot?: (slot: GridSlot) => void;
   onManageSlots?: () => void;
-  showFormatColumn?: boolean;
   className?: string;
 }
 
 function EntryCard({
   entry,
   slot,
-  editable,
+  editableContent,
   onEdit,
   onDelete,
 }: {
   entry: ScheduleEntry;
   slot?: GridSlot;
-  editable: boolean;
+  editableContent: boolean;
   onEdit?: (entry: ScheduleEntry) => void;
   onDelete?: (entry: ScheduleEntry) => void;
 }) {
@@ -112,7 +112,7 @@ function EntryCard({
         </div>
       </div>
 
-      {editable && (
+      {editableContent && (
         <div className="absolute right-1.5 top-1.5 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 print:hidden">
           {onEdit && (
             <Button
@@ -149,12 +149,12 @@ export default function ScheduleGrid({
   entries,
   days = GRID_DAYS,
   editable = false,
+  editableContent = false,
   onAddEntry,
   onEditEntry,
   onDeleteEntry,
   onEditSlot,
   onManageSlots,
-  showFormatColumn = true,
   className,
 }: Props) {
   const { bySlotAndDay, unmatched } = groupEntriesForGrid(entries, config, days);
@@ -182,8 +182,6 @@ export default function ScheduleGrid({
             {days.map((day) => (
               <col key={day} />
             ))}
-
-            {showFormatColumn && <col className="w-[168px]" />}
           </colgroup>
           <TableHeader className="print:table-header-group">
             <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
@@ -201,11 +199,6 @@ export default function ScheduleGrid({
                   {GRID_DAY_LABELS[day] ?? day}
                 </TableHead>
               ))}
-              {showFormatColumn && (
-                <TableHead className="border-r border-border px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground last:border-r-0">
-                  Format / AZAV-Zuordnung
-                </TableHead>
-              )}
             </TableRow>
           </TableHeader>
 
@@ -251,7 +244,7 @@ export default function ScheduleGrid({
                       className="border-r border-border px-3 py-3 align-top whitespace-normal break-words"
                     >
                       {cellEntries.length === 0 ? (
-                        editable && onAddEntry ? (
+                        editableContent && onAddEntry ? (
                           <Button
                             type="button"
                             size="sm"
@@ -272,12 +265,12 @@ export default function ScheduleGrid({
                               key={entry.id}
                               entry={entry}
                               slot={slot}
-                              editable={editable}
+                              editableContent={editableContent}
                               onEdit={onEditEntry}
                               onDelete={onDeleteEntry}
                             />
                           ))}
-                          {editable && onAddEntry && cellEntries.length < 3 && (
+                          {editableContent && onAddEntry && cellEntries.length < 3 && (
                             <Button
                               type="button"
                               size="sm"
@@ -293,18 +286,6 @@ export default function ScheduleGrid({
                       )}
                     </TableCell>
                   ))}
-
-                  {showFormatColumn && (
-                    <TableCell className="px-3 py-3 align-top whitespace-normal break-words">
-                      <p className="text-xs font-semibold text-foreground">{slot.format || '–'}</p>
-                      {slot.azav && (
-                        <p className="mt-1 text-[11px] text-muted-foreground">{slot.azav}</p>
-                      )}
-                      {slot.units && (
-                        <p className="mt-1 text-[11px] text-muted-foreground">{slot.units}</p>
-                      )}
-                    </TableCell>
-                  )}
                 </TableRow>
               );
             })}
@@ -329,8 +310,9 @@ export default function ScheduleGrid({
                   {entry.startTime ? ` · ${formatTimeRange(entry.startTime, entry.endTime)}` : ''}
                 </p>
                 <EntryCard
+                  key={entry.id}
                   entry={entry}
-                  editable={editable}
+                  editableContent={editableContent}
                   onEdit={onEditEntry}
                   onDelete={onDeleteEntry}
                 />

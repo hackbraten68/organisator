@@ -110,6 +110,7 @@ export default function ProgramDetailPage() {
               <TabsTrigger value="weeks">Kurswochen</TabsTrigger>
               <TabsTrigger value="participants">Participants</TabsTrigger>
               <TabsTrigger value="progress">Progress</TabsTrigger>
+              <TabsTrigger value="progress">Progress</TabsTrigger>
               <TabsTrigger value="coaches">Coaches</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
