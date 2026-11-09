@@ -469,6 +469,32 @@ Stelle für eine Id-Substitution, der klassische Injektions-Negativtest existier
 Sonde über `/services/data/...` wäre wertlos — Experience-Cloud-Sessions werden dort mit
 `INVALID_SESSION_ID` abgewiesen, die Assertion wäre bedingungslos grün.
 
+### Live-Smoke „Mein Lernen" (Stand 2026-11-09)
+
+Lauf gegen die Live-Site mit dem Testuser `mehmet.kaya.portal@codingschule.de.devhub` und
+dem Bundle `index-DVuuNNIb.js`, das identisch mit dem lokalen `dist/` war:
+
+| Fall | Status |
+|---|---|
+| Live liefert das im Working Tree gebaute Bundle | ✅ grün |
+| Login, eigener Teilnehmer, Logout-Landung | ✅ grün |
+| `/heute` rendert die Lernschleife (Check-in, Wochenplan-Link) statt Platzhalter | ✅ grün |
+| `/woche` rendert fünf Werktage und kein Wochenende | ✅ grün |
+| Termine, Coach-/Programmnamen, Injektions-Negativtest | ✅ grün |
+| Zweiter Portal-User | ⏭ ausgesetzt (keine Credentials) |
+
+Ergebnis: **13 passed, 1 skipped**. Zwei Erwartungen waren veraltet und wurden korrigiert:
+
+- Der frühere Fall „Dashboard zeigt den nächsten Termin" ist ersetzt. Die Startseite ist
+  jetzt „Heute" (Mein Lernen); Termine liegen auf `/termine`. Der Test prüft nun, dass die
+  Lernschleife mit echten Teilnehmerdaten lädt.
+- Der `/me`-Test prüft die Namensauflösung statt an aktuelle Stammdaten gebundener Werte.
+  Mehmet Kaya ist derzeit Sam Dillenburg / IT Pro zugeordnet; die ursprüngliche Erwartung
+  (Ghaith Saidani / IT Pro Advanced) war reine Datenabweichung, kein Sharing-Fehler.
+
+Zusätzlich korrigiert: Die Wochenansicht zeigte 5 Tageskarten, rechnete aber mit `/7` und lud
+7 Skeletons. Nenner und Ladezustand folgen jetzt der gelieferten Werktagswoche.
+
 ### Widerlegt: `AuthSession.IsCurrent == false` beweist kein Portal-Logout
 
 Dieser Abschnitt stand hier bis 2026-10-02 und war falsch:
