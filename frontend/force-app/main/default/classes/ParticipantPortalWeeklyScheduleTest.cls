@@ -130,6 +130,43 @@ public class ParticipantPortalWeeklyScheduleTest {
     }
 
     @IsTest
+    static void buildResponse_reflectsLiveContentEditsOnPublishedPlan() {
+        Id programId = [SELECT Id FROM Program__c LIMIT 1].Id;
+        Id programWeekId = [SELECT Id FROM ProgramWeek__c LIMIT 1].Id;
+        Participant__c p = createParticipant(programId, 'live@example.invalid');
+
+        Date weekStart = Date.newInstance(2027, 3, 1);
+        WeeklySchedule__c course = createPlan('Course', programWeekId, weekStart, 'Course', null, null, 'Overlay');
+        ScheduleEntry__c entry = createEntry(course.Id, 'Vorher', 'Monday', 1, 'Course', null, null);
+
+        ParticipantPortalWeeklySchedule.WeeklyScheduleResponse before =
+            ParticipantPortalWeeklySchedule.buildResponse(p.Id, programId, new Set<Id>(), weekStart);
+        System.assertEquals(1, before.entries.size(), 'initial entry');
+        System.assertEquals('Vorher', before.entries[0].title, 'initial title');
+
+        // Simulate an edit made through the backoffice on the published plan.
+        entry.Name = 'Nachher';
+        entry.Description__c = 'Live aktualisiert';
+        entry.StartTime__c = Time.newInstance(9, 0, 0, 0);
+        entry.EndTime__c = Time.newInstance(10, 30, 0, 0);
+        update entry;
+        createEntry(course.Id, 'Neu hinzugefuegt', 'Tuesday', 1, 'Course', null, null);
+
+        ParticipantPortalWeeklySchedule.WeeklyScheduleResponse after =
+            ParticipantPortalWeeklySchedule.buildResponse(p.Id, programId, new Set<Id>(), weekStart);
+
+        System.assertEquals(2, after.entries.size(), 'new entry is visible without re-publish');
+        Map<String, ParticipantPortalWeeklySchedule.EntryView> byTitle =
+            new Map<String, ParticipantPortalWeeklySchedule.EntryView>();
+        for (ParticipantPortalWeeklySchedule.EntryView view : after.entries) {
+            byTitle.put(view.title, view);
+        }
+        System.assertEquals('Live aktualisiert', byTitle.get('Nachher').description, 'edited content visible');
+        System.assert(byTitle.get('Nachher').startTime.startsWith('09:00'), 'edited time visible');
+        System.assert(byTitle.containsKey('Neu hinzugefuegt'), 'added entry visible');
+    }
+
+    @IsTest
     static void buildResponse_duplicateIndividualFails() {
         Id programId = [SELECT Id FROM Program__c LIMIT 1].Id;
         Id programWeekId = [SELECT Id FROM ProgramWeek__c LIMIT 1].Id;
