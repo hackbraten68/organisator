@@ -23,6 +23,7 @@ import ProgramOverviewTab from "@/components/programs/ProgramOverviewTab";
 import ProgramModulesTab from "@/components/programs/ProgramModulesTab";
 import ProgramWeeksTab from "@/components/programs/ProgramWeeksTab";
 import ProgramParticipantsTab from "@/components/programs/ProgramParticipantsTab";
+import ProgramProgressTab from "@/components/programs/ProgramProgressTab";
 import ProgramCoachesTab from "@/components/programs/ProgramCoachesTab";
 import ProgramSettingsTab from "@/components/programs/ProgramSettingsTab";
 import { getProgram } from "@/api/program/programService";
@@ -108,6 +109,7 @@ export default function ProgramDetailPage() {
               <TabsTrigger value="modules">Modules</TabsTrigger>
               <TabsTrigger value="weeks">Kurswochen</TabsTrigger>
               <TabsTrigger value="participants">Participants</TabsTrigger>
+              <TabsTrigger value="progress">Progress</TabsTrigger>
               <TabsTrigger value="coaches">Coaches</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
@@ -127,6 +129,10 @@ export default function ProgramDetailPage() {
             </TabsContent>
             <TabsContent value="participants">
               <ProgramParticipantsTab programId={program.id} />
+            </TabsContent>
+
+            <TabsContent value="progress">
+              <ProgramProgressTab programId={program.id} />
             </TabsContent>
             <TabsContent value="coaches">
               <ProgramCoachesTab programId={program.id} onChanged={refresh} />

@@ -18,7 +18,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,7 +53,6 @@ export default function ProgramsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
   const [sort, setSort] = useState<SortKey>("name");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ProgramWithCounts | null>(null);
 
@@ -88,41 +86,6 @@ export default function ProgramsPage() {
     });
     return sorted;
   }, [data, search, statusFilter, sort]);
-
-  const toggleSelect = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const bulkArchive = async () => {
-    await Promise.all(
-      [...selected].map((id) =>
-        updateProgram(id, {
-          name: programs.find((p) => p.id === id)!.name,
-          status: "Archived",
-        }),
-      ),
-    );
-    setSelected(new Set());
-    setReload((v) => v + 1);
-  };
-
-  const bulkActivate = async () => {
-    await Promise.all(
-      [...selected].map((id) =>
-        updateProgram(id, {
-          name: programs.find((p) => p.id === id)!.name,
-          status: "Active",
-        }),
-      ),
-    );
-    setSelected(new Set());
-    setReload((v) => v + 1);
-  };
 
   const archiveOne = async (program: ProgramWithCounts) => {
     await updateProgram(program.id, { name: program.name, status: "Archived" });
@@ -194,27 +157,6 @@ export default function ProgramsPage() {
         </div>
       </div>
 
-      {selected.size > 0 && (
-        <div className="mb-4 flex items-center gap-3 rounded-md border bg-muted/40 p-3">
-          <span className="text-sm font-medium">
-            {selected.size} selected
-          </span>
-          <Button size="sm" variant="outline" onClick={bulkActivate}>
-            <RotateCcw className="size-4" /> Activate
-          </Button>
-          <Button size="sm" variant="outline" onClick={bulkArchive}>
-            <Archive className="size-4" /> Archive
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setSelected(new Set())}
-          >
-            Clear
-          </Button>
-        </div>
-      )}
-
       {loading && <ProgramsSkeleton />}
 
       {error && (
@@ -249,13 +191,11 @@ export default function ProgramsPage() {
       )}
 
       {!loading && !error && programs.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="flex flex-col gap-4">
           {programs.map((program) => (
             <ProgramCard
               key={program.id}
               program={program}
-              selected={selected.has(program.id)}
-              onSelect={() => toggleSelect(program.id)}
               onOpen={() => navigate(`/programs/${program.id}`)}
               onEdit={() => setEditing(program)}
               onArchive={() => archiveOne(program)}
@@ -291,55 +231,39 @@ export default function ProgramsPage() {
 
 function ProgramCard({
   program,
-  selected,
-  onSelect,
   onOpen,
   onEdit,
   onArchive,
   onActivate,
 }: {
   program: ProgramWithCounts;
-  selected: boolean;
-  onSelect: () => void;
   onOpen: () => void;
   onEdit: () => void;
   onArchive: () => void;
   onActivate: () => void;
 }) {
-  const progress =
-    program.learningPathTotal > 0
-      ? Math.round(
-          (program.learningPathCompleted / program.learningPathTotal) * 100,
-        )
-      : 0;
   return (
     <Card
-      className={`transition-colors hover:border-primary/50 ${
-        selected ? "border-primary" : ""
-      }`}
+      className="cursor-pointer transition-colors hover:border-primary/50"
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
     >
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-start gap-2">
-            <Checkbox
-              checked={selected}
-              onCheckedChange={onSelect}
-              aria-label={`Select ${program.name}`}
-              className="mt-1"
-            />
-            <div>
-              <CardTitle
-                className="text-lg cursor-pointer hover:underline"
-                onClick={onOpen}
-              >
-                {program.name}
-              </CardTitle>
-              <CardDescription>
-                {program.description || "No description yet."}
-              </CardDescription>
-            </div>
+          <div>
+            <CardTitle className="text-lg">{program.name}</CardTitle>
+            <CardDescription>
+              {program.description || "No description yet."}
+            </CardDescription>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
             <ProgramStatusBadge status={program.status} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -391,31 +315,6 @@ function ProgramCard({
             </dd>
           </div>
         </dl>
-        {program.learningPathTotal > 0 && (
-          <div className="mt-3">
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-              <span>Learning path progress</span>
-              <span>
-                {program.learningPathCompleted}/{program.learningPathTotal} (
-                {progress}%)
-              </span>
-            </div>
-            <div className="h-2 w-full rounded bg-muted overflow-hidden">
-              <div
-                className="h-full bg-primary"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-        )}
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          {program.createdAt && (
-            <span>Created {new Date(program.createdAt).toLocaleDateString()}</span>
-          )}
-          {program.updatedAt && (
-            <span>Updated {new Date(program.updatedAt).toLocaleDateString()}</span>
-          )}
-        </div>
       </CardContent>
     </Card>
   );
